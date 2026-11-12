@@ -70,6 +70,24 @@
 .sb .mid{background:#0b0f1a;color:#fff;padding:6px 18px;text-align:center;font:700 13px Inter,sans-serif;letter-spacing:.06em;line-height:1.3;height:100%;display:flex;flex-direction:column;justify-content:center}
 .sb .poss{font-size:14px;opacity:.9}
 .vbox{background:#000;aspect-ratio:16/9;position:relative;overflow:hidden}
+/* full screen stage: video + a slim bar with the play and prev/next (film.js enterFS) */
+.vstage{position:relative;background:#000}
+.fs-bar{display:none}
+.vstage:fullscreen,.vstage.fs-fake{display:flex;flex-direction:column;background:#000}
+.vstage:-webkit-full-screen{display:flex;flex-direction:column;background:#000}
+.vstage:fullscreen .vbox,.vstage.fs-fake .vbox{flex:1;aspect-ratio:auto;min-height:0}
+.vstage:-webkit-full-screen .vbox{flex:1;aspect-ratio:auto;min-height:0}
+.vstage:fullscreen .fs-bar,.vstage.fs-fake .fs-bar{display:flex}
+.vstage:-webkit-full-screen .fs-bar{display:flex}
+.fs-bar{align-items:center;gap:6px;padding:6px 10px;background:#0b0f19;color:#e8ecf4;font:600 13px Inter,sans-serif}
+.fs-bar .fs-lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-bar .cbtn{padding:6px 12px}
+.vstage.fs-fake{position:fixed;inset:0;z-index:1000;width:100vw;height:100vh;height:100dvh}
+@media (orientation:portrait){
+  /* phone held upright: turn the stage sideways so the video plays horizontally */
+  .vstage.fs-fake{inset:auto;top:0;left:100vw;width:100vh;width:100dvh;height:100vw;transform:rotate(90deg);transform-origin:top left}
+}
+body.fs-lock{overflow:hidden}
 .vbox iframe,.vbox video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
 .novid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:20px;color:#9aa3b5;background:radial-gradient(ellipse at center,#16301f 0%,#0b0f1a 75%)}
 .novid .big{font-size:42px}

@@ -154,12 +154,19 @@ function renderAuthBox(){
   const u = TBC.user;
   if (!u) { box.innerHTML = `<button class="obtn sm" id="abIn">Sign in</button>`; box.querySelector("#abIn").onclick = TBC.signIn; return; }
   const chip = {admin: "Admin", editor: "Editor", pending: "Access requested", viewer: ""}[TBC.role];
+  // On phones (CSS, max-width 600px) the buttons fold into a menu behind the round initial button.
   box.innerHTML = `
-    <span class="ab-name" title="${esc(u.email)}">${esc(u.name.split(" ")[0])}</span>
-    ${chip ? `<span class="ab-chip ab-${TBC.role}">${chip}</span>` : ""}
-    ${TBC.role === "viewer" ? `<button class="obtn sm" id="abReq">Request edit access</button>` : ""}
-    ${TBC.role === "admin" ? `<button class="obtn sm" id="abAdmin">Manage editors</button>` : ""}
-    <button class="obtn sm" id="abOut">Sign out</button>`;
+    <button class="ab-toggle" id="abToggle" aria-label="Account menu" aria-expanded="false">${esc((u.name.trim()[0] || "?").toUpperCase())}</button>
+    <div class="ab-menu">
+      <span class="ab-name" title="${esc(u.email)}">${esc(u.name.split(" ")[0])}</span>
+      ${chip ? `<span class="ab-chip ab-${TBC.role}">${chip}</span>` : ""}
+      ${TBC.role === "viewer" ? `<button class="obtn sm" id="abReq">Request edit access</button>` : ""}
+      ${TBC.role === "admin" ? `<button class="obtn sm" id="abAdmin">Manage editors</button>` : ""}
+      <button class="obtn sm" id="abOut">Sign out</button>
+    </div>`;
+  const tg = box.querySelector("#abToggle");
+  tg.onclick = e => { e.stopPropagation(); const open = box.classList.toggle("open"); tg.setAttribute("aria-expanded", open); };
+  box.querySelector(".ab-menu").addEventListener("click", e => { if (e.target.closest("button")) box.classList.remove("open"); });
   box.querySelector("#abOut").onclick = TBC.signOut;
   const rq = box.querySelector("#abReq"); if (rq) rq.onclick = async () => {
     try { await TBC.requestAccess(); alert("Request sent. Jack will see it and can approve you."); } catch(e){ alert("Couldn't send the request: " + e.message); }
@@ -167,6 +174,8 @@ function renderAuthBox(){
   const ad = box.querySelector("#abAdmin"); if (ad) ad.onclick = openAdmin;
 }
 renderAuthBox();
+TBC.renderAuthBox = renderAuthBox;
+document.addEventListener("click", e => { const b = document.getElementById("authBox"); if (b && !b.contains(e.target)) b.classList.remove("open"); });
 
 async function openAdmin(){
   let ov = document.getElementById("adminOv");

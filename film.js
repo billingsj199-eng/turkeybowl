@@ -218,6 +218,7 @@ function filteredPlays(){
 }
 
 function renderViewer(){
+  document.body.classList.remove("fs-lock");
   const root = document.getElementById("pg-film");
   const list = filteredPlays();
   if (FS.idx >= list.length) FS.idx = Math.max(0, list.length - 1);
@@ -253,11 +254,16 @@ function renderViewer(){
       <h1><span class="gold">${list.length} play${list.length===1?"":"s"}</span> matching your criteria</h1>
       <div class="chiprow">${chips.map(([t,fn],i) => `<span class="fchip">${esc(t)}${fn ? `<button data-i="${i}" aria-label="Remove">✕</button>` : ""}</span>`).join("")}</div>
       ${g ? scoreboard(g, cur) : ""}
-      <div class="vbox" id="vbox"></div>
+      <div class="vstage" id="vstage">
+        <div class="vbox" id="vbox"></div>
+        <div class="fs-bar"><span class="fs-lbl" id="fsLbl"></span>
+          <button class="cbtn" id="fsPrev" aria-label="Previous play">⏮</button><button class="cbtn" id="fsNext" aria-label="Next play">⏭</button><button class="cbtn" id="fsExit" aria-label="Exit full screen">✕</button></div>
+      </div>
       <div class="vctl">
         <button class="cbtn" id="prev" ${FS.idx<=0?"disabled":""}>⏮ Prev</button>
         <button class="cbtn" id="replay" ${cur?"":"disabled"}>↻ Replay</button>
         <button class="cbtn" id="next" ${FS.idx>=list.length-1?"disabled":""}>Next ⏭</button>
+        <button class="cbtn" id="fsBtn" ${cur?"":"disabled"}>⛶ Full screen</button>
         <label class="tog" style="margin-left:8px"><input type="checkbox" id="vAuto" ${FS.autoplay?"checked":""}><span class="sw"></span>Autoplay next play</label>
         ${cur ? `<span style="flex:1"></span><button class="cbtn" id="editPlay">✎ Edit</button>` : ""}
       </div>
@@ -313,9 +319,58 @@ function renderViewer(){
   const ep = root.querySelector("#editPlay"); if (ep) ep.onclick = () => playForm(cur);
   const eg = root.querySelector("#vEditGame"); if (eg) eg.onclick = () => gameForm(g);
   const pp = root.querySelector("#vPart"); if (pp) pp.onclick = () => partForm(g);
+  root.querySelector("#fsBtn").onclick = enterFS;
+  root.querySelector("#fsExit").onclick = exitFS;
+  root.querySelector("#fsPrev").onclick = () => goPlay(FS.idx - 1);
+  root.querySelector("#fsNext").onclick = () => goPlay(FS.idx + 1);
 
+  setFsLabel(list, cur);
   playVideo(root.querySelector("#vbox"), g, cur, list.length);
 }
+
+// ---------- full screen ----------
+// The whole stage (video + slim play bar) goes full screen, so highlights keep auto-playing play
+// after play without dropping out. Real full screen + landscape lock where the browser allows it
+// (Android, desktop); iPhone Safari can't full-screen a page element, so there the stage covers the
+// screen and turns sideways instead. While full screen, moving between plays only swaps the video;
+// the rest of the page catches up when you exit.
+const isFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement || document.querySelector(".vstage.fs-fake"));
+function setFsLabel(list, cur){
+  const el = document.getElementById("fsLbl"); if (!el) return;
+  el.textContent = cur ? `${FS.idx + 1}/${list.length} · ${descOf(cur)}` : "";
+}
+function goPlay(i){
+  const list = filteredPlays();
+  if (i < 0 || i >= list.length) return;
+  FS.idx = i;
+  if (!isFS()) { renderViewer(); return; }
+  const cur = list[i];
+  setFsLabel(list, cur);
+  playVideo(document.getElementById("vbox"), gameById(cur.game), cur, list.length);
+}
+function enterFS(){
+  const st = document.getElementById("vstage"); if (!st) return;
+  const req = st.requestFullscreen || st.webkitRequestFullscreen;
+  if (req && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+    Promise.resolve(req.call(st, {navigationUI: "hide"})).then(() => {
+      try { screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape").catch(() => {}); } catch(e){}
+    }).catch(() => fakeFS(st, true));
+  } else fakeFS(st, true);
+}
+function fakeFS(st, on){ st.classList.toggle("fs-fake", on); document.body.classList.toggle("fs-lock", on); }
+function exitFS(){
+  const st = document.getElementById("vstage");
+  if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else if (st && st.classList.contains("fs-fake")) { fakeFS(st, false); renderViewer(); }
+  try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch(e){}
+}
+["fullscreenchange", "webkitfullscreenchange"].forEach(ev => document.addEventListener(ev, () => {
+  if (!(document.fullscreenElement || document.webkitFullscreenElement)) {
+    try { screen.orientation.unlock(); } catch(e){}
+    if (!document.getElementById("pg-film").hidden && document.getElementById("vstage")) renderViewer();   // sync the page to the play you ended on
+  }
+}));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && document.querySelector(".vstage.fs-fake")) exitFS(); });
 
 function scoreboard(g, cur){
   const H = team(g.season, g.home), A = team(g.season, g.away);
@@ -331,7 +386,7 @@ function scoreboard(g, cur){
 // ---------- video ----------
 let vidTimer = null;
 function stopVideo(){ clearTimeout(vidTimer); vidTimer = null; }
-function autoNext(total){ if (FS.autoplay && FS.idx < total - 1) { FS.idx++; renderViewer(); } }
+function autoNext(total){ if (FS.autoplay && FS.idx < total - 1) goPlay(FS.idx + 1); }
 function playVideo(box, g, p, total){
   stopVideo();
   if (!p) { box.innerHTML = `<div class="novid"><div class="big">🎬</div><b>No play selected</b></div>`; return; }

@@ -207,7 +207,23 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .ab-name{font:600 13px Inter,sans-serif;color:#c4cbd8}
   .ab-chip{font:700 10px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:#232c40;color:#c4cbd8}
   .ab-admin,.ab-editor{background:#2a2210;color:#f1d39a}
+  .ab-menu{display:flex;align-items:center;gap:8px}
+  .ab-toggle{display:none}
   @media (max-width:700px){ .ab-name,.ab-chip{display:none} }
+  /* phones: account buttons fold into one menu button; nav links tighten; long names shorten */
+  .nm-s{display:none}
+  @media (max-width:600px){
+    .nm-f{display:none} .nm-s{display:inline}
+    .topnav .topnav-in{position:relative;padding:0 10px;gap:0}
+    .topnav .brand-t{display:none} .topnav .brand{margin-right:6px}
+    .topnav .navlink{padding:16px 7px;font-size:11.5px;letter-spacing:.04em;white-space:nowrap}
+    .ab-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--gold);background:#1b2336;color:var(--gold);font:700 13px Inter,sans-serif;cursor:pointer}
+    .ab-menu{display:none;position:absolute;right:10px;top:50px;flex-direction:column;align-items:stretch;gap:6px;background:#151c2c;border:1px solid #2a3449;border-radius:10px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:30;min-width:190px}
+    .authbox.open .ab-menu{display:flex}
+    .ab-menu .ab-name,.ab-menu .ab-chip{display:block;text-align:center}
+    .ab-menu .obtn{width:100%;justify-content:center}
+    #abIn{padding:6px 10px}
+  }
   .adminpc{max-width:560px}
   .adm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:9px 12px;margin-bottom:6px}
   .adm-row small{display:block;color:var(--muted);font-size:12px}
@@ -217,7 +233,7 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
 <body>
 <nav class="topnav">
   <div class="topnav-in">
-    <span class="brand">🦃 Turkey Bowl</span>
+    <span class="brand">🦃 <span class="brand-t">Turkey Bowl</span></span>
     <a href="#board" data-page="board" class="navlink">Draft Board</a>
     <a href="#film" data-page="film" class="navlink">Film Room</a>
     <a href="#history" data-page="history" class="navlink">History</a>
@@ -400,6 +416,8 @@ const tlabel = k => k === "NA" ? "—" : k;
 const split = n => { const p = n.trim().split(/\s+/); return {first:p.slice(0,-1).join(" "), last:p[p.length-1]}; };
 const teamLabel = p => p.team || (p.out ? "Not playing 2026" : "Undrafted");
 const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+// Names on phones: "Jeremy Christiansen" -> "J. Christiansen" (CSS swaps .nm-f / .nm-s at 600px).
+const nmHTML = p => p.first ? `<span class="nm-f">${p.name}</span><span class="nm-s">${p.first[0]}. ${p.last}</span>` : p.name;
 
 const players = PLAYERS.map(p => ({...p, ...split(p.name), tier: norm(p.tier26 || p.tier25), prev: norm(p.tier25)}))
   .sort((a,b) => TI(a.tier) - TI(b.tier) || a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
@@ -722,7 +740,7 @@ function renderDraft(board){
 
 function renderTable(board, list){
   const t = document.createElement("table");
-  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th>Player</th><th>Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
+  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th>Player</th><th class="hide-sm">Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
   const tb = document.createElement("tbody");
   PPG_POOL = ppgPool();
   const TB = {QB:"Quarterbacks", S:"Elite", A:"Tier A", B:"Tier B", C:"Tier C", D:"Tier D", NA:"Unranked"};
@@ -738,9 +756,9 @@ function renderTable(board, list){
     const tr = document.createElement("tr"); tr.className = "prow";
     tr.style.setProperty("--tc", `var(--t-${p.tier})`);
     tr.innerHTML = `<td class="num">${p.rank}</td>
-      <td><div class="player"><span class="hsx"></span><div><div style="display:flex;align-items:center;gap:8px"><span class="pname">${p.name}</span><span class="pill" title="${p.tier==="NA"?"Unranked":p.tier+" Tier"}">${tlabel(p.tier)}</span></div>
+      <td><div class="player"><span class="hsx"></span><div><div style="display:flex;align-items:center;gap:8px"><span class="pname">${nmHTML(p)}</span><span class="pill" title="${p.tier==="NA"?"Unranked":p.tier+" Tier"}">${tlabel(p.tier)}</span></div>
         <div class="psub">${teamLabel(p)}</div></div></div></td>
-      <td><span class="pill pos-${p.pos}">${p.pos}</span></td>
+      <td class="hide-sm"><span class="pill pos-${p.pos}">${p.pos}</span></td>
       <td class="trank">${p.prank}</td>
       <td class="ppg">${(() => { const v = ppgOf(p.name); if (v == null) return ""; const c = pctClass(PPG_POOL, +v.toFixed(2)); return `<span class="pcv ${c}">${v.toFixed(1)}</span>`; })()}</td>
       <td class="hide-sm prev">${p.prev==="NA" ? "—" : p.prev}</td>
@@ -765,7 +783,7 @@ function renderCards(board, list){
       const c = document.createElement("article"); c.className = "card";
       c.innerHTML = `<span class="rk">#${p.rank}</span><span class="pill">${tlabel(p.tier)}</span>`;
       c.appendChild(headshot(p));
-      c.insertAdjacentHTML("beforeend", `<div class="pname">${p.name}</div><div class="psub">${teamLabel(p)}</div><div class="psub">${p.prank} · ${p.trank}</div>`);
+      c.insertAdjacentHTML("beforeend", `<div class="pname">${nmHTML(p)}</div><div class="psub">${teamLabel(p)}</div><div class="psub">${p.prank} · ${p.trank}</div>`);
       c.style.cursor = "pointer"; c.addEventListener("click", () => openCard(p.name));
       grid.appendChild(c);
     });
