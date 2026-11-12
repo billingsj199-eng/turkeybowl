@@ -1,3 +1,4 @@
 .claude/
 Claude memory notes/
 *.bak*
+.firebase/

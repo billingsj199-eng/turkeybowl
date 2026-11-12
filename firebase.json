@@ -1,5 +1,23 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "hosting": {
+    "site": "theturkeybowl",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      ".git",
+      ".git/**",
+      "**/.*",
+      "**/.*/**",
+      "Claude memory notes/**",
+      "*.bak*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      { "source": "**/*.@(js|css|html)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
   }
 }
