@@ -1,6 +1,8 @@
 rules_version = '2';
 // Turkey Bowl site: who can read and change what.
 //   players/{slug}   nickname, comp, position/tier, and players added on the site. Anyone can read; approved editors can change.
+//   board/order      drag-and-drop order of the Draft Board. Anyone can read; approved editors can change.
+//   draft/{season}   the live draft. Anyone can watch; editors run it; only the admin can reset it.
 //   photos/{slug}    headshots uploaded on the site. Anyone can read; approved editors can change.
 //   requests/{uid}   "Request edit access". The person themself creates it; only the admin can see the list.
 //   editors/{uid}    people the admin approved. Only the admin can add or remove them.
@@ -43,6 +45,42 @@ service cloud.firestore {
         && slug.matches('^[a-z0-9-]{1,60}$')
         && validPlayer(request.resource.data);
       allow delete: if isEditor();
+    }
+
+    // Drag-and-drop order of the Draft Board (one doc). Tiers live on players/{slug}.tier.
+    match /board/{id} {
+      allow read: if true;
+      allow create, update: if isEditor() && id == 'order'
+        && request.resource.data.keys().hasOnly(['order', 'by', 'at'])
+        && request.resource.data.keys().hasAll(['order', 'by', 'at'])
+        && request.resource.data.order is list
+        && request.resource.data.order.size() <= 300
+        && shortText(request.resource.data.by, 60)
+        && request.resource.data.at == request.time;
+    }
+
+    // The live draft for a season. Editors start it and make picks (picks only ever grow by one, or shrink
+    // by one for an undo). Once it's done only the admin can change it; only the admin can delete (reset) it.
+    match /draft/{season} {
+      allow read: if true;
+      function validDraft(d) {
+        return d.keys().hasOnly(['status', 'order', 'pool', 'picks', 'by', 'at'])
+          && d.keys().hasAll(['status', 'order', 'pool', 'picks', 'by', 'at'])
+          && d.status in ['live', 'done']
+          && d.order is list && d.order.size() >= 2 && d.order.size() <= 20
+          && d.pool is list && d.pool.size() <= 300
+          && d.picks is list && d.picks.size() <= d.pool.size()
+          && shortText(d.by, 60) && d.at == request.time;
+      }
+      allow create: if isEditor() && season.matches('^[0-9]{4}$')
+        && validDraft(request.resource.data) && request.resource.data.picks.size() == 0;
+      allow update: if isEditor() && validDraft(request.resource.data)
+        && request.resource.data.order == resource.data.order
+        && request.resource.data.pool == resource.data.pool
+        && (resource.data.status == 'live' || isAdmin())
+        && (request.resource.data.picks.size() == resource.data.picks.size() + 1
+            || request.resource.data.picks.size() == resource.data.picks.size() - 1);
+      allow delete: if isAdmin();
     }
 
     // Headshots uploaded on the site: a small JPEG stored as a data: URL (the site shrinks it to 256px first).

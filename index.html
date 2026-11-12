@@ -225,6 +225,32 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     #abIn{padding:6px 10px}
   }
   .adminpc{max-width:560px}
+  /* live draft */
+  .live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4b3f;box-shadow:0 0 0 0 rgba(239,75,63,.7);animation:lvpulse 1.4s infinite}
+  @keyframes lvpulse{0%{box-shadow:0 0 0 0 rgba(239,75,63,.7)}70%{box-shadow:0 0 0 9px rgba(239,75,63,0)}100%{box-shadow:0 0 0 0 rgba(239,75,63,0)}}
+  .lv-status{display:flex;align-items:center;gap:8px;font:800 15px Inter,sans-serif;letter-spacing:.08em;color:#ff8a80;margin-bottom:12px}
+  .lv-status.done{color:#5fd68f}
+  .lv-status span:last-child{margin-left:auto;color:var(--muted);font-weight:600;font-size:12px;letter-spacing:0}
+  .lv-last{background:#14251b;border:1px solid #2e5a3d;border-radius:8px;padding:10px 12px;margin-bottom:12px}
+  .lv-last .lbl2{font-size:11px;color:#5fd68f;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+  .lv-who{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+  .flash{animation:lvflash 2.4s ease-out}
+  @keyframes lvflash{0%{background:#3a6b2a;box-shadow:0 0 0 2px #5fd68f}100%{}}
+  .lv-wait{text-align:center;padding:60px 16px;color:var(--muted);border:1px dashed var(--line);border-radius:12px;margin-top:16px}
+  .lv-big{font:800 22px Inter,sans-serif;color:var(--ink);margin-bottom:8px}
+  .lv-how p{margin:0 0 10px;color:#c4cbd8;font-size:14px;line-height:1.5}
+  .ap.ro{cursor:pointer}
+  .lv-danger{color:#ef6b5f !important;border-color:#5a2a2a !important}
+  #liveViewBtn.is-live::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4b3f;margin-left:6px;vertical-align:1px;animation:lvpulse 1.4s infinite}
+  td.num{white-space:nowrap}
+  .drag-h{display:inline-block;cursor:grab;color:var(--muted);font-size:16px;line-height:1;padding:4px 6px;margin:-4px 4px -4px -6px;touch-action:none;user-select:none;-webkit-user-select:none}
+  .drag-h:hover{color:var(--accent)}
+  tr.dragging{opacity:.85;outline:2px solid var(--accent);outline-offset:-2px;background:#1f2940}
+  tr.dragging td{background:#1f2940}
+  body.drag-on, body.drag-on *{cursor:grabbing !important;user-select:none;-webkit-user-select:none}
+  .tbreak .drag-h{margin-right:8px}
+  .rank-hint{background:#2a2210;border:1px solid #5a4620;color:#f1d39a;border-radius:8px;padding:9px 12px;font-size:13px;margin:0 0 10px}
+  .rank-hint #rankMsg{font-weight:700;margin-left:6px}
   .ed-row select{background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font:14px Inter,sans-serif}
   .ed-2{display:flex;gap:12px;flex-wrap:wrap}
   .ed-2 > div{min-width:130px}
@@ -258,8 +284,11 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     <button class="btn view on" data-view="table">Table</button>
     <button class="btn view" data-view="cards">Tier Cards</button>
     <button class="btn view" data-view="draft">Mock Draft</button>
-    <button class="btn primary" id="addPlayerBtn" hidden style="margin-left:auto">+ Add player</button>
+    <button class="btn view" data-view="live" id="liveViewBtn">🔴 Live Draft</button>
+    <button class="btn" id="rankEditBtn" hidden style="margin-left:auto">⇅ Edit rankings</button>
+    <button class="btn primary" id="addPlayerBtn" hidden>+ Add player</button>
   </div>
+  <div class="rank-hint" id="rankHint" hidden>Drag a player by <b>⠿</b> to re-rank them. Drag a tier bar to move the line between tiers. Changes save right away for everyone. <span id="rankMsg"></span></div>
   <div class="summary" id="summary"></div>
   <main id="board"></main>
 </div>
@@ -442,7 +471,10 @@ function buildPlayers(){
     const c = prof[slug(p.name)] || {};
     players.push({...p, ...split(p.name), tier: norm(c.tier || p.tier26 || p.tier25), prev: norm(p.tier25)});
   });
-  players.sort((a,b) => TI(a.tier) - TI(b.tier) || a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
+  // Order inside a tier: the order an editor dragged on the board (tb-cloud "board/order"), then last name.
+  const ord = new Map(((window.TBC && TBC.order) || []).map((s, i) => [s, i]));
+  const oi = p => ord.has(slug(p.name)) ? ord.get(slug(p.name)) : 1e6;
+  players.sort((a,b) => TI(a.tier) - TI(b.tier) || oi(a) - oi(b) || a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
   tierCount = {}; posCount = {};
   players.forEach(p => {
     p.pos = p.tier === "QB" ? "QB" : "FLEX";
@@ -452,6 +484,12 @@ function buildPlayers(){
   });
   Object.keys(byName).forEach(k => delete byName[k]);
   players.forEach(p => byName[p.name] = p);
+  // The live draft (tb-cloud "draft/<season>") fills in everyone's team as picks come in.
+  const L = window.TBC && TBC.live;
+  if (L && Array.isArray(L.order) && L.order.length) {
+    L.order.forEach(c => { if (byName[c] && !byName[c].team) byName[c].team = "Team " + split(c).last; });
+    (L.picks || []).forEach((n, i) => { const c = liveTeamFor(L, i); if (byName[n] && !byName[n].team) byName[n].team = "Team " + split(c).last; });
+  }
   captains = players.filter(p => p.pos === "QB").map(p => p.name);
   pool = players.filter(p => p.pos !== "QB" && !p.out).map(p => p.name);
 }
@@ -498,11 +536,17 @@ function visible(){
 }
 
 function render(){
-  const list = visible();
+  if (RANK_EDIT && view !== "table") RANK_EDIT = false;
+  document.getElementById("rankHint").hidden = !RANK_EDIT;
+  const rb = document.getElementById("rankEditBtn"); rb.textContent = RANK_EDIT ? "✓ Done" : "⇅ Edit rankings"; rb.classList.toggle("primary", RANK_EDIT);
+  const list = RANK_EDIT ? players : visible();
+  const LV = window.TBC && TBC.live, lvOn = LV && LV.status === "live";
+  document.getElementById("liveViewBtn").classList.toggle("is-live", !!lvOn);
   document.getElementById("summary").innerHTML =
     `<span class="hl">TURKEY BOWL 2026</span> &nbsp; Showing <b>${list.length}</b> &nbsp;·&nbsp; QB <b>${posCount.QB||0}</b> &nbsp;·&nbsp; FLEX <b>${posCount.FLEX||0}</b> &nbsp;·&nbsp; Drafted <b>${players.filter(p=>p.team).length}</b>`;
   const board = document.getElementById("board"); board.innerHTML = "";
   if (view === "draft") { renderDraft(board); return; }
+  if (view === "live") { renderLive(board); return; }
   if (!list.length) { board.innerHTML = `<div class="empty">No players match.</div>`; return; }
   view === "table" ? renderTable(board, list) : renderCards(board, list);
 }
@@ -523,8 +567,11 @@ const fmt = (v, d=1) => Number.isInteger(v) ? String(v) : v.toFixed(d);
 // Nicknames / comps / sign-in come from tb-cloud.js; redraw an open card when they change
 // (but never while someone is typing in the edit panel).
 document.addEventListener("tbc-change", () => {
-  buildPlayers(); fixMD(); render();
-  const ab = document.getElementById("addPlayerBtn"); if (ab) ab.hidden = !(window.TBC && TBC.canEdit());
+  const ed = !!(window.TBC && TBC.canEdit());
+  if (!ed) RANK_EDIT = false;
+  if (!DRAG) { buildPlayers(); fixMD(); render(); }
+  const ab = document.getElementById("addPlayerBtn"); if (ab) ab.hidden = !ed;
+  const rb = document.getElementById("rankEditBtn"); if (rb) rb.hidden = !ed;
   if (!document.getElementById("ov").hidden && PC.name && !PC.editing && byName[PC.name]) drawCard();
   if (PENDING_PLAYER && TBC.ready) { const hit = players.find(p => slug(p.name) === PENDING_PLAYER); PENDING_PLAYER = null; if (hit && document.getElementById("ov").hidden) openCard(hit.name); }
 });
@@ -773,6 +820,150 @@ function renderDraft(board){
   board.appendChild(wrap);
 }
 
+// ===== Live draft (the real one: happens once, editors run it, everyone watches live) =====
+// Stored in the cloud as draft/<season>: {status: "live" | "done", order: [captains], pool: [players], picks: [names]}.
+// Snake order, no pick clock. Editors start it, make each pick and can undo the last one;
+// only Jack (admin) can reset it. Everyone else sees every pick appear as it happens.
+function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }
+let LIVE_SETUP = null;      // captain order being set up before the start (editors only, not saved until Start)
+let LIVE_SEEN = null;       // number of picks already shown, to flash the newest one
+function renderLive(board){
+  const L = window.TBC && TBC.live, ed = !!(window.TBC && TBC.canEdit()), admin = !!(window.TBC && TBC.role === "admin");
+  const wrap = document.createElement("div"); wrap.className = "md";
+  const left = document.createElement("div"); left.className = "panel";
+  const right = document.createElement("div"); right.className = "panel boardwrap";
+  const btns = () => { const d = document.createElement("div"); d.className = "row-btns"; return d; };
+  const btn = (box, txt, fn, cls = "", dis = false) => { const b = document.createElement("button"); b.className = "btn " + cls; b.textContent = txt; b.disabled = dis; b.onclick = fn; box.appendChild(b); return b; };
+  const who = (n, extra = "") => { const p = byName[n]; const d = document.createElement("div"); d.className = "lv-who"; if (p) d.appendChild(headshot(p)); d.insertAdjacentHTML("beforeend", `<span>${esc2(n)}${extra}</span>`); if (p) linkName(d.querySelector("span"), n); return d; };
+
+  // ---------- not started ----------
+  if (!L) {
+    if (!window.TBC || !TBC.ready) { board.innerHTML = `<div class="empty">Loading the live draft…</div>`; return; }
+    if (!ed) {
+      board.innerHTML = `<div class="lv-wait"><div class="lv-big">🦃 The ${CURRENT_SEASON} draft hasn't started yet</div><div>When it starts, every pick shows up here live. No need to refresh.</div></div>`;
+      return;
+    }
+    if (!LIVE_SETUP || LIVE_SETUP.length !== captains.length || !LIVE_SETUP.every(n => captains.includes(n))) LIVE_SETUP = [...captains];
+    const draftPool = pool.slice();
+    left.innerHTML = `<h3>Set the draft order</h3><div class="psub" style="margin-bottom:8px">Captains = everyone at QB. ${draftPool.length} players in the pool (everyone else not marked out), ${Math.ceil(draftPool.length / Math.max(1, LIVE_SETUP.length))} rounds, snake, no clock.</div>`;
+    const ol = document.createElement("ul"); ol.className = "order";
+    LIVE_SETUP.forEach((n, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="slot">${i + 1}</span>`;
+      if (byName[n]) li.appendChild(headshot(byName[n]));
+      li.insertAdjacentHTML("beforeend", `<span class="nm">${esc2(n)}</span>`);
+      const up = document.createElement("button"); up.className = "mini"; up.textContent = "▲"; up.disabled = i === 0;
+      const dn = document.createElement("button"); dn.className = "mini"; dn.textContent = "▼"; dn.disabled = i === LIVE_SETUP.length - 1;
+      up.onclick = () => { [LIVE_SETUP[i - 1], LIVE_SETUP[i]] = [LIVE_SETUP[i], LIVE_SETUP[i - 1]]; render(); };
+      dn.onclick = () => { [LIVE_SETUP[i + 1], LIVE_SETUP[i]] = [LIVE_SETUP[i], LIVE_SETUP[i + 1]]; render(); };
+      li.append(up, dn); ol.appendChild(li);
+    });
+    left.appendChild(ol);
+    const b = btns();
+    btn(b, "🎲 Randomize order", () => { for (let i = LIVE_SETUP.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [LIVE_SETUP[i], LIVE_SETUP[j]] = [LIVE_SETUP[j], LIVE_SETUP[i]]; } render(); });
+    const go = btn(b, "🔴 Start the live draft", async () => {
+      if (LIVE_SETUP.length < 2) return alert("You need at least 2 QBs (captains) to draft.");
+      if (!confirm(`Start the ${CURRENT_SEASON} live draft for everyone?\n\nOrder: ${LIVE_SETUP.join(", ")}\n\nThe order and player pool lock once it starts.`)) return;
+      go.disabled = true;
+      try { await TBC.liveStart(LIVE_SETUP, draftPool); } catch(err){ go.disabled = false; alert("Couldn't start: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
+    }, "primary");
+    left.appendChild(b);
+    right.innerHTML = `<h3>How it works</h3><div class="lv-how">
+      <p>1. Set the order (or randomize it), then tap <b>Start the live draft</b>. It goes live for everyone on the site.</p>
+      <p>2. Whoever's running it taps a player on the left to make the pick for the team on the clock. There's no timer, take as long as you need.</p>
+      <p>3. Made a mistake? <b>Undo last pick</b>.</p>
+      <p>4. When the last pick is in, the draft locks and every player's team shows on the Draft Board.</p></div>`;
+    wrap.append(left, right); board.appendChild(wrap); return;
+  }
+
+  // ---------- live / done ----------
+  const picks = L.picks || [], total = (L.pool || []).length, done = L.status === "done" || picks.length >= total, n = L.order.length;
+  const fresh = LIVE_SEEN != null && picks.length > LIVE_SEEN ? picks.length - 1 : -1;
+  LIVE_SEEN = picks.length;
+  left.innerHTML = `<div class="lv-status ${done ? "done" : ""}">${done ? "✅ Draft complete" : `<span class="live-dot"></span> LIVE`}<span>${picks.length} / ${total} picks</span></div>`;
+  if (picks.length) {
+    const last = picks[picks.length - 1], c = liveTeamFor(L, picks.length - 1);
+    const lp = document.createElement("div"); lp.className = "lv-last" + (fresh >= 0 ? " flash" : "");
+    lp.innerHTML = `<div class="lbl2">Latest pick · ${Math.floor((picks.length - 1) / n) + 1}.${String((picks.length - 1) % n + 1).padStart(2, "0")} · Team ${esc2(split(c).last)}</div>`;
+    lp.appendChild(who(last)); left.appendChild(lp);
+  }
+  if (!done) {
+    const i = picks.length, c = liveTeamFor(L, i);
+    const clock = document.createElement("div"); clock.className = "clock";
+    if (byName[c]) clock.appendChild(headshot(byName[c]));
+    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">Team ${esc2(split(c).last)}</div></div>`);
+    left.appendChild(clock);
+  }
+  if (ed) {
+    const b = btns();
+    btn(b, "↶ Undo last pick", async () => {
+      if (!confirm(`Undo the pick of ${picks[picks.length - 1]}?`)) return;
+      try { await TBC.liveUndo(picks.length); } catch(err){ alert(err.message); }
+    }, "", !picks.length);
+    if (admin) btn(b, "Reset draft", async () => {
+      if (!confirm("Delete the live draft completely (all picks) so it can be started over?")) return;
+      if (prompt('Type RESET to confirm') !== "RESET") return;
+      try { await TBC.liveReset(); LIVE_SEEN = null; } catch(err){ alert(err.message); }
+    }, "lv-danger");
+    left.appendChild(b);
+  }
+  if (!done) {
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    const avail = (L.pool || []).filter(x => !picks.includes(x))
+      .sort((a, b) => (byName[a] ? players.indexOf(byName[a]) : 1e6) - (byName[b] ? players.indexOf(byName[b]) : 1e6))
+      .filter(x => !q || x.toLowerCase().includes(q));
+    left.insertAdjacentHTML("beforeend", `<h3>${ed ? "Available — tap to draft" : "Available"}</h3>`);
+    const av = document.createElement("div"); av.className = "avail";
+    avail.forEach(x => {
+      const p = byName[x];
+      const d = document.createElement("div"); d.className = "ap" + (ed ? "" : " ro");
+      if (p) d.style.setProperty("--tc", `var(--t-${p.tier})`);
+      d.innerHTML = `<span class="r">${p ? p.rank : ""}</span>`;
+      if (p) d.appendChild(headshot(p));
+      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
+      if (ed) d.onclick = async () => {
+        const c = liveTeamFor(L, picks.length);
+        if (!confirm(`Team ${split(c).last} selects ${x}?`)) return;
+        try { await TBC.livePick(x, picks.length); } catch(err){ alert(err.code === "permission-denied" ? "You don't have edit access." : err.message); }
+      };
+      else d.onclick = () => openCard(x);
+      av.appendChild(d);
+    });
+    left.appendChild(av);
+  }
+
+  right.innerHTML = `<h3>Draft board · snake · ${Math.ceil(total / n)} rounds · no clock</h3>`;
+  const g = document.createElement("div"); g.className = "dboard";
+  g.style.gridTemplateColumns = `repeat(${n}, minmax(110px,1fr))`;
+  L.order.forEach(c => {
+    const h = document.createElement("div"); h.className = "colh";
+    if (byName[c]) h.appendChild(headshot(byName[c]));
+    h.insertAdjacentHTML("beforeend", `<div class="tn">Team ${esc2(split(c).last)}</div><div class="sub">C: <span class="cap">${esc2(c)}</span></div>`);
+    if (byName[c]) linkName(h.querySelector(".cap"), c);
+    g.appendChild(h);
+  });
+  const rounds = Math.ceil(total / n);
+  for (let r = 0; r < rounds; r++) for (let col = 0; col < n; col++) {
+    const sl = r % 2 === 0 ? col : n - 1 - col, i = r * n + sl;
+    const cell = document.createElement("div"); cell.className = "cell";
+    if (i >= total) { cell.classList.add("emptyc"); g.appendChild(cell); continue; }
+    const name = picks[i];
+    if (name) {
+      const p = byName[name]; if (p) { cell.style.setProperty("--tc", `var(--t-${p.tier})`); cell.appendChild(headshot(p)); }
+      if (i === fresh) cell.classList.add("flash");
+      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}${p ? " · " + tlabel(p.tier) : ""}</div><div class="cn">${esc2(name)}</div></div>`);
+      if (p) linkName(cell.querySelector(".cn"), name);
+    } else {
+      if (i === picks.length) cell.classList.add("now");
+      cell.classList.add("emptyc");
+      cell.innerHTML = `<div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}</div>`;
+    }
+    g.appendChild(cell);
+  }
+  right.appendChild(g);
+  wrap.append(left, right); board.appendChild(wrap);
+}
+
 function renderTable(board, list){
   const t = document.createElement("table");
   t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th>Player</th><th class="hide-sm">Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
@@ -780,17 +971,19 @@ function renderTable(board, list){
   PPG_POOL = ppgPool();
   const TB = {QB:"Quarterbacks", S:"Elite", A:"Tier A", B:"Tier B", C:"Tier C", D:"Tier D", NA:"Unranked"};
   let lastTier = null;
+  const tierBar = k => {
+    const br = document.createElement("tr"); br.className = "tbreak"; br.dataset.tier = k;
+    br.style.setProperty("--tc", `var(--t-${k})`);
+    br.innerHTML = `<td colspan="7">${RANK_EDIT && k !== "QB" ? `<span class="drag-h" title="Drag to move the tier line">⠿</span>` : ""}<span class="tb-badge">${k === "NA" ? "—" : k}</span><span class="tb-label">${TB[k]}</span></td>`;
+    tb.appendChild(br);
+  };
+  const flush = upTo => { while (lastTier !== upTo) { lastTier = lastTier === null ? "QB" : TIERS[TI(lastTier) + 1].key; tierBar(lastTier); } };
   list.forEach(p => {
-    if (p.tier !== lastTier) {
-      lastTier = p.tier;
-      const br = document.createElement("tr"); br.className = "tbreak";
-      br.style.setProperty("--tc", `var(--t-${p.tier})`);
-      br.innerHTML = `<td colspan="7"><span class="tb-badge">${p.tier === "NA" ? "—" : p.tier}</span><span class="tb-label">${TB[p.tier]}</span></td>`;
-      tb.appendChild(br);
-    }
-    const tr = document.createElement("tr"); tr.className = "prow";
+    if (RANK_EDIT) { if (p.tier !== lastTier) flush(p.tier); }   // edit mode shows every tier bar, empty tiers too
+    else if (p.tier !== lastTier) { lastTier = p.tier; tierBar(p.tier); }
+    const tr = document.createElement("tr"); tr.className = "prow"; tr.dataset.slug = slug(p.name);
     tr.style.setProperty("--tc", `var(--t-${p.tier})`);
-    tr.innerHTML = `<td class="num">${p.rank}</td>
+    tr.innerHTML = `<td class="num">${RANK_EDIT ? `<span class="drag-h" title="Drag to re-rank">⠿</span>` : ""}${p.rank}</td>
       <td><div class="player"><span class="hsx"></span><div><div style="display:flex;align-items:center;gap:8px"><span class="pname">${nmHTML(p)}</span><span class="pill" title="${p.tier==="NA"?"Unranked":p.tier+" Tier"}">${tlabel(p.tier)}</span></div>
         <div class="psub">${teamLabel(p)}</div></div></div></td>
       <td class="hide-sm"><span class="pill pos-${p.pos}">${p.pos}</span></td>
@@ -803,7 +996,73 @@ function renderTable(board, list){
     linkName(tr.querySelector(".hs"), p.name);
     tb.appendChild(tr);
   });
+  if (RANK_EDIT) { flush("NA"); enableDrag(tb); }
   t.appendChild(tb); board.appendChild(t);
+}
+
+// ===== Drag-and-drop rankings (editors) =====
+// Drag a player row by its handle to re-rank, or a tier bar to move the line between tiers.
+// Works with a mouse or a finger (pointer events). On drop: the order + any tier changes save to the cloud.
+let RANK_EDIT = false, DRAG = false;
+document.getElementById("rankEditBtn").onclick = () => {
+  RANK_EDIT = !RANK_EDIT;
+  if (RANK_EDIT) {
+    view = "table"; document.querySelectorAll(".btn.view").forEach(x => x.classList.toggle("on", x.dataset.view === "table"));
+    filter = "ALL"; [...chips.children].forEach((c, i) => c.classList.toggle("on", i === 0));
+    document.getElementById("q").value = "";
+  }
+  document.getElementById("rankMsg").textContent = "";
+  render();
+};
+function enableDrag(tb){
+  tb.addEventListener("pointerdown", e => {
+    const h = e.target.closest(".drag-h"); if (!h || e.button > 0) return;
+    e.preventDefault();
+    const row = h.closest("tr"); DRAG = true; row.classList.add("dragging"); document.body.classList.add("drag-on");
+    let y = e.clientY;
+    const place = () => {
+      let before = null;
+      for (const r of tb.children) {
+        if (r === row) continue;
+        const b = r.getBoundingClientRect();
+        if (y < b.top + b.height / 2) { before = r; break; }
+      }
+      if (before === tb.firstElementChild) before = before.nextElementSibling;   // nothing goes above the QB bar
+      if (before !== row && before !== row.nextElementSibling) tb.insertBefore(row, before);
+    };
+    const tick = setInterval(() => {   // scroll the page when dragging near the top or bottom edge
+      const edge = 70, sp = y < edge ? -(edge - y) / 3 : y > innerHeight - edge ? (y - innerHeight + edge) / 3 : 0;
+      if (sp) { scrollBy(0, sp); place(); }
+    }, 16);
+    const move = ev => { y = ev.clientY; place(); };
+    const end = () => {
+      clearInterval(tick); removeEventListener("pointermove", move); removeEventListener("pointerup", end); removeEventListener("pointercancel", end);
+      row.classList.remove("dragging"); document.body.classList.remove("drag-on"); DRAG = false;
+      saveRanking(tb);
+    };
+    addEventListener("pointermove", move); addEventListener("pointerup", end); addEventListener("pointercancel", end);
+  });
+}
+async function saveRanking(tb){
+  const msg = document.getElementById("rankMsg");
+  const order = [], changes = {}, bars = [];
+  let tier = null;
+  for (const r of tb.children) {
+    if (r.dataset.tier) { tier = r.dataset.tier; bars.push(tier); continue; }
+    const s = r.dataset.slug, p = players.find(x => slug(x.name) === s);
+    order.push(s);
+    if (p && p.tier !== tier) changes[s] = tier;
+  }
+  if (bars.join() !== TIERS.map(t => t.key).join()) { msg.textContent = "Tiers have to stay in order (QB, S, A, B, C, D, Unranked)."; render(); return; }
+  const same = order.join() === players.map(p => slug(p.name)).join();
+  if (same && !Object.keys(changes).length) return;
+  // show it right away, then save (the live update from the cloud confirms it a moment later)
+  TBC.order = order;
+  Object.entries(changes).forEach(([s, t]) => TBC.profiles[s] = {...(TBC.profiles[s] || {}), tier: t});
+  buildPlayers(); fixMD(); render();
+  msg.textContent = "Saving…";
+  try { await TBC.saveBoard(order, changes); msg.textContent = "Saved ✓"; }
+  catch(err){ msg.textContent = "Couldn't save: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message); }
 }
 
 function renderCards(board, list){

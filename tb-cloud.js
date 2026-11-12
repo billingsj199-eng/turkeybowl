@@ -1,13 +1,15 @@
 // ===================== TURKEY BOWL CLOUD (sign-in, nicknames, comps) =====================
 // Firebase project "gallturkeybowl" (Turkey Bowl only). Rules live in firestore.rules.
 //   players/{slug}  {nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
+//   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
+//   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
 //   photos/{slug}   {img: small JPEG as a data: URL, by, at}  - headshot uploaded on the site (beats images/*.jpg)
 //   requests/{uid}  "Request edit access"      editors/{uid}  people Jack approved
 // Everyone sees all of it. Only approved editors (and the admin) can change it.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, serverTimestamp }
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // The web config is public by design (it only identifies the project); the rules do the protecting.
@@ -26,7 +28,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
-  ready: false, user: null, role: "viewer", profiles: {}, photos: {},
+  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null,
   canEdit(){ return this.role === "editor" || this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
@@ -38,6 +40,14 @@ onSnapshot(collection(db, "players"), snap => {
   const p = {}; snap.forEach(d => p[d.id] = d.data());
   TBC.profiles = p; TBC.ready = true; changed();
 }, err => { console.warn("Turkey Bowl cloud: couldn't load nicknames/comps", err); TBC.ready = true; changed(); });
+onSnapshot(doc(db, "board", "order"), d => {
+  const o = d.exists() ? d.data().order : null;
+  TBC.order = Array.isArray(o) ? o : []; changed();
+}, err => console.warn("Turkey Bowl cloud: couldn't load the board order", err));
+const DRAFT_ID = String(typeof CURRENT_SEASON !== "undefined" ? CURRENT_SEASON : 2026);
+const draftRef = doc(db, "draft", DRAFT_ID);
+onSnapshot(draftRef, d => { TBC.live = d.exists() ? d.data() : null; changed(); },
+  err => console.warn("Turkey Bowl cloud: couldn't load the live draft", err));
 onSnapshot(collection(db, "photos"), snap => {
   const p = {}; snap.forEach(d => { const v = d.data().img; if (typeof v === "string" && v.startsWith("data:image/")) p[d.id] = v; });
   TBC.photos = p; changed();
@@ -77,6 +87,35 @@ TBC.saveProfile = async (slug, {nickname, comp, tier}) => {
   if (tier !== undefined) d.tier = tier;
   await setDoc(doc(db, "players", slug), d, {merge: true});
 };
+// One drag on the board: the new order plus any players that crossed a tier line, saved together.
+TBC.saveBoard = async (order, tierChanges) => {
+  const b = writeBatch(db), stamp = {by: by(), at: serverTimestamp()};
+  b.set(doc(db, "board", "order"), {order: order.slice(0, 300), ...stamp});
+  Object.entries(tierChanges || {}).forEach(([slug, tier]) => b.set(doc(db, "players", slug), {tier, ...stamp}, {merge: true}));
+  await b.commit();
+};
+// ---- live draft ----
+TBC.liveStart = async (order, pool) => runTransaction(db, async tx => {
+  if ((await tx.get(draftRef)).exists()) throw new Error("The draft has already been started.");
+  tx.set(draftRef, {status: "live", order, pool, picks: [], by: by(), at: serverTimestamp()});
+});
+// expect = how many picks the person saw; if someone else picked in the meantime, refuse instead of double-picking
+TBC.livePick = async (name, expect) => runTransaction(db, async tx => {
+  const s = await tx.get(draftRef); if (!s.exists()) throw new Error("The draft isn't running.");
+  const d = s.data();
+  if (d.status !== "live") throw new Error("The draft is over.");
+  if (d.picks.length !== expect) throw new Error("Another pick just came in. Check the board and try again.");
+  if (d.picks.includes(name) || !d.pool.includes(name)) throw new Error(name + " can't be picked.");
+  const picks = [...d.picks, name];
+  tx.update(draftRef, {picks, status: picks.length >= d.pool.length ? "done" : "live", by: by(), at: serverTimestamp()});
+});
+TBC.liveUndo = async expect => runTransaction(db, async tx => {
+  const s = await tx.get(draftRef); if (!s.exists()) return;
+  const d = s.data();
+  if (d.picks.length !== expect) throw new Error("The board changed. Check it and try again.");
+  tx.update(draftRef, {picks: d.picks.slice(0, -1), status: "live", by: by(), at: serverTimestamp()});
+});
+TBC.liveReset = () => deleteDoc(draftRef);
 TBC.savePhoto = async (slug, img) => img
   ? setDoc(doc(db, "photos", slug), {img, by: by(), at: serverTimestamp()})
   : deleteDoc(doc(db, "photos", slug));
