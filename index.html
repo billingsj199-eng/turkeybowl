@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turkey Bowl Draft Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1220; --panel:#131a2a; --panel2:#182033; --row:#121929; --rowalt:#141c2d; --line:#232c40;
+    --ink:#e8ecf4; --muted:#8a94a8; --accent:#f5a524;
+    --t-QB:#e9b949; --t-S:#ef5a4c; --t-A:#f5a524; --t-B:#3fbf75; --t-C:#4b9ce8; --t-D:#a07ee0; --t-NA:#6c7689;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 16px 48px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:20px 0 14px}
+  h1{font-family:Oswald,sans-serif;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin:0;font-size:clamp(22px,4.5vw,32px)}
+  h1 span{color:var(--accent)}
+  .search{flex:1;max-width:340px;min-width:200px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 14px;font:inherit}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px}
+  .lbl{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-right:4px}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 13px;font:600 13px Inter,sans-serif;cursor:pointer}
+  .btn:hover{border-color:#3a4560}
+  .btn.on{background:var(--panel2);border-color:#56627e;color:#fff;box-shadow:inset 0 0 0 1px #56627e}
+  .btn.view.on{background:#3a2a52;border-color:#8a5cc7}
+  .summary{color:var(--muted);font-size:13px;padding:8px 0 12px;border-bottom:1px solid var(--line);margin-bottom:0}
+  .summary b{color:var(--ink)} .summary .hl{color:var(--accent);font-weight:700}
+
+  /* ---- Table view ---- */
+  table{width:100%;border-collapse:collapse;background:var(--row)}
+  thead th{position:sticky;top:0;background:#0f1525;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);z-index:2}
+  tbody tr{border-bottom:1px solid var(--line)}
+  tbody tr:nth-child(even){background:var(--rowalt)}
+  tbody tr:hover{background:#1a2338}
+  td{padding:9px 10px;vertical-align:middle}
+  td.num{width:48px;text-align:center;font-weight:700;font-size:15px}
+  .player{display:flex;align-items:center;gap:12px;min-width:0}
+  .hs{width:38px;height:38px;border-radius:50%;flex:none;overflow:hidden;background:#232c40;border:2px solid var(--tc);display:flex;align-items:center;justify-content:center;font:700 13px Inter,sans-serif;color:var(--tc)}
+  .hs img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+  .hs.has-img{border:none;background:none;box-shadow:0 0 0 2px var(--tc)}
+  .pname{font-weight:600;font-size:15px;white-space:nowrap}
+  .psub{color:var(--muted);font-size:12px;margin-top:1px}
+  .pill{display:inline-block;min-width:34px;text-align:center;padding:3px 8px;border-radius:5px;font:700 12px Inter,sans-serif;
+    color:var(--tc);background:color-mix(in srgb,var(--tc) 16%,transparent);border:1px solid color-mix(in srgb,var(--tc) 40%,transparent)}
+  .trank{font-weight:600}
+  .pill.pos-QB{--tc:#e9b949} .pill.pos-FLEX{--tc:#4b9ce8}
+  .prev{color:var(--muted)}
+  .move{font-weight:700;font-size:12px}
+  .up{color:#3fbf75} .down{color:#ef5a4c} .new{color:var(--accent)}
+  tr.tbreak td{background:#0f1525;padding:10px 12px;border-bottom:2px solid #2a3449}
+  tr.tbreak:hover{background:none}
+  .tb-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 6px;border-radius:5px;font:700 17px Oswald,sans-serif;color:var(--tc);background:color-mix(in srgb,var(--tc) 22%,#111)}
+  .tb-label{margin-left:14px;font:700 14px Oswald,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#c4cbd8}
+  tr.prow td:first-child{box-shadow:inset 4px 0 0 var(--tc)}
+  td.ppg{text-align:center;font-weight:700}
+  /* percentile colors */
+  .pcv{display:inline-block;min-width:44px;padding:4px 8px;border-radius:6px;text-align:center}
+  .glog td.fp{color:var(--ink)}
+  .pc-t10{background:#1d4d2e;color:#7ef0a6 !important}
+  .pc-t25{background:#17301f;color:#a6dcb6 !important}
+  .pc-mid{background:#1f2738;color:#d4d9e3 !important}
+  .pc-b25{background:#3a2a14;color:#f2b46b !important}
+  .pc-b10{background:#4a1d1d;color:#ff8a80 !important}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:11px;color:var(--muted);margin-top:10px}
+  .lg{display:inline-flex;align-items:center;gap:5px}
+  .lg i{display:inline-block;width:14px;height:10px;border-radius:3px}
+  .lg-note{width:100%;color:#7c8598}
+  tr.tier-sep td{background:#0f1525;padding:7px 10px;font:700 12px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--tc);border-top:2px solid var(--tc)}
+
+  /* ---- Tier cards view ---- */
+  .tier{margin-top:24px}
+  .tier-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--tc);padding-bottom:6px;margin-bottom:14px}
+  .tier-head h2{font-family:Oswald,sans-serif;text-transform:uppercase;margin:0;font-size:24px;color:var(--tc)}
+  .tier-head .count{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--tc);border-radius:10px;padding:16px 12px 14px;text-align:center;position:relative}
+  .card .hs{width:84px;height:84px;margin:0 auto 10px;font-size:26px;border-width:3px}
+  .card .rk{position:absolute;top:8px;left:10px;color:var(--muted);font-weight:700;font-size:12px}
+  .card .pill{position:absolute;top:8px;right:8px}
+  .empty{color:var(--muted);text-align:center;padding:40px}
+
+  /* ---- Mock draft ---- */
+  .md{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:16px;align-items:start}
+  @media (max-width:860px){ .md{grid-template-columns:1fr} }
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .panel h3{margin:0 0 10px;font:700 12px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .order li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .order{list-style:none;margin:0 0 12px;padding:0}
+  .order .slot{width:22px;color:var(--muted);font-weight:700;text-align:right}
+  .order .nm{flex:1;font-weight:600}
+  .mini{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:5px;width:26px;height:26px;cursor:pointer;font-size:12px}
+  .mini:disabled{opacity:.3;cursor:default}
+  .row-btns{display:flex;flex-wrap:wrap;gap:6px}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1205}
+  .clock{background:#2a1f0a;border:1px solid #6b4a12;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+  .clock .lbl2{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .clock .who{font-weight:700;font-size:16px}
+  .avail{max-height:520px;overflow:auto;margin-top:8px}
+  .avail .ap{display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:6px}
+  .avail .ap:hover{background:#1a2338}
+  .avail .ap .r{width:24px;color:var(--muted);font-weight:700;text-align:right}
+  .avail .ap .hs{width:30px;height:30px;font-size:11px}
+  .boardwrap{overflow-x:auto}
+  .dboard{display:grid;gap:6px;min-width:640px}
+  .dboard .colh{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;background:var(--panel2);border-radius:8px;border-top:3px solid var(--t-QB);text-align:center}
+  .dboard .colh .hs{width:44px;height:44px}
+  .dboard .colh .tn{font-weight:700;font-size:13px}
+  .dboard .colh .sub{font-size:11px;color:var(--muted)}
+  .dboard .cell{min-height:58px;background:var(--row);border:1px solid var(--line);border-left:3px solid var(--tc,var(--line));border-radius:7px;padding:6px 7px;display:flex;align-items:center;gap:7px;font-size:12px}
+  .dboard .cell .pk{color:var(--muted);font-size:10px;font-weight:700}
+  .dboard .cell .hs{width:28px;height:28px;font-size:10px}
+  .dboard .cell .cn{font-weight:600;line-height:1.15}
+  .dboard .cell.now{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#221a0c}
+  .dboard .cell.emptyc{color:#4a5468}
+
+  /* ---- Player card modal ---- */
+  .plink{cursor:pointer}
+  .plink:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+  .ov{position:fixed;inset:0;background:rgba(5,8,15,.72);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow:auto}
+  .ov[hidden]{display:none}
+  .pc{width:100%;max-width:780px;background:#151c2c;border:1px solid #2a3449;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden}
+  .pc-head{display:flex;gap:20px;align-items:center;padding:22px 22px 18px;border-bottom:1px solid var(--line);position:relative}
+  .pc-head .hs{width:104px;height:104px;font-size:32px;border-width:3px}
+  .pc-head .hs.has-img{box-shadow:0 0 0 3px #3a4560}
+  .pc-name{font:700 30px/1.05 Oswald,sans-serif;text-transform:uppercase;letter-spacing:.02em;margin:0}
+  .pc-title{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:0 0 8px;padding-right:30px}
+  .pc-tier{font-size:13px;padding:4px 10px}
+  @media (max-width:520px){ .pc-title{justify-content:center;padding-right:0} }
+  .pc-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;color:#c4cbd8;font-size:14px}
+  .pc-meta .dot{color:#55607a}
+  .pc-meta .pill{font-size:13px;padding:4px 10px}
+  .pc-close{position:absolute;top:14px;right:16px;background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+  .pc-close:hover{color:#fff}
+  .pc-tabs{display:flex;gap:6px;padding:12px 22px 0}
+  .pc-tab{background:none;border:0;color:var(--muted);font:700 13px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:9px 18px;border-radius:7px;cursor:pointer}
+  .pc-tab.on{background:#232c40;color:#fff}
+  .pc-body{padding:16px 22px 22px}
+  .seg{display:inline-flex;background:#0f1525;border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px}
+  .seg button{background:none;border:0;color:var(--muted);font:700 12px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:6px 14px;border-radius:6px;cursor:pointer}
+  .seg button.on{background:#2a3449;color:#fff}
+  .pc-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .sec-t{font:700 12px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+  /* record · rings · accomplishments strip */
+  .honors{display:grid;grid-template-columns:auto auto 1fr;gap:8px;margin-bottom:16px}
+  @media (max-width:560px){ .honors{grid-template-columns:1fr 1fr} .honors .acc{grid-column:1 / -1} }
+  .hon{background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:9px 14px;min-width:110px}
+  .hon .k{font:700 11px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .hon .v{font:700 20px Inter,sans-serif;margin-top:3px}
+  .hon.ring{background:linear-gradient(135deg,#3a2d0e,#1b2336 75%);border-color:#6b5420}
+  .hon.ring .v{color:var(--gold)}
+  .hon .yrs{font-size:11px;color:#c9b37a;margin-top:1px}
+  .acc .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .achip{font:700 11px Inter,sans-serif;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:#2a2210;color:#f1d39a;border:1px solid #6b5420;white-space:nowrap}
+  .achip.fin{background:#1f2738;color:#c4cbd8;border-color:#3a4560}
+  .achip.none{background:none;border-color:transparent;color:#5f6a80;padding-left:0}
+  @media (max-width:520px){ .tiles{grid-template-columns:repeat(2,1fr)} .pc-head{flex-direction:column;text-align:center} .pc-meta{justify-content:center} }
+  .tile{background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:9px 6px;text-align:center}
+  .tile .k{font:700 11px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .tile .v{font:700 20px Inter,sans-serif;margin-top:3px}
+  .tile.good{background:#16301f;border-color:#24533a} .tile.good .v{color:#5fd68f}
+  .glog{width:100%;border-collapse:collapse;background:transparent;font-size:13px}
+  .glog th{position:static;background:#0f1525;color:var(--muted);font-size:11px;padding:9px 8px;text-align:center;border-bottom:1px solid var(--line)}
+  .glog th:first-child,.glog td:first-child{text-align:left}
+  .glog td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line)}
+  .glog td.fp{font-weight:700;color:var(--ink)}
+  .glog th.fp{color:var(--accent)}
+  .glog .minor{color:var(--muted)}
+  .glog tfoot td{background:#1b2336;font-weight:700;border-top:2px solid #3a4560}
+  .glog tfoot td.fp{color:var(--ink)}
+  .nodata{color:var(--muted);text-align:center;padding:28px 10px;border:1px dashed var(--line);border-radius:8px}
+  .foot-note{color:#5f6a80;font-size:11px;margin-top:10px}
+  .hide-sm{}
+  @media (max-width:600px){ .hide-sm{display:none} td{padding:8px 6px} }
+</style>
+<link rel="stylesheet" href="film.css">
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-in">
+    <span class="brand">🦃 Turkey Bowl</span>
+    <a href="#board" data-page="board" class="navlink">Draft Board</a>
+    <a href="#film" data-page="film" class="navlink">Film Room</a>
+    <a href="#history" data-page="history" class="navlink">History</a>
+  </div>
+</nav>
+<div id="pg-film" hidden></div>
+<div id="pg-history" hidden></div>
+<div class="wrap" id="pg-board">
+  <header>
+    <h1>Turkey Bowl <span>2026</span> Draft Board</h1>
+    <input id="q" class="search" type="search" placeholder="Search player…">
+  </header>
+  <div class="bar"><span class="lbl">Position</span><div id="chips" style="display:contents"></div></div>
+  <div class="bar"><span class="lbl">View</span>
+    <button class="btn view on" data-view="table">Table</button>
+    <button class="btn view" data-view="cards">Tier Cards</button>
+    <button class="btn view" data-view="draft">Mock Draft</button>
+  </div>
+  <div class="summary" id="summary"></div>
+  <main id="board"></main>
+</div>
+<div class="ov" id="ov" hidden><div class="pc" id="pc" role="dialog" aria-modal="true"></div></div>
+
+<script src="film_data.js"></script>
+<script>
+// ===== Player data (from the Turkey Bowl sheet) =====
+// tier26: 2026 tier (blank until set) — falls back to tier25 for ranking.
+// img: optional custom path. Default is images/first-last.jpg (lowercase, hyphenated).
+// team: add after the draft, e.g. {name:"Jack Billings", tier25:"A", team:"Team Surtz"}
+// pos: QB tier = QB, everyone else = FLEX.
+// ⚠ NEVER remove anyone from this list — players stay on the board forever, even in years
+//   they don't play, so their history (stats, film, past tiers) is always kept. Add new people at the end.
+const PLAYERS = [
+  {name:"Brett Christiansen",  tier25:"C"},
+  {name:"Jeremy Christiansen", tier25:"B"},
+  {name:"Jimmy Gallagher",     tier25:"C"},
+  {name:"Johnny Gallagher",    tier25:"D"},
+  {name:"Dylan Scholl",        tier25:"A"},
+  {name:"Jake Veres",          tier25:"QB", tier26:"QB"},
+  {name:"Ethan Kaplan",        tier25:"D"},
+  {name:"Kyle Marks",          tier25:"B"},
+  {name:"Anthony Manna",       tier25:"C"},
+  {name:"Mikey Vitella",       tier25:"QB"},
+  {name:"Joe Toscano",         tier25:"A"},
+  {name:"Dave Iorio",          tier25:"C"},
+  {name:"Brent Grocott",       tier25:"A"},
+  {name:"Matt Lake",           tier25:"A"},
+  {name:"Matt Hegel",          tier25:"QB", tier26:"QB"},
+  {name:"Ryan Monaco",         tier25:"C"},
+  {name:"Shay McGowan",        tier25:"N/A"},
+  {name:"Julian Greco",        tier25:"B"},
+  {name:"George Fotiou",       tier25:"B"},
+  {name:"Jack Billings",       tier25:"A"},
+  {name:"Sammy Mazzella",      tier25:"N/A"},
+  {name:"Vin Iorio",           tier25:"S"},
+  {name:"Ant Iorio",           tier25:"S"},
+  {name:"Louis Ragusa",        tier25:"S"},
+  {name:"Matt Giordano",       tier25:"N/A"},
+  {name:"Billy Seymour",       tier25:"C"},
+  {name:"Ant Rossi",           tier25:"A"},
+  {name:"Joe Consiglio",       tier25:"N/A", tier26:"QB"},
+  {name:"Neil Bayless",        tier25:"C"},
+  {name:"Joey Vardakis",       tier25:"D"},
+  {name:"Devon Jacobsen",      tier25:"N/A"},
+  {name:"Dylan Shah",          tier25:"N/A"},
+  {name:"Steve Bontempo",      tier25:"B"},
+  {name:"Jalen Lester",        tier25:"N/A"},
+  {name:"Luke Billings",       tier25:"N/A", tier26:"QB"},
+  {name:"Austin Schwartz",     tier25:"N/A"},
+  {name:"Danny Surtz",         tier25:"QB", tier26:"QB"},
+  {name:"Mike Surtz",          tier25:"N/A"},
+  {name:"Nick Strobino",       tier25:"N/A"},
+  // Played in 2025, not playing in 2026 (out:true keeps them on the board but out of the mock draft)
+  {name:"Tristan Oliva",       tier25:"S", tier26:"N/A", out:true},
+  {name:"Matt Garfield",       tier25:"D", tier26:"N/A", out:true},
+  {name:"Hunter Mosely",       tier25:"D", tier26:"N/A", out:true},
+  {name:"Kyle Gardyan",        tier25:"D", tier26:"N/A", out:true},
+  {name:"Ben Calli",           tier25:"D", tier26:"N/A", out:true},
+];
+
+// ===== Player bios + game logs (edit after games are played) =====
+// bio: age, ht ("5-11"), wt (lbs). games: in order played (GM 1, 2, 3...).
+//   off: tgt, rec, yds, td, snap (%), route (%)      def: tkl, pd, int, snap (%)
+//   film: optional link to game film (YouTube, Drive, etc.)
+// NOTE: once plays are logged in the Film Room, player cards use those stats automatically
+// (games below are only used for players with no logged plays).
+// Example: "Jack Billings": { bio: {age: 24, ht: "5-11", wt: 180}, games: [] },
+const STATS = {
+};
+
+// Scoring (PPR). Defense uses simple flag-football values — change if you want.
+const SCORING = {
+  off: g => (g.rec||0) * 1 + (g.yds||0) * 0.1 + (g.td||0) * 6,
+  def: g => (g.tkl||0) * 1 + (g.pd||0) * 2 + (g.int||0) * 4,
+};
+
+// ===== Percentile color coding (FPTS per game + PPG) =====
+// Top 10% = green, top 10–25% = light green, middle 50% = neutral,
+// bottom 10–25% = orange, bottom 10% = red. Colors only turn on once there
+// are enough results to compare against (MIN_SAMPLE).
+const MIN_SAMPLE = 10;
+function pctRank(pool, v){ let lo = 0, eq = 0; pool.forEach(x => { if (x < v) lo++; else if (x === v) eq++; }); return (lo + eq / 2) / pool.length; }
+function pctClass(pool, v){
+  if (v == null || pool.length < MIN_SAMPLE) return "";
+  const r = pctRank(pool, v);
+  return r >= .90 ? "pc-t10" : r >= .75 ? "pc-t25" : r >= .25 ? "pc-mid" : r >= .10 ? "pc-b25" : "pc-b10";
+}
+function allGamesFor(name){
+  const fg = (typeof filmGamesFor === "function") ? filmGamesFor(name) : [];
+  return fg.length ? fg : ((STATS[name] || {}).games || []);
+}
+function sideActive(g, side){
+  const d = g[side] || {};
+  return side === "off" ? !!(d.tgt || d.att || d.rec || d.yds || d.td) : !!(d.tkl || d.pd || d.int || d.tgta);
+}
+function fptsPool(side){
+  const out = [];
+  players.forEach(p => allGamesFor(p.name).forEach(g => { if (sideActive(g, side)) out.push(+SCORING[side](g[side]).toFixed(2)); }));
+  return out;
+}
+// Per-player averages for one side — a separate scale from single games,
+// so one-off big games don't set the bar for averages.
+function avgPool(side){
+  const out = [];
+  players.forEach(p => {
+    const gs = allGamesFor(p.name).filter(g => sideActive(g, side));
+    if (gs.length) out.push(+(gs.reduce((a, g) => a + SCORING[side](g[side]), 0) / gs.length).toFixed(2));
+  });
+  return out;
+}
+function ppgOf(name){
+  const gs = allGamesFor(name);
+  if (!gs.length) return null;
+  return gs.reduce((a, g) => a + SCORING.off(g.off || {}) + SCORING.def(g.def || {}), 0) / gs.length;
+}
+const ppgPool = () => players.map(p => ppgOf(p.name)).filter(v => v != null).map(v => +v.toFixed(2));
+// Win/loss record: team result in every game the player played (logged plays or saved rosters).
+function recordFor(name, season){
+  if (typeof playerGameRows !== "function") return null;
+  const rs = playerGameRows().filter(r => r.name === name && (season == null || r.season === season) && (r.w || r.l));
+  return rs.length ? {w: rs.reduce((a, r) => a + r.w, 0), l: rs.reduce((a, r) => a + r.l, 0)} : null;
+}
+// Record · Rings · Accomplishments strip at the top of the player card.
+// Rings come from History → Past champions (roster or captain); accomplishments from History → Awards.
+const AWARD_SHORT = a => /^mvp|most valuable/i.test(a) ? "MVP" : /def.*player|dpoy/i.test(a) ? "DPOY" : /rookie|roty/i.test(a) ? "ROTY" : /improved|mip/i.test(a) ? "MIP" : a;
+function honorsHTML(name){
+  const H = (typeof FD !== "undefined" && FD.history) || {};
+  const rec = recordFor(name, null);
+  const rings = (H.champions || []).filter(c => c.captain === name || (c.roster || []).includes(name)).map(c => +c.season).sort((a,b) => a - b);
+  const aw = (H.awards || []).slice().sort((a,b) => b.season - a.season || (typeof awardRank === "function" ? awardRank(a.award) - awardRank(b.award) : 0));
+  const won = aw.filter(a => a.winner === name).map(a => `<span class="achip">🏅 ${a.season} ${esc2(AWARD_SHORT(a.award))}</span>`);
+  const fin = aw.filter(a => (a.finalists || []).includes(name)).map(a => `<span class="achip fin">${a.season} ${esc2(AWARD_SHORT(a.award))} finalist</span>`);
+  const chips = [...won, ...fin];
+  return `<div class="honors">
+    <div class="hon"><div class="k">All-time record</div><div class="v">${rec ? rec.w + "-" + rec.l : "—"}</div></div>
+    <div class="hon ${rings.length ? "ring" : ""}"><div class="k">Rings</div><div class="v">${rings.length ? "🏆".repeat(rings.length) : "0"}</div>${rings.length ? `<div class="yrs">${rings.join(", ")}</div>` : ""}</div>
+    <div class="hon acc"><div class="k">Accomplishments</div><div class="chips">${chips.length ? chips.join("") : `<span class="achip none">None yet</span>`}</div></div>
+  </div>`;
+}
+const esc2 = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// W / L / T for one game-log row
+function gameResult(g){
+  if (!g.gameId || typeof winnerOf !== "function") return "";
+  const win = winnerOf(gameById(g.gameId) || {});
+  if (!win) return "";
+  if (win === "TIE") return "T";
+  return (!g.opp || g.opp === "—") ? "" : win === g.opp ? "L" : "W";
+}
+let PPG_POOL = [];
+const LEGEND = `<span class="lg"><i class="pc-t10"></i>Top 10%</span><span class="lg"><i class="pc-t25"></i>Top 25%</span><span class="lg"><i class="pc-mid"></i>Middle 50%</span><span class="lg"><i class="pc-b25"></i>Bottom 25%</span><span class="lg"><i class="pc-b10"></i>Bottom 10%</span>`;
+
+const TIERS = [
+  {key:"QB", label:"QB Tier"}, {key:"S", label:"S Tier"}, {key:"A", label:"A Tier"},
+  {key:"B", label:"B Tier"},   {key:"C", label:"C Tier"}, {key:"D", label:"D Tier"},
+  {key:"NA", label:"Unranked"},
+];
+const TI = k => TIERS.findIndex(t => t.key === k);
+const norm = t => (!t || t === "N/A") ? "NA" : t;
+const tlabel = k => k === "NA" ? "—" : k;
+const split = n => { const p = n.trim().split(/\s+/); return {first:p.slice(0,-1).join(" "), last:p[p.length-1]}; };
+const teamLabel = p => p.team || (p.out ? "Not playing 2026" : "Undrafted");
+const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+
+const players = PLAYERS.map(p => ({...p, ...split(p.name), tier: norm(p.tier26 || p.tier25), prev: norm(p.tier25)}))
+  .sort((a,b) => TI(a.tier) - TI(b.tier) || a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
+const tierCount = {}, posCount = {};
+players.forEach((p,i) => {
+  p.pos = p.tier === "QB" ? "QB" : "FLEX";
+  posCount[p.pos] = (posCount[p.pos]||0)+1; p.prank = p.pos + posCount[p.pos];
+  p.rank = posCount[p.pos];   // numbering restarts at 1 for FLEX
+  tierCount[p.tier] = (tierCount[p.tier]||0)+1; p.trank = p.tier==="NA" ? "—" : p.tier + tierCount[p.tier];
+});
+
+let filter = "ALL", view = "table";
+const chips = document.getElementById("chips");
+["ALL","QB","FLEX"].forEach(k => {
+  const t = {key:k};
+  const b = document.createElement("button");
+  b.className = "btn" + (t.key===filter ? " on" : "");
+  b.textContent = k === "ALL" ? "All" : k;
+  b.onclick = () => { filter = t.key; [...chips.children].forEach(c=>c.classList.remove("on")); b.classList.add("on"); render(); };
+  chips.appendChild(b);
+});
+document.querySelectorAll(".btn.view").forEach(b => b.onclick = () => {
+  view = b.dataset.view; document.querySelectorAll(".btn.view").forEach(x=>x.classList.toggle("on", x===b)); render();
+});
+document.getElementById("q").addEventListener("input", render);
+
+function headshot(p){
+  const el = document.createElement("div"); el.className = "hs";
+  el.style.setProperty("--tc", `var(--t-${p.tier})`);
+  const ini = (p.first[0]||"") + (p.last[0]||"");
+  const tries = p.img ? [p.img] : ["jpg","png","jpeg","webp"].map(e => `images/${slug(p.name)}.${e}`);
+  let i = 0; const img = new Image(); img.alt = p.name;
+  img.onload = () => el.classList.add("has-img");
+  img.onerror = () => { i++; if (i < tries.length) img.src = tries[i]; else { img.remove(); el.textContent = ini; } };
+  img.src = tries[0]; el.appendChild(img);
+  return el;
+}
+
+function movement(p){
+  if (p.prev === "NA" && p.tier !== "NA") return `<span class="move new">NEW</span>`;
+  const d = TI(p.prev) - TI(p.tier);
+  if (!d || p.tier === "NA") return `<span class="prev">–</span>`;
+  return d > 0 ? `<span class="move up">▲ ${d}</span>` : `<span class="move down">▼ ${-d}</span>`;
+}
+
+function visible(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  return players.filter(p => (filter==="ALL" || p.pos===filter) && (!q || (p.name + " " + (p.team||"")).toLowerCase().includes(q)));
+}
+
+function render(){
+  const list = visible();
+  document.getElementById("summary").innerHTML =
+    `<span class="hl">TURKEY BOWL 2026</span> &nbsp; Showing <b>${list.length}</b> &nbsp;·&nbsp; QB <b>${posCount.QB||0}</b> &nbsp;·&nbsp; FLEX <b>${posCount.FLEX||0}</b> &nbsp;·&nbsp; Drafted <b>${players.filter(p=>p.team).length}</b>`;
+  const board = document.getElementById("board"); board.innerHTML = "";
+  if (view === "draft") { renderDraft(board); return; }
+  if (!list.length) { board.innerHTML = `<div class="empty">No players match.</div>`; return; }
+  view === "table" ? renderTable(board, list) : renderCards(board, list);
+}
+
+// ===== Player card modal =====
+// [key, label, isPercent]. TGT% = share of team pass attempts (offense) or of opponent
+// pass attempts thrown at the defender in coverage (defense).
+const COLS = {
+  off: [["tgt","TGT"],["tgtp","TGT%",true],["rec","REC"],["yds","YDS"],["td","TD"],["snap","SNAP%",true],["route","ROUTE%",true]],
+  def: [["tkl","TKL"],["pd","PD"],["int","INT"],["tgta","TGT ALW"],["tgtp","TGT%",true],["reca","REC ALW"],["tda","TD ALW"],["snap","SNAP%",true]],
+};
+// Season shown in the player card game log. Change to 2027 etc. when that season starts;
+// the card's season dropdown also lists any other season that has logged games.
+const CURRENT_SEASON = 2026;
+const PC = {name:null, side:"off", mode:"total", season:CURRENT_SEASON};
+const fmt = (v, d=1) => Number.isInteger(v) ? String(v) : v.toFixed(d);
+
+function openCard(name){
+  PC.name = name; PC.side = "off"; PC.mode = "total"; PC.season = CURRENT_SEASON;
+  drawCard();
+  document.getElementById("ov").hidden = false;
+  document.body.style.overflow = "hidden";
+  try { history.replaceState(null, "", "?player=" + slug(name) + location.hash); } catch(e){}
+}
+function closeCard(keepUrl){
+  document.getElementById("ov").hidden = true;
+  document.body.style.overflow = "";
+  if (!keepUrl) { try { history.replaceState(null, "", location.pathname + location.hash); } catch(e){} }
+}
+document.getElementById("ov").addEventListener("click", e => { if (e.target.id === "ov") closeCard(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.getElementById("ov").hidden) closeCard(); });
+
+function drawCard(){
+  const p = byName[PC.name], s = STATS[p.name] || {}, bio = s.bio || {};
+  const allG = allGamesFor(p.name);
+  const seasonList = [...new Set([CURRENT_SEASON, ...allG.map(g => g.season).filter(Boolean)])].sort((a,b) => b - a);
+  const games = allG.filter(g => (g.season || CURRENT_SEASON) === PC.season);
+  const pc = document.getElementById("pc");
+  pc.style.setProperty("--tc", `var(--t-${p.tier})`);
+  const dash = v => (v === undefined || v === null || v === "") ? "—" : v;
+  pc.innerHTML = `
+    <div class="pc-head">
+      <span class="hsx"></span>
+      <div style="min-width:0">
+        <div class="pc-title"><h2 class="pc-name">${p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span></div>
+        <div class="pc-meta">
+          <span class="pill pos-${p.pos}">${p.pos}</span>
+          <span>${teamLabel(p)}</span><span class="dot">·</span>
+          <span>Age ${dash(bio.age)}</span><span class="dot">·</span>
+          <span>${bio.ht ? bio.ht : "Ht —"}</span><span class="dot">·</span>
+          <span>${bio.wt ? bio.wt + " lbs" : "Wt —"}</span><span class="dot">·</span>
+          <span>#${p.rank}</span>
+        </div>
+      </div>
+      <button class="pc-close" aria-label="Close">✕</button>
+    </div>
+    <div class="pc-body"></div>`;
+  pc.querySelector(".hsx").replaceWith(headshot(p));
+  pc.querySelector(".pc-close").onclick = closeCard;
+
+  const body = pc.querySelector(".pc-body");
+  const side = PC.side, cols = COLS[side];
+  const pts = games.map(g => g[side] ? SCORING[side](g[side]) : 0);
+  const pool = fptsPool(side);
+  const n = games.length, totalPts = pts.reduce((a,b)=>a+b,0);
+  const best = n ? Math.max(...pts) : 0;
+
+  body.innerHTML = `
+    ${honorsHTML(p.name)}
+    <div class="pc-row">
+      <span class="sec-t">Rankings</span>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Rank</div><div class="v">${p.rank}</div></div>
+      <div class="tile"><div class="k">Pos Rank</div><div class="v">${p.prank}</div></div>
+      <div class="tile ${n ? "good" : ""}"><div class="k">FPTS / GM</div><div class="v">${n ? fmt(totalPts/n) : "—"}</div></div>
+      <div class="tile"><div class="k">Best GM</div><div class="v">${n ? fmt(best) : "—"}</div></div>
+    </div>
+    <div class="pc-row">
+      <span class="sec-t" style="display:flex;align-items:center;gap:8px">Game log ·
+        <select id="seasonSel" style="background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:4px 6px;font:700 12px Inter,sans-serif">${seasonList.map(y => `<option ${y === PC.season ? "selected" : ""}>${y}</option>`).join("")}</select>
+        · PPR</span>
+      <div class="seg" id="sideSeg"><button data-v="off">Offense</button><button data-v="def">Defense</button></div>
+    </div>
+    <div id="logWrap"></div>`;
+  body.querySelector("#seasonSel").onchange = e => { PC.season = +e.target.value; drawCard(); };
+  body.querySelectorAll("#sideSeg button").forEach(b => {
+    b.classList.toggle("on", b.dataset.v === side);
+    b.onclick = () => { PC.side = b.dataset.v; drawCard(); };
+  });
+
+  const wrap = body.querySelector("#logWrap");
+  if (!n) { wrap.innerHTML = `<div class="nodata">No ${PC.season} games played yet — stats show up here after the Turkey Bowl.</div>`; return; }
+
+  const hasFilm = games.some(g => g.film || g.gameId);
+  let html = `<div style="overflow-x:auto"><table class="glog"><thead><tr><th>GM</th><th>OPP</th><th>W/L</th><th class="fp">FPTS</th>`;
+  cols.forEach(([k,l,minor]) => html += `<th class="${minor?"minor":""}">${l}</th>`);
+  if (hasFilm) html += `<th>FILM</th>`;
+  html += `</tr></thead><tbody>`;
+  games.forEach((g,i) => {
+    const d = g[side] || {};
+    const pc = sideActive(g, side) ? pctClass(pool, +pts[i].toFixed(2)) : "";
+    const res = gameResult(g);
+    html += `<tr><td>${i+1}</td><td>${g.opp || "—"}</td><td><b style="color:${res === "W" ? "#5fd68f" : res === "L" ? "#ef6b5f" : "var(--muted)"}">${res || "—"}</b></td><td class="fp"><span class="pcv ${pc}" ${pc ? `title="Better than ${Math.round(pctRank(pool, +pts[i].toFixed(2))*100)}% of logged ${side === "off" ? "offensive" : "defensive"} games"` : ""}>${fmt(pts[i])}</span></td>`;
+    cols.forEach(([k,,minor]) => html += `<td class="${minor?"minor":""}">${d[k] == null ? "—" : minor ? Math.round(d[k]) + "%" : fmt(d[k])}</td>`);
+    if (hasFilm) html += `<td>${g.gameId ? `<a href="#film/${g.gameId}/${slug(p.name)}" class="filmlink" title="Watch ${p.first}'s plays from this game" style="color:var(--accent);text-decoration:none">▶</a>` : g.film ? `<a href="${g.film}" target="_blank" rel="noopener" style="color:var(--accent)">▶</a>` : "—"}</td>`;
+    html += `</tr>`;
+  });
+  // Totals / averages row (percentages are always averaged)
+  const avg = PC.mode === "avg";
+  html += `</tbody><tfoot><tr><td colspan="3"><div class="seg" id="modeSeg"><button data-v="total">Total</button><button data-v="avg">Avg</button></div></td>`;
+  if (avg) {
+    const act = games.filter(g => sideActive(g, side)), aPool = avgPool(side);
+    const a = act.length ? +(act.reduce((s, g) => s + SCORING[side](g[side]), 0) / act.length).toFixed(2) : null;
+    const c = pctClass(aPool, a);
+    html += `<td class="fp"><span class="pcv ${c}" title="Average vs. other players' averages (separate scale from single games)">${fmt(totalPts/n)}</span></td>`;
+  } else html += `<td class="fp">${fmt(totalPts)}</td>`;
+  const tot = key => games.reduce((a,g) => a + (+((g[side]||{})[key]) || 0), 0);
+  cols.forEach(([k,,minor]) => {
+    let v;
+    if (k === "tgtp") {   // share across all games = total targets / total attempts
+      const num = tot(side === "off" ? "tgt" : "tgta"), den = tot(side === "off" ? "teamAtt" : "oppAtt");
+      v = den ? num / den * 100 : null;
+    } else {
+      const vals = games.map(g => (g[side]||{})[k]).filter(v => v != null);
+      const sum = vals.reduce((a,b)=>a+b,0);
+      v = vals.length ? ((avg || minor) ? sum/vals.length : sum) : null;
+    }
+    html += `<td class="${minor?"minor":""}">${v == null ? "—" : minor ? Math.round(v) + "%" : fmt(v)}</td>`;
+  });
+  if (hasFilm) html += `<td></td>`;
+  html += `</tr></tfoot></table></div>
+    <div class="legend">FPTS color: each game vs. every logged ${side === "off" ? "offensive" : "defensive"} game · Avg vs. other players' averages: ${LEGEND}${pool.length < MIN_SAMPLE ? `<span class="lg-note">Colors turn on once ${MIN_SAMPLE}+ games are logged (${pool.length} so far).</span>` : ""}</div>
+    <div class="foot-note">${side === "off" ? "PPR: 1 per catch · 0.1 per yard · 6 per TD" : "Defense: 1 per tackle · 2 per pass deflection · 4 per INT"} · ${side === "off" ? "TGT% = share of team pass attempts" : "TGT/REC/TD ALW = thrown at, caught on, scored on while in coverage · TGT% = share of opponent pass attempts"} · Snap%/Route% shown as averages.${STATS[p.name] && p.name === "Jack Billings" ? " · Sample data." : ""}</div>`;
+  wrap.innerHTML = html;
+  wrap.querySelectorAll(".filmlink").forEach(a => a.addEventListener("click", () => closeCard(true)));
+  wrap.querySelectorAll("#modeSeg button").forEach(b => {
+    b.classList.toggle("on", b.dataset.v === PC.mode);
+    b.onclick = () => { PC.mode = b.dataset.v; drawCard(); };
+  });
+}
+
+// Make any element open the card for a player
+function linkName(el, name){ el.classList.add("plink"); el.addEventListener("click", e => { e.stopPropagation(); openCard(name); }); }
+
+// ===== Mock draft (snake, QBs are captains) =====
+const store = {
+  get(){ try { return JSON.parse(localStorage.getItem("tb-mock-2026")||"null"); } catch(e){ return null; } },
+  set(v){ try { localStorage.setItem("tb-mock-2026", JSON.stringify(v)); } catch(e){} }
+};
+const byName = Object.fromEntries(players.map(p => [p.name, p]));
+const captains = players.filter(p => p.pos === "QB").map(p => p.name);
+const pool = players.filter(p => p.pos !== "QB" && !p.out).map(p => p.name);
+let MD = store.get();
+if (!MD || !Array.isArray(MD.order) || MD.order.length !== captains.length || !MD.order.every(n => captains.includes(n)))
+  MD = {order:[...captains], picks:[]};
+const saveMD = () => store.set(MD);
+const N = () => MD.order.length;
+const totalPicks = () => pool.length;
+function teamForPick(i){ const r = Math.floor(i / N()), s = i % N(); return MD.order[r % 2 === 0 ? s : N()-1-s]; }
+const available = () => pool.filter(n => !MD.picks.includes(n));
+function pick(name){ if (MD.picks.length >= totalPicks() || MD.picks.includes(name)) return; MD.picks.push(name); saveMD(); render(); }
+function autoPick(){ const a = available(); if (a.length) pick(a[0]); }
+
+function renderDraft(board){
+  const started = MD.picks.length > 0, done = MD.picks.length >= totalPicks();
+  const wrap = document.createElement("div"); wrap.className = "md";
+
+  // Left: order + controls + available players
+  const left = document.createElement("div"); left.className = "panel";
+  left.innerHTML = `<h3>Draft order ${started ? "(locked)" : ""}</h3>`;
+  const ol = document.createElement("ul"); ol.className = "order";
+  MD.order.forEach((n,i) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="slot">${i+1}</span>`;
+    li.appendChild(headshot(byName[n]));
+    li.insertAdjacentHTML("beforeend", `<span class="nm">${n}</span>`);
+    const up = document.createElement("button"); up.className="mini"; up.textContent="▲"; up.disabled = started || i===0;
+    const dn = document.createElement("button"); dn.className="mini"; dn.textContent="▼"; dn.disabled = started || i===N()-1;
+    up.onclick = () => { [MD.order[i-1], MD.order[i]] = [MD.order[i], MD.order[i-1]]; saveMD(); render(); };
+    dn.onclick = () => { [MD.order[i+1], MD.order[i]] = [MD.order[i], MD.order[i+1]]; saveMD(); render(); };
+    li.append(up, dn); ol.appendChild(li);
+  });
+  left.appendChild(ol);
+
+  const ctl = document.createElement("div"); ctl.className = "row-btns";
+  const mk = (txt, fn, cls="", dis=false) => { const b = document.createElement("button"); b.className = "btn " + cls; b.textContent = txt; b.disabled = dis; b.onclick = fn; ctl.appendChild(b); };
+  mk("🎲 Randomize order", () => { for (let i=MD.order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [MD.order[i],MD.order[j]]=[MD.order[j],MD.order[i]]; } saveMD(); render(); }, "", started);
+  mk("Auto pick", autoPick, "primary", done);
+  mk("Sim to end", () => { while (MD.picks.length < totalPicks()) MD.picks.push(available()[0]); saveMD(); render(); }, "", done);
+  mk("Undo", () => { MD.picks.pop(); saveMD(); render(); }, "", !started);
+  mk("Reset", () => { if (confirm("Clear all picks?")) { MD.picks = []; saveMD(); render(); } }, "", !started);
+  left.appendChild(ctl);
+
+  if (!done) {
+    const i = MD.picks.length, team = teamForPick(i);
+    const clock = document.createElement("div"); clock.className = "clock"; clock.style.marginTop = "14px";
+    clock.appendChild(headshot(byName[team]));
+    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i/N())+1}, Pick ${i+1}</div><div class="who">Team ${byName[team].last}</div></div>`);
+    left.appendChild(clock);
+    left.insertAdjacentHTML("beforeend", `<h3>Available — click to draft</h3>`);
+    const av = document.createElement("div"); av.className = "avail";
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    available().filter(n => !q || n.toLowerCase().includes(q)).forEach(n => {
+      const p = byName[n];
+      const d = document.createElement("div"); d.className = "ap"; d.style.setProperty("--tc", `var(--t-${p.tier})`);
+      d.innerHTML = `<span class="r">${p.rank}</span>`;
+      d.appendChild(headshot(p));
+      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${n}</div><div class="psub">${p.prank}</div></div><span class="pill">${tlabel(p.tier)}</span>`);
+      d.onclick = () => pick(n);
+      av.appendChild(d);
+    });
+    left.appendChild(av);
+  } else {
+    left.insertAdjacentHTML("beforeend", `<div class="clock" style="margin-top:14px"><div><div class="lbl2">Draft complete</div><div class="who">${totalPicks()} picks made</div></div></div>`);
+  }
+
+  // Right: draft board grid
+  const right = document.createElement("div"); right.className = "panel boardwrap";
+  right.innerHTML = `<h3>Draft board · snake · ${Math.ceil(totalPicks()/N())} rounds</h3>`;
+  const g = document.createElement("div"); g.className = "dboard";
+  g.style.gridTemplateColumns = `repeat(${N()}, minmax(110px,1fr))`;
+  MD.order.forEach(n => {
+    const h = document.createElement("div"); h.className = "colh";
+    h.appendChild(headshot(byName[n]));
+    h.insertAdjacentHTML("beforeend", `<div class="tn">Team ${byName[n].last}</div><div class="sub">C: <span class="cap">${n}</span></div>`);
+    linkName(h.querySelector(".cap"), n);
+    g.appendChild(h);
+  });
+  const rounds = Math.ceil(totalPicks()/N());
+  for (let r=0; r<rounds; r++) for (let c=0; c<N(); c++) {
+    const s = r % 2 === 0 ? c : N()-1-c, i = r*N() + s;
+    const cell = document.createElement("div"); cell.className = "cell";
+    if (i >= totalPicks()) { cell.classList.add("emptyc"); g.appendChild(cell); continue; }
+    const name = MD.picks[i];
+    if (name) {
+      const p = byName[name]; cell.style.setProperty("--tc", `var(--t-${p.tier})`);
+      cell.appendChild(headshot(p));
+      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r+1}.${String(s+1).padStart(2,"0")} · ${tlabel(p.tier)}</div><div class="cn">${name}</div></div>`);
+      linkName(cell.querySelector(".cn"), name);
+    } else {
+      if (i === MD.picks.length) cell.classList.add("now");
+      cell.classList.add("emptyc");
+      cell.innerHTML = `<div class="pk">${r+1}.${String(s+1).padStart(2,"0")}</div>`;
+    }
+    g.appendChild(cell);
+  }
+  right.appendChild(g);
+  wrap.append(left, right);
+  board.appendChild(wrap);
+}
+
+function renderTable(board, list){
+  const t = document.createElement("table");
+  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th>Player</th><th>Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
+  const tb = document.createElement("tbody");
+  PPG_POOL = ppgPool();
+  const TB = {QB:"Quarterbacks", S:"Elite", A:"Tier A", B:"Tier B", C:"Tier C", D:"Tier D", NA:"Unranked"};
+  let lastTier = null;
+  list.forEach(p => {
+    if (p.tier !== lastTier) {
+      lastTier = p.tier;
+      const br = document.createElement("tr"); br.className = "tbreak";
+      br.style.setProperty("--tc", `var(--t-${p.tier})`);
+      br.innerHTML = `<td colspan="7"><span class="tb-badge">${p.tier === "NA" ? "—" : p.tier}</span><span class="tb-label">${TB[p.tier]}</span></td>`;
+      tb.appendChild(br);
+    }
+    const tr = document.createElement("tr"); tr.className = "prow";
+    tr.style.setProperty("--tc", `var(--t-${p.tier})`);
+    tr.innerHTML = `<td class="num">${p.rank}</td>
+      <td><div class="player"><span class="hsx"></span><div><div style="display:flex;align-items:center;gap:8px"><span class="pname">${p.name}</span><span class="pill" title="${p.tier==="NA"?"Unranked":p.tier+" Tier"}">${tlabel(p.tier)}</span></div>
+        <div class="psub">${teamLabel(p)}</div></div></div></td>
+      <td><span class="pill pos-${p.pos}">${p.pos}</span></td>
+      <td class="trank">${p.prank}</td>
+      <td class="ppg">${(() => { const v = ppgOf(p.name); if (v == null) return ""; const c = pctClass(PPG_POOL, +v.toFixed(2)); return `<span class="pcv ${c}">${v.toFixed(1)}</span>`; })()}</td>
+      <td class="hide-sm prev">${p.prev==="NA" ? "—" : p.prev}</td>
+      <td class="hide-sm">${movement(p)}</td>`;
+    tr.querySelector(".hsx").replaceWith(headshot(p));
+    linkName(tr.querySelector(".pname"), p.name);
+    linkName(tr.querySelector(".hs"), p.name);
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb); board.appendChild(t);
+}
+
+function renderCards(board, list){
+  TIERS.forEach(t => {
+    const items = list.filter(p => p.tier === t.key);
+    if (!items.length) return;
+    const sec = document.createElement("section"); sec.className = "tier";
+    sec.style.setProperty("--tc", `var(--t-${t.key})`);
+    sec.innerHTML = `<div class="tier-head"><h2>${t.label}</h2><span class="count">${items.length} player${items.length>1?"s":""}</span></div>`;
+    const grid = document.createElement("div"); grid.className = "grid";
+    items.forEach(p => {
+      const c = document.createElement("article"); c.className = "card";
+      c.innerHTML = `<span class="rk">#${p.rank}</span><span class="pill">${tlabel(p.tier)}</span>`;
+      c.appendChild(headshot(p));
+      c.insertAdjacentHTML("beforeend", `<div class="pname">${p.name}</div><div class="psub">${teamLabel(p)}</div><div class="psub">${p.prank} · ${p.trank}</div>`);
+      c.style.cursor = "pointer"; c.addEventListener("click", () => openCard(p.name));
+      grid.appendChild(c);
+    });
+    sec.appendChild(grid); board.appendChild(sec);
+  });
+}
+render();
+{ const q = new URLSearchParams(location.search).get("player"); const hit = q && players.find(p => slug(p.name) === q); if (hit) openCard(hit.name); }
+</script>
+<script src="film.js"></script>
+<script src="history.js"></script>
+</body>
+</html>
