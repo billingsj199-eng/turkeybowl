@@ -3,6 +3,7 @@
 //   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
 //   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
+//   lottery/<season> {order: [captains], id, by, at}  - draft lottery result (everyone on Live Draft watches it run)
 //   teams/<season>  {names: {captainSlug: "Team name"}, by, at}  - team names editors set at/after the draft
 //   photos/{slug}   {img: small JPEG as a data: URL, by, at}  - headshot uploaded on the site (beats images/*.jpg)
 //   requests/{uid}  "Request edit access"      editors/{uid}  people Jack approved
@@ -29,7 +30,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
-  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {},
+  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null,
   canEdit(){ return this.role === "editor" || this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
@@ -51,6 +52,8 @@ onSnapshot(draftRef, d => { TBC.live = d.exists() ? d.data() : null; changed(); 
   err => console.warn("Turkey Bowl cloud: couldn't load the live draft", err));
 onSnapshot(doc(db, "teams", DRAFT_ID), d => { const n = d.exists() ? d.data().names : null; TBC.teamNames = n && typeof n === "object" ? n : {}; changed(); },
   err => console.warn("Turkey Bowl cloud: couldn't load team names", err));
+onSnapshot(doc(db, "lottery", DRAFT_ID), d => { TBC.lottery = d.exists() ? d.data() : null; changed(); },
+  err => console.warn("Turkey Bowl cloud: couldn't load the draft lottery", err));
 onSnapshot(collection(db, "photos"), snap => {
   const p = {}; snap.forEach(d => { const v = d.data().img; if (typeof v === "string" && v.startsWith("data:image/")) p[d.id] = v; });
   TBC.photos = p; changed();
@@ -120,6 +123,14 @@ TBC.liveUndo = async expect => runTransaction(db, async tx => {
   tx.update(draftRef, {picks: d.picks.slice(0, -1), status: "live", by: by(), at: serverTimestamp()});
 });
 TBC.liveReset = () => deleteDoc(draftRef);
+// Draft lottery: shuffle the captains (fair Fisher-Yates using the browser's crypto random), save it,
+// and every open Live Draft page plays the reveal. Not allowed once the draft has started (rules).
+TBC.runLottery = async captains => {
+  const o = [...captains], r = new Uint32Array(o.length); crypto.getRandomValues(r);
+  for (let i = o.length - 1; i > 0; i--) { const j = r[i] % (i + 1); [o[i], o[j]] = [o[j], o[i]]; }
+  await setDoc(doc(db, "lottery", DRAFT_ID), {order: o, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), by: by(), at: serverTimestamp()});
+  return o;
+};
 // Rename a team (keyed by its captain). Empty name = back to "Team <captain's last name>".
 TBC.saveTeamName = async (capSlug, name) => {
   const names = {...TBC.teamNames};

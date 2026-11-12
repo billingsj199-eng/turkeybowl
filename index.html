@@ -243,6 +243,33 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .lv-danger{color:#ef6b5f !important;border-color:#5a2a2a !important}
   #liveViewBtn.is-live::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4b3f;margin-left:6px;vertical-align:1px;animation:lvpulse 1.4s infinite}
   td.num{white-space:nowrap}
+  /* draft lottery */
+  .lotto-ov{position:fixed;inset:0;z-index:80;background:radial-gradient(ellipse at center,#1d2640 0%,#070a12 75%);display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden}
+  .lotto{width:min(520px,100%);text-align:center;max-height:100%;overflow:auto}
+  .lotto-h{font:800 26px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+  .lotto-sub{font-size:18px;color:#c4cbd8;min-height:26px;margin-bottom:14px}
+  .lotto-sub b{color:#fff}
+  .lotto-reel{position:relative;width:150px;height:150px;margin:0 auto;border-radius:50%;box-shadow:0 0 0 4px #3a4560,0 0 40px rgba(233,185,73,.15);background:#0f1525;transition:box-shadow .3s}
+  .lotto-reel.landed{box-shadow:0 0 0 5px var(--accent),0 0 60px rgba(233,185,73,.55);animation:lopop .45s ease-out}
+  @keyframes lopop{0%{transform:scale(.88)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+  .lo-face{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font:800 40px Inter,sans-serif;color:var(--muted)}
+  .lo-face.on{display:flex}
+  .lo-face .hs{width:150px !important;height:150px !important;font-size:44px}
+  .lotto-name{font:800 20px Inter,sans-serif;color:#fff;margin:14px 0 16px;min-height:28px}
+  .lotto-list{list-style:none;margin:0 auto;padding:0;display:grid;gap:6px;text-align:left;max-width:380px}
+  .lotto-list li{display:flex;align-items:center;gap:12px;background:#151c2c;border:1px solid #2a3449;border-radius:8px;padding:8px 12px;color:var(--muted)}
+  .lotto-list li.set{color:var(--ink);border-color:#5a4620;animation:lopop .4s ease-out}
+  .lotto-list li[data-i="0"].set{background:#2a2210;border-color:var(--accent)}
+  .lotto-list small{color:var(--muted);font-size:12px;margin-left:4px}
+  .lo-k{font:800 15px Inter,sans-serif;color:var(--accent);width:22px;text-align:right}
+  .lotto-btns{margin-top:16px}
+  .lo-conf{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;animation:lofall linear forwards;pointer-events:none}
+  @keyframes lofall{to{top:105%;transform:rotate(720deg) translateX(40px)}}
+  .lv-lotto-tag{display:inline-block;font-size:12px;color:#f1d39a;background:#2a2210;border:1px solid #5a4620;border-radius:999px;padding:3px 10px;margin-bottom:8px}
+  .lv-lotto-res{max-width:360px;margin:20px auto 0;text-align:left}
+  .lv-lotto-res ol{margin:6px 0 12px;padding-left:22px;color:var(--ink)}
+  .lv-lotto-res li{padding:3px 0}
+  .lv-lotto-res small{color:var(--muted)}
   .ed-bio > div{min-width:0;flex:1 1 90px}
   .ed-bio input{width:100%}
   .ed-ht{display:flex;gap:6px}
@@ -574,6 +601,7 @@ const fmt = (v, d=1) => Number.isInteger(v) ? String(v) : v.toFixed(d);
 // Nicknames / comps / sign-in come from tb-cloud.js; redraw an open card when they change
 // (but never while someone is typing in the edit panel).
 document.addEventListener("tbc-change", () => {
+  maybePlayLottery();
   const ed = !!(window.TBC && TBC.canEdit());
   if (!ed) RANK_EDIT = false;
   if (!DRAG) { buildPlayers(); fixMD(); render(); }
@@ -836,7 +864,7 @@ function renderDraft(board){
 // Team name: what an editor renamed it to (tb-cloud "teams/<season>"), else "Team <captain's last name>".
 function draftTeamName(c){ return ((window.TBC && TBC.teamNames) || {})[slug(c)] || "Team " + split(c).last; }
 function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }
-let LIVE_SETUP = null;      // captain order being set up before the start (editors only, not saved until Start)
+let LIVE_SETUP = null, LIVE_SETUP_FROM = null;      // captain order being set up before the start (editors only, not saved until Start)
 let LIVE_SEEN = null;       // number of picks already shown, to flash the newest one
 function renderLive(board){
   const L = window.TBC && TBC.live, ed = !!(window.TBC && TBC.canEdit()), admin = !!(window.TBC && TBC.role === "admin");
@@ -851,12 +879,18 @@ function renderLive(board){
   if (!L) {
     if (!window.TBC || !TBC.ready) { board.innerHTML = `<div class="empty">Loading the live draft…</div>`; return; }
     if (!ed) {
-      board.innerHTML = `<div class="lv-wait"><div class="lv-big">🦃 The ${CURRENT_SEASON} draft hasn't started yet</div><div>When it starts, every pick shows up here live. No need to refresh.</div></div>`;
+      const LO = TBC.lottery;
+      board.innerHTML = `<div class="lv-wait"><div class="lv-big">🦃 The ${CURRENT_SEASON} draft hasn't started yet</div><div>When it starts, every pick shows up here live. No need to refresh.</div>
+        ${LO && LO.order ? `<div class="lv-lotto-res"><h3>🎰 Draft lottery result</h3><ol>${LO.order.map(c => `<li>${esc2(draftTeamName(c))} <small>(${esc2(c)})</small></li>`).join("")}</ol><button class="btn" id="lvReplay">▶ Replay the lottery</button></div>`
+          : `<div style="margin-top:8px">Stay on this page to watch the draft lottery live.</div>`}</div>`;
+      const rp = board.querySelector("#lvReplay"); if (rp) rp.onclick = () => playLottery(LO.order);
       return;
     }
+    const LO = TBC.lottery, loOk = LO && Array.isArray(LO.order) && LO.order.length === captains.length && LO.order.every(n => captains.includes(n));
+    if (loOk && LIVE_SETUP_FROM !== LO.id) { LIVE_SETUP = [...LO.order]; LIVE_SETUP_FROM = LO.id; }
     if (!LIVE_SETUP || LIVE_SETUP.length !== captains.length || !LIVE_SETUP.every(n => captains.includes(n))) LIVE_SETUP = [...captains];
     const draftPool = pool.slice();
-    left.innerHTML = `<h3>Set the draft order</h3><div class="psub" style="margin-bottom:8px">Captains = everyone at QB. ${draftPool.length} players in the pool (everyone else not marked out), ${Math.ceil(draftPool.length / Math.max(1, LIVE_SETUP.length))} rounds, snake, no clock.</div>`;
+    left.innerHTML = `<h3>Set the draft order</h3>${loOk ? `<div class="lv-lotto-tag">🎰 Set by the draft lottery${LO.by ? " · run by " + esc2(LO.by) : ""}</div>` : ""}<div class="psub" style="margin-bottom:8px">Captains = everyone at QB. ${draftPool.length} players in the pool (everyone else not marked out), ${Math.ceil(draftPool.length / Math.max(1, LIVE_SETUP.length))} rounds, snake, no clock.</div>`;
     const ol = document.createElement("ul"); ol.className = "order";
     LIVE_SETUP.forEach((n, i) => {
       const li = document.createElement("li");
@@ -876,7 +910,13 @@ function renderLive(board){
     });
     left.appendChild(ol);
     const b = btns();
-    btn(b, "🎲 Randomize order", () => { for (let i = LIVE_SETUP.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [LIVE_SETUP[i], LIVE_SETUP[j]] = [LIVE_SETUP[j], LIVE_SETUP[i]]; } render(); });
+    btn(b, "🎰 Run draft lottery", async () => {
+      if (LIVE_SETUP.length < 2) return alert("You need at least 2 QBs (captains) for a lottery.");
+      if (!confirm(`Run the ${CURRENT_SEASON} draft lottery now?\n\nEveryone on the Live Draft page watches it happen, and the result becomes the draft order.${loOk ? "\n\nThis replaces the last lottery result." : ""}`)) return;
+      try { await TBC.runLottery([...captains]); } catch(err){ alert("Couldn't run the lottery: " + (err.code === "permission-denied" ? "you don't have edit access (or the draft already started)." : err.message)); }
+    }, "primary");
+    btn(b, "🎲 Randomize", () => { for (let i = LIVE_SETUP.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [LIVE_SETUP[i], LIVE_SETUP[j]] = [LIVE_SETUP[j], LIVE_SETUP[i]]; } render(); });
+    if (loOk) btn(b, "▶ Replay lottery", () => playLottery(LO.order));
     const go = btn(b, "🔴 Start the live draft", async () => {
       if (LIVE_SETUP.length < 2) return alert("You need at least 2 QBs (captains) to draft.");
       if (!confirm(`Start the ${CURRENT_SEASON} live draft for everyone?\n\nOrder: ${LIVE_SETUP.join(", ")}\n\nThe order and player pool lock once it starts.`)) return;
@@ -983,6 +1023,74 @@ function renderLive(board){
   }
   right.appendChild(g);
   wrap.append(left, right); board.appendChild(wrap);
+}
+
+// ===== Draft lottery animation =====
+// Reveals the order from the last pick up to #1. Each slot spins through the captains still left,
+// slows down and lands. Played for everyone on the Live Draft page when an editor runs a lottery.
+let LOTTO_SEEN;               // id of the lottery already known (undefined = not loaded yet: don't auto-play old ones)
+function maybePlayLottery(){
+  const LO = window.TBC && TBC.lottery;
+  if (!TBC.ready) return;
+  if (LOTTO_SEEN === undefined) { LOTTO_SEEN = LO ? LO.id : null; return; }
+  if (LO && LO.id !== LOTTO_SEEN) { LOTTO_SEEN = LO.id; if (view === "live" && !document.hidden) playLottery(LO.order); }
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function playLottery(order){
+  if (!order || order.length < 2 || document.getElementById("lottoOv")) return;
+  const n = order.length;
+  const ov = document.createElement("div"); ov.id = "lottoOv"; ov.className = "lotto-ov";
+  ov.innerHTML = `<div class="lotto">
+      <div class="lotto-h">🦃 ${CURRENT_SEASON} Draft Lottery</div>
+      <div class="lotto-sub" id="loSub">Shuffling the captains…</div>
+      <div class="lotto-reel" id="loReel"></div>
+      <div class="lotto-name" id="loName">&nbsp;</div>
+      <ol class="lotto-list" id="loList">${order.map((_, i) => `<li data-i="${i}"><span class="lo-k">${i + 1}</span><span class="lo-v">?</span></li>`).join("")}</ol>
+      <div class="lotto-btns"><button class="btn" id="loSkip">Skip to results</button></div>
+    </div>`;
+  document.body.appendChild(ov); document.body.style.overflow = "hidden";
+  let skip = false, closed = false;
+  const close = () => { closed = true; ov.remove(); document.body.style.overflow = ""; };
+  ov.querySelector("#loSkip").onclick = () => { if (skip) close(); else skip = true; };
+  // one big headshot per captain, made once (swapping them is instant, no reloading)
+  const reel = ov.querySelector("#loReel"), faces = {};
+  order.forEach(c => { const f = document.createElement("div"); f.className = "lo-face"; if (byName[c]) f.appendChild(headshot(byName[c])); else f.textContent = c.split(" ").map(w => w[0]).join(""); reel.appendChild(f); faces[c] = f; });
+  const show = c => { Object.values(faces).forEach(f => f.classList.remove("on")); faces[c].classList.add("on"); ov.querySelector("#loName").textContent = draftTeamName(c) + " · " + c; };
+  const fill = (i, c) => { const li = ov.querySelector(`#loList li[data-i="${i}"]`); li.querySelector(".lo-v").innerHTML = `${esc2(draftTeamName(c))} <small>${esc2(c)}</small>`; li.classList.add("set"); };
+  const left = [...order];
+  await sleep(skip ? 0 : 900);
+  for (let i = n - 1; i >= 0 && !closed; i--) {
+    const c = order[i];
+    if (skip) { fill(i, c); continue; }
+    const top = i === 0;
+    ov.querySelector("#loSub").innerHTML = top ? `And the <b>#1 pick</b> goes to…` : i === 1 && n === 2 ? `Pick <b>#2</b>…` : `Pick <b>#${i + 1}</b> goes to…`;
+    reel.classList.remove("landed");
+    if (left.length > 1) {   // spin: fast at first, slowing down, always ending on the real pick
+      let d = 55, last = null;
+      while (d < (top ? 520 : 380) && !skip) {
+        let x; do { x = left[Math.floor(Math.random() * left.length)]; } while (x === last && left.length > 1);
+        show(x); last = x; await sleep(d); d *= top ? 1.09 : 1.13;
+      }
+    }
+    if (skip) { fill(i, c); continue; }
+    show(c); reel.classList.add("landed"); fill(i, c);
+    left.splice(left.indexOf(c), 1);
+    if (top) confetti(ov);
+    await sleep(top ? 600 : 1100);
+  }
+  if (closed) return;
+  ov.querySelector("#loSub").innerHTML = `The ${CURRENT_SEASON} draft order is set`;
+  const b = ov.querySelector("#loSkip"); b.textContent = "Done"; b.classList.add("primary"); b.onclick = close;
+}
+function confetti(host){
+  const colors = ["#e9b949", "#ef6b5f", "#5fd68f", "#4b9ce8", "#c58af9", "#fff"];
+  for (let i = 0; i < 90; i++) {
+    const c = document.createElement("i"); c.className = "lo-conf";
+    c.style.left = Math.random() * 100 + "%"; c.style.background = colors[i % colors.length];
+    c.style.animationDelay = Math.random() * 0.6 + "s"; c.style.animationDuration = 1.8 + Math.random() * 1.6 + "s";
+    c.style.transform = `rotate(${Math.random() * 360}deg)`;
+    host.appendChild(c); setTimeout(() => c.remove(), 4200);
+  }
 }
 
 function renderTable(board, list){

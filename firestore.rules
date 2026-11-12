@@ -3,6 +3,7 @@ rules_version = '2';
 //   players/{slug}   nickname, comp, position/tier, and players added on the site. Anyone can read; approved editors can change.
 //   board/order      drag-and-drop order of the Draft Board. Anyone can read; approved editors can change.
 //   draft/{season}   the live draft. Anyone can watch; editors run it; only the admin can reset it.
+//   lottery/{season} draft lottery result. Anyone can read; editors run it before the draft starts.
 //   teams/{season}   team names. Anyone can read; editors can rename.
 //   photos/{slug}    headshots uploaded on the site. Anyone can read; approved editors can change.
 //   requests/{uid}   "Request edit access". The person themself creates it; only the admin can see the list.
@@ -86,6 +87,20 @@ service cloud.firestore {
         && (request.resource.data.picks.size() == resource.data.picks.size() + 1
             || request.resource.data.picks.size() == resource.data.picks.size() - 1);
       allow delete: if isAdmin();
+    }
+
+    // Draft lottery result for a season. Editors can run it until the live draft starts.
+    match /lottery/{season} {
+      allow read: if true;
+      allow create, update: if isEditor() && season.matches('^[0-9]{4}$')
+        && !exists(/databases/$(database)/documents/draft/$(season))
+        && request.resource.data.keys().hasOnly(['order', 'id', 'by', 'at'])
+        && request.resource.data.keys().hasAll(['order', 'id', 'by', 'at'])
+        && request.resource.data.order is list
+        && request.resource.data.order.size() >= 2 && request.resource.data.order.size() <= 20
+        && shortText(request.resource.data.id, 40)
+        && shortText(request.resource.data.by, 60)
+        && request.resource.data.at == request.time;
     }
 
     // Team names for a season, keyed by captain. Editors can rename teams at or after the draft.
