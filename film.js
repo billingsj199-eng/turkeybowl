@@ -257,10 +257,11 @@ function renderViewer(){
       <div class="vstage" id="vstage">
         <div class="vbox" id="vbox"></div>
         <div class="fs-bar"><span class="fs-lbl" id="fsLbl"></span>
-          <button class="cbtn" id="fsPrev" aria-label="Previous play">⏮</button><button class="cbtn" id="fsNext" aria-label="Next play">⏭</button><button class="cbtn" id="fsExit" aria-label="Exit full screen">✕</button></div>
+          <button class="cbtn" id="fsPrev" aria-label="Previous play">⏮</button><button class="cbtn" id="fsPP" aria-label="Play or pause">⏸</button><button class="cbtn" id="fsNext" aria-label="Next play">⏭</button><button class="cbtn" id="fsExit" aria-label="Exit full screen">✕</button></div>
       </div>
       <div class="vctl">
         <button class="cbtn" id="prev" ${FS.idx<=0?"disabled":""}>⏮ Prev</button>
+        <button class="cbtn" id="ppBtn" ${cur?"":"disabled"}>⏸ Pause</button>
         <button class="cbtn" id="replay" ${cur?"":"disabled"}>↻ Replay</button>
         <button class="cbtn" id="next" ${FS.idx>=list.length-1?"disabled":""}>Next ⏭</button>
         <button class="cbtn" id="fsBtn" ${cur?"":"disabled"}>⛶ Full screen</button>
@@ -320,6 +321,8 @@ function renderViewer(){
   const eg = root.querySelector("#vEditGame"); if (eg) eg.onclick = () => gameForm(g);
   const pp = root.querySelector("#vPart"); if (pp) pp.onclick = () => partForm(g);
   root.querySelector("#fsBtn").onclick = enterFS;
+  root.querySelector("#ppBtn").onclick = togglePlayTB;
+  root.querySelector("#fsPP").onclick = togglePlayTB;
   root.querySelector("#fsExit").onclick = exitFS;
   root.querySelector("#fsPrev").onclick = () => goPlay(FS.idx - 1);
   root.querySelector("#fsNext").onclick = () => goPlay(FS.idx + 1);
@@ -384,11 +387,35 @@ function scoreboard(g, cur){
 }
 
 // ---------- video ----------
-let vidTimer = null;
-function stopVideo(){ clearTimeout(vidTimer); vidTimer = null; }
+// YouTube clips play with YouTube's controls off (they pop up every time a clip starts); a clear
+// layer on top takes taps: tap = pause / play (also the ⏯ buttons). Pausing also pauses the
+// "move to the next play" timer, so a paused clip never skips ahead.
+let vidTimer = null, vidLeft = 0, vidStarted = 0, vidTotal = 0, ytPausedTB = false;
+function stopVideo(){ clearTimeout(vidTimer); vidTimer = null; vidLeft = 0; ytPausedTB = false; }
+function startTimer(ms, total){ clearTimeout(vidTimer); vidLeft = ms; vidTotal = total; vidStarted = Date.now(); vidTimer = setTimeout(() => autoNext(total), ms); }
+function ytCmd(func){
+  const f = document.querySelector("#vbox iframe.ytf"); if (!f) return;
+  f.contentWindow.postMessage(JSON.stringify({event: "command", func, args: []}), "https://www.youtube.com");
+}
+function togglePlayTB(){
+  const v = document.querySelector("#vbox video");
+  if (v) { v.paused ? v.play().catch(() => {}) : v.pause(); setTimeout(syncPlayTB, 100); return; }
+  if (!document.querySelector("#vbox iframe.ytf")) return;
+  if (ytPausedTB) { ytCmd("playVideo"); ytPausedTB = false; if (vidLeft > 0) startTimer(vidLeft, vidTotal); }
+  else { ytCmd("pauseVideo"); ytPausedTB = true; clearTimeout(vidTimer); vidLeft = Math.max(0, vidLeft - (Date.now() - vidStarted)); }
+  syncPlayTB();
+}
+function syncPlayTB(){
+  const v = document.querySelector("#vbox video");
+  const paused = v ? v.paused : ytPausedTB;
+  const box = document.getElementById("vbox"); if (box) box.classList.toggle("paused", !!document.querySelector("#vbox iframe.ytf") && ytPausedTB);
+  const a = document.getElementById("ppBtn"), b = document.getElementById("fsPP");
+  if (a) a.textContent = paused ? "▶ Play" : "⏸ Pause";
+  if (b) b.textContent = paused ? "▶" : "⏸";
+}
 function autoNext(total){ if (FS.autoplay && FS.idx < total - 1) goPlay(FS.idx + 1); }
 function playVideo(box, g, p, total){
-  stopVideo();
+  stopVideo(); box.classList.remove("paused");
   if (!p) { box.innerHTML = `<div class="novid"><div class="big">🎬</div><b>No play selected</b></div>`; return; }
   const url = (p.film || (g && g.film) || "").trim();
   const s = Math.max(0, +p.start || 0), e = Math.max(s + 1, +p.end || s + 15);
@@ -399,8 +426,13 @@ function playVideo(box, g, p, total){
   const yt = url.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([\w-]{11})/);
   const drive = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/);
   if (yt) {
-    box.innerHTML = `<iframe src="https://www.youtube.com/embed/${yt[1]}?start=${Math.floor(s)}&end=${Math.ceil(e)}&autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
-    vidTimer = setTimeout(() => autoNext(total), (e - s + 1.5) * 1000);
+    box.innerHTML = `<iframe class="ytf" src="https://www.youtube.com/embed/${yt[1]}?start=${Math.floor(s)}&end=${Math.ceil(e)}&autoplay=1&rel=0&playsinline=1&controls=0&disablekb=1&iv_load_policy=3&modestbranding=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}" allow="autoplay; encrypted-media; fullscreen"></iframe>
+      <div class="yt-tap" aria-label="Play or pause"></div><div class="yt-cover show"><div class="yt-cover-t">${esc(descOf(p))}</div></div><div class="yt-paused"><span>▶</span></div>`;
+    box.querySelector(".yt-tap").onclick = togglePlayTB;
+    // quick cut card while the new clip loads (hides YouTube's own loading flash)
+    setTimeout(() => { const c = box.querySelector(".yt-cover"); if (c) c.classList.remove("show"); }, 1300);
+    startTimer((e - s + 1.5) * 1000, total);
+    syncPlayTB();
   } else if (drive) {
     box.innerHTML = `<iframe src="https://drive.google.com/file/d/${drive[1]}/preview" allow="autoplay; fullscreen" allowfullscreen></iframe>
       <div style="position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.75);color:#f1d39a;font-size:12px;padding:5px 9px;border-radius:6px">Drive can't auto-jump — skip to ${fmtT(s)}</div>`;
@@ -408,6 +440,7 @@ function playVideo(box, g, p, total){
     const v = document.createElement("video"); v.controls = true; v.autoplay = true; v.playsInline = true; v.src = url;
     v.addEventListener("loadedmetadata", () => { v.currentTime = s; v.play().catch(()=>{}); });
     v.addEventListener("timeupdate", () => { if (v.currentTime >= e) { v.pause(); if (!v._done) { v._done = true; autoNext(total); } } });
+    v.addEventListener("play", syncPlayTB); v.addEventListener("pause", syncPlayTB);
     box.innerHTML = ""; box.appendChild(v);
     window._filmVideo = v;
   }
