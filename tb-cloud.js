@@ -1,6 +1,6 @@
 // ===================== TURKEY BOWL CLOUD (sign-in, nicknames, comps) =====================
 // Firebase project "gallturkeybowl" (Turkey Bowl only). Rules live in firestore.rules.
-//   players/{slug}  {nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
+//   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
 //   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
 //   teams/<season>  {names: {captainSlug: "Team name"}, by, at}  - team names editors set at/after the draft
@@ -83,11 +83,12 @@ TBC.requestAccess = async () => {
 const by = () => (TBC.user?.name || "").slice(0, 60);
 const slugOf = n => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 // Only the fields passed in change (merge), so a nickname edit never wipes a position change and vice versa.
-TBC.saveProfile = async (slug, {nickname, comp, tier}) => {
+TBC.saveProfile = async (slug, {nickname, comp, tier, ...bio}) => {
   const d = {by: by(), at: serverTimestamp()};
   if (nickname !== undefined) d.nickname = (nickname || "").trim().slice(0, 30);
   if (comp !== undefined) d.comp = comp ? {name: comp.name.slice(0, 60), team: (comp.team || "").slice(0, 60), league: comp.league, id: String(comp.id), img: comp.img} : null;
   if (tier !== undefined) d.tier = tier;
+  ["num", "age", "ht", "wt"].forEach(k => { if (bio[k] !== undefined) d[k] = bio[k]; });   // null clears it
   await setDoc(doc(db, "players", slug), d, {merge: true});
 };
 // One drag on the board: the new order plus any players that crossed a tier line, saved together.
@@ -206,6 +207,12 @@ TBC.openEditor = (host, p, slug, onDone) => {
           <button class="obtn sm" id="edPhRm" type="button" ${TBC.photo(slug) ? "" : "hidden"}>Remove uploaded photo</button></div>
         <div class="ed-hint">Any photo works. It's cropped to a square around the face and shrunk.</div></div>
       ${posTierHTML(p.pos, p.tier === "QB" ? (p.prev !== "QB" ? p.prev : "NA") : p.tier)}
+      <div class="ed-row ed-2 ed-bio">
+        <div><label>Number</label><input id="edNum" inputmode="numeric" maxlength="2" placeholder="#" value="${esc(cur.num ?? "")}"></div>
+        <div><label>Age</label><input id="edAge" inputmode="numeric" maxlength="2" placeholder="—" value="${esc(cur.age ?? "")}"></div>
+        <div><label>Height</label><span class="ed-ht"><select id="edFt"><option value="">ft</option>${[4,5,6,7].map(f => `<option ${String(cur.ht || "").split("-")[0] === String(f) ? "selected" : ""}>${f}</option>`).join("")}</select><select id="edIn"><option value="">in</option>${[...Array(12).keys()].map(i => `<option ${cur.ht && String(cur.ht).split("-")[1] === String(i) ? "selected" : ""}>${i}</option>`).join("")}</select></span></div>
+        <div><label>Weight (lbs)</label><input id="edWt" inputmode="numeric" maxlength="3" placeholder="—" value="${esc(cur.wt ?? "")}"></div>
+      </div>
       <div class="ed-row"><label>Nickname</label>
         <input id="edNick" maxlength="30" placeholder="e.g. The Mailman" value="${esc(cur.nickname || "")}">
         <div class="ed-hint">Shows as ${esc(p.first)} “Nickname” ${esc(p.last)}</div></div>
@@ -264,7 +271,13 @@ TBC.openEditor = (host, p, slug, onDone) => {
     $("#edSave").disabled = true; $("#edMsg").textContent = "Saving…";
     try {
       const tier = readTier($);
-      await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick, ...(tier !== p.tier ? {tier} : {})});
+      const int = (v, lo, hi, what) => { v = String(v).trim(); if (!v) return null; const n = +v; if (!/^\d+$/.test(v) || n < lo || n > hi) throw new Error(`${what} should be a number from ${lo} to ${hi}.`); return n; };
+      const num = $("#edNum").value.trim();
+      if (num && !/^\d{1,2}$/.test(num)) throw new Error("Number should be 0 to 99.");
+      const ft = $("#edFt").value, inch = $("#edIn").value;
+      if (!ft !== !inch) throw new Error("Pick both feet and inches for height (or neither).");
+      const bio = {num: num || null, age: int($("#edAge").value, 10, 99, "Age"), wt: int($("#edWt").value, 80, 400, "Weight"), ht: ft ? `${ft}-${inch}` : null};
+      await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick, ...bio, ...(tier !== p.tier ? {tier} : {})});
       if (newPhoto !== undefined) await TBC.savePhoto(slug, newPhoto || null);
       onDone();
     }

@@ -29,13 +29,17 @@ service cloud.firestore {
 
     // Fields are optional because saves merge: a position change doesn't have to resend the nickname.
     function validPlayer(d) {
-      return d.keys().hasOnly(['nickname', 'comp', 'tier', 'name', 'added', 'by', 'at'])
+      return d.keys().hasOnly(['nickname', 'comp', 'tier', 'name', 'added', 'num', 'age', 'ht', 'wt', 'by', 'at'])
         && d.keys().hasAll(['by', 'at'])
         && (!('nickname' in d) || shortText(d.nickname, 30))
         && (!('comp' in d) || validComp(d.comp))
         && (!('tier' in d) || d.tier in ['QB', 'S', 'A', 'B', 'C', 'D', 'NA'])
         && (!('name' in d) || (d.name is string && d.name.matches("^[A-Za-z][A-Za-z.' -]{2,39}$")))
         && (!('added' in d) || d.added == true)
+        && (!('num' in d) || d.num == null || (d.num is string && d.num.matches('^[0-9]{1,2}$')))
+        && (!('age' in d) || d.age == null || (d.age is int && d.age >= 10 && d.age <= 99))
+        && (!('ht' in d) || d.ht == null || (d.ht is string && d.ht.matches('^[4-7]-([0-9]|1[01])$')))
+        && (!('wt' in d) || d.wt == null || (d.wt is int && d.wt >= 80 && d.wt <= 400))
         && shortText(d.by, 60)
         && d.at == request.time;
     }

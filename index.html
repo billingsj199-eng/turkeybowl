@@ -243,6 +243,10 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .lv-danger{color:#ef6b5f !important;border-color:#5a2a2a !important}
   #liveViewBtn.is-live::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4b3f;margin-left:6px;vertical-align:1px;animation:lvpulse 1.4s infinite}
   td.num{white-space:nowrap}
+  .ed-bio > div{min-width:0;flex:1 1 90px}
+  .ed-bio input{width:100%}
+  .ed-ht{display:flex;gap:6px}
+  .ed-ht select{flex:1;min-width:0}
   .tn-edit{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px}
   .tn-edit:hover{color:var(--accent)}
   .pc-pick{font:700 10px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid #5a4620;border-radius:999px;padding:2px 7px;margin-left:4px;vertical-align:1px}
@@ -595,7 +599,9 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.
 
 function drawCard(){
   const p = byName[PC.name]; if (!p) return closeCard();
-  const s = STATS[p.name] || {}, bio = s.bio || {};
+  const s = STATS[p.name] || {}, cb = (window.TBC && TBC.profile(slug(p.name))) || {};
+  const bio = {...(s.bio || {})};   // age / height / weight / number set on the site (Edit player) win
+  ["age", "ht", "wt", "num"].forEach(k => { if (cb[k] != null && cb[k] !== "") bio[k] = cb[k]; });
   const allG = allGamesFor(p.name);
   const seasonList = [...new Set([CURRENT_SEASON, ...allG.map(g => g.season).filter(Boolean)])].sort((a,b) => b - a);
   const games = allG.filter(g => (g.season || CURRENT_SEASON) === PC.season);
@@ -611,9 +617,9 @@ function drawCard(){
           <span class="pill pos-${p.pos}">${p.pos}</span>
           <span>${teamLabel(p)}${p.pick ? ` <span class="pc-pick">${p.pick === "Captain" ? "Captain" : "Pick " + p.pick}</span>` : ""}</span><span class="dot">·</span>
           <span>Age ${dash(bio.age)}</span><span class="dot">·</span>
-          <span>${bio.ht ? bio.ht : "Ht —"}</span><span class="dot">·</span>
+          <span>${bio.ht ? String(bio.ht).replace("-", "'") + '"' : "Ht —"}</span><span class="dot">·</span>
           <span>${bio.wt ? bio.wt + " lbs" : "Wt —"}</span><span class="dot">·</span>
-          <span>#${p.rank}</span>
+          <span>${bio.num != null && bio.num !== "" ? "#" + bio.num : "# —"}</span>
         </div>
         ${window.TBC ? TBC.compHTML((TBC.profile(slug(p.name)) || {}).comp) : ""}
       </div>
