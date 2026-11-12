@@ -9,7 +9,7 @@
 //   requests/{uid}  "Request edit access"      editors/{uid}  people Jack approved
 // Everyone sees all of it. Only approved editors (and the admin) can change it.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -26,11 +26,12 @@ const app = initializeApp({
 const auth = getAuth(app), db = getFirestore(app);
 // Who's the admin is decided only in firestore.rules: the site just asks "may I see the request list?".
 
+const slugOf = n => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
-  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null,
+  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null, teamInfo: {}, captainsByUid: {},
   canEdit(){ return this.role === "editor" || this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
@@ -54,6 +55,16 @@ onSnapshot(doc(db, "teams", DRAFT_ID), d => { const n = d.exists() ? d.data().na
   err => console.warn("Turkey Bowl cloud: couldn't load team names", err));
 onSnapshot(doc(db, "lottery", DRAFT_ID), d => { TBC.lottery = d.exists() ? d.data() : null; changed(); },
   err => console.warn("Turkey Bowl cloud: couldn't load the draft lottery", err));
+// Captain accounts: captains/<season> {byUid: {uid: "Captain Name"}} — Jack assigns them in Manage editors.
+onSnapshot(doc(db, "captains", DRAFT_ID), d => { const m = d.exists() ? d.data().byUid : null; TBC.captainsByUid = m && typeof m === "object" ? m : {}; TBC.captainNames = d.exists() ? (d.data().names || {}) : {}; changed(); },
+  err => console.warn("Turkey Bowl cloud: couldn't load captains", err));
+TBC.myCap = () => (TBC.user && TBC.captainsByUid[TBC.user.uid]) || null;
+TBC.capUser = cap => { const uid = Object.keys(TBC.captainsByUid).find(u => TBC.captainsByUid[u] === cap); return uid ? ((TBC.captainNames || {})[uid] || "captain account") : null; };
+// Team look: teamInfo/<season>-<captain-slug> {season, cap, name, logo (emoji or small image), color}
+onSnapshot(collection(db, "teamInfo"), snap => {
+  const t = {}; snap.forEach(d => { const v = d.data(); if (v.season === DRAFT_ID && typeof v.cap === "string" && d.id === DRAFT_ID + "-" + slugOf(v.cap)) t[v.cap] = v; });
+  TBC.teamInfo = t; changed();
+}, err => console.warn("Turkey Bowl cloud: couldn't load teams", err));
 onSnapshot(collection(db, "photos"), snap => {
   const p = {}; snap.forEach(d => { const v = d.data().img; if (typeof v === "string" && v.startsWith("data:image/")) p[d.id] = v; });
   TBC.photos = p; changed();
@@ -69,13 +80,18 @@ async function roleFor(u){
 }
 onAuthStateChanged(auth, async u => {
   TBC.user = u ? {uid: u.uid, name: u.displayName || u.email || "Someone", email: u.email || ""} : null;
+  // remember who has signed in, so Jack can pick captain accounts from a list
+  if (u) setDoc(doc(db, "users", u.uid), {name: TBC.user.name.slice(0, 80), email: TBC.user.email, at: serverTimestamp()}).catch(() => {});
   TBC.role = await roleFor(u);
   renderAuthBox(); changed();
 });
 
 TBC.signIn = async () => {
   try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-  catch(e){ if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") alert("Sign-in didn't work: " + (e.message || e.code)); }
+  catch(e){
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return signInWithRedirect(auth, new GoogleAuthProvider());   // some phones block pop-ups
+    if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") alert("Sign-in didn't work: " + (e.message || e.code));
+  }
 };
 TBC.signOut = () => signOut(auth);
 TBC.requestAccess = async () => {
@@ -84,7 +100,6 @@ TBC.requestAccess = async () => {
   TBC.role = "pending"; renderAuthBox(); changed();
 };
 const by = () => (TBC.user?.name || "").slice(0, 60);
-const slugOf = n => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 // Only the fields passed in change (merge), so a nickname edit never wipes a position change and vice versa.
 TBC.saveProfile = async (slug, {nickname, comp, tier, ...bio}) => {
   const d = {by: by(), at: serverTimestamp()};
@@ -137,6 +152,58 @@ TBC.saveTeamName = async (capSlug, name) => {
   if (name) names[capSlug] = name; else delete names[capSlug];
   await setDoc(doc(db, "teams", DRAFT_ID), {names, by: by(), at: serverTimestamp()});
 };
+// ---- teams ----
+TBC.saveTeam = async (cap, {name, logo, color}) => {
+  await setDoc(doc(db, "teamInfo", DRAFT_ID + "-" + slugOf(cap)), {season: DRAFT_ID, cap, name: (name || "").trim().slice(0, 30), logo: logo || "", color: color || "", by: by(), at: serverTimestamp()});
+};
+TBC.assignCaptain = async (cap, uid, uname) => {   // admin only (rules). uid "" = nobody
+  const byUid = {...TBC.captainsByUid}, names = {...(TBC.captainNames || {})};
+  Object.keys(byUid).forEach(u => { if (byUid[u] === cap) { delete byUid[u]; delete names[u]; } });
+  if (uid) { delete byUid[uid]; byUid[uid] = cap; names[uid] = (uname || "").slice(0, 40); }
+  await setDoc(doc(db, "captains", DRAFT_ID), {byUid, names, by: by(), at: serverTimestamp()});
+};
+const EMOJI = ["🦃","🏈","🔥","⚡","🐺","🦅","🐻","🦁","🐍","🦈","🐉","👑","💀","🚀","🌪️","🎯","🍗","🥧","🍂","🏆","💪","🧊","🌶️","🐐"];
+const COLORS = ["#e9b949","#ef6b5f","#5fd68f","#4b9ce8","#c58af9","#f28c38","#2ec4b6","#e8ecf4"];
+TBC.openTeamEditor = cap => {
+  const cur = TBC.teamInfo[cap] || {}, mine = TBC.myCap() === cap;
+  if (!mine && !TBC.canEdit()) return;
+  let logo = cur.logo || "", color = cur.color || "";
+  let ov = document.getElementById("teamOv");
+  if (!ov) { ov = document.createElement("div"); ov.id = "teamOv"; ov.className = "ov"; document.body.appendChild(ov); ov.addEventListener("click", e => { if (e.target === ov) ov.hidden = true; }); }
+  ov.innerHTML = `<div class="pc adminpc"><div class="pc-head"><div><h2 class="pc-name">Customize team</h2>
+      <div class="pc-meta">Captain ${esc(cap)}${mine ? " (you)" : ""}</div></div><button class="pc-close" aria-label="Close">✕</button></div>
+    <div class="pc-body"><div class="ed team-ed">
+      <div class="prev" id="tePrev"></div>
+      <div class="ed-row"><label>Team name</label><input id="teName" maxlength="30" placeholder="Team ${esc(cap.split(" ").slice(-1)[0])}" value="${esc(cur.name || "")}"></div>
+      <div class="ed-row"><label>Logo</label><div class="emo">${EMOJI.map(e => `<button type="button" data-e="${e}">${e}</button>`).join("")}</div>
+        <div class="ed-photo" style="margin-top:8px"><label class="obtn sm" style="margin:0;cursor:pointer">📷 Upload a logo<input type="file" id="teFile" accept="image/*"></label>
+        <button class="obtn sm" type="button" id="teNoLogo">No logo (use captain photo)</button></div></div>
+      <div class="ed-row"><label>Team color</label><div class="sw">${COLORS.map(c => `<button type="button" data-c="${c}" style="background:${c}"></button>`).join("")}</div></div>
+      <div class="ed-btns"><button class="obtn solid" id="teSave">Save</button><button class="obtn" id="teCancel">Cancel</button><span class="ed-msg" id="teMsg"></span></div>
+    </div></div></div>`;
+  ov.hidden = false;
+  const $ = s => ov.querySelector(s), close = () => { ov.hidden = true; };
+  const draw = () => {
+    const pv = $("#tePrev"); pv.innerHTML = "";
+    const b = document.createElement("div"); b.className = "hs tlogo"; if (color) b.style.background = color;
+    if (/^data:image\//.test(logo)) { const im = new Image(); im.src = logo; b.appendChild(im); } else b.textContent = logo || "🦃";
+    pv.appendChild(b); pv.insertAdjacentHTML("beforeend", `<div class="mt-name">${esc($("#teName").value.trim() || "Team " + cap.split(" ").slice(-1)[0])}</div>`);
+    ov.querySelectorAll(".emo button").forEach(x => x.classList.toggle("on", x.dataset.e === logo));
+    ov.querySelectorAll(".sw button").forEach(x => x.classList.toggle("on", x.dataset.c === color));
+  };
+  draw();
+  $("#teName").oninput = draw;
+  ov.querySelectorAll(".emo button").forEach(x => x.onclick = () => { logo = x.dataset.e; draw(); });
+  ov.querySelectorAll(".sw button").forEach(x => x.onclick = () => { color = color === x.dataset.c ? "" : x.dataset.c; draw(); });
+  $("#teNoLogo").onclick = () => { logo = ""; draw(); };
+  $("#teFile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { logo = await TBC.shrinkPhoto(f, 128); draw(); } catch(err){ $("#teMsg").textContent = err.message; } };
+  ov.querySelector(".pc-close").onclick = close; $("#teCancel").onclick = close;
+  $("#teSave").onclick = async () => {
+    $("#teSave").disabled = true; $("#teMsg").textContent = "Saving…";
+    try { await TBC.saveTeam(cap, {name: $("#teName").value, logo, color}); close(); }
+    catch(err){ $("#teSave").disabled = false; $("#teMsg").textContent = "Couldn't save: " + (err.code === "permission-denied" ? "only this team's captain or an editor can change it." : err.message); }
+  };
+};
 TBC.savePhoto = async (slug, img) => img
   ? setDoc(doc(db, "photos", slug), {img, by: by(), at: serverTimestamp()})
   : deleteDoc(doc(db, "photos", slug));
@@ -152,18 +219,18 @@ TBC.removePlayer = async slug => {
 
 // Shrink a picked photo to a 256px square JPEG (about 15-25 KB) so it fits in the database.
 // Tall photos are cropped a little above center, where the face usually is.
-TBC.shrinkPhoto = file => new Promise((ok, bad) => {
+TBC.shrinkPhoto = (file, size = 256) => new Promise((ok, bad) => {
   if (!file || !/^image\//.test(file.type)) return bad(new Error("That isn't a picture."));
   const url = URL.createObjectURL(file), im = new Image();
   im.onload = () => {
-    const S = 256, side = Math.min(im.naturalWidth, im.naturalHeight);
+    const S = size, side = Math.min(im.naturalWidth, im.naturalHeight);
     const sx = (im.naturalWidth - side) / 2, sy = (im.naturalHeight - side) * 0.3;
     const c = document.createElement("canvas"); c.width = c.height = S;
     const g = c.getContext("2d"); g.imageSmoothingQuality = "high";
     g.drawImage(im, sx, sy, side, side, 0, 0, S, S);
     URL.revokeObjectURL(url);
     let q = 0.85, out = c.toDataURL("image/jpeg", q);
-    while (out.length > 140000 && q > 0.4) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+    while (out.length > (size < 200 ? 50000 : 140000) && q > 0.4) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
     ok(out);
   };
   im.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Couldn't open that picture (try a JPG or PNG).")); };
@@ -344,8 +411,9 @@ function renderAuthBox(){
     <div class="ab-menu">
       <span class="ab-name" title="${esc(u.email)}">${esc(u.name.split(" ")[0])}</span>
       ${chip ? `<span class="ab-chip ab-${TBC.role}">${chip}</span>` : ""}
+      ${TBC.myCap() ? `<span class="ab-chip ab-editor">Captain</span>` : ""}
       ${TBC.role === "viewer" ? `<button class="obtn sm" id="abReq">Request edit access</button>` : ""}
-      ${TBC.role === "admin" ? `<button class="obtn sm" id="abAdmin">Manage editors</button>` : ""}
+      ${TBC.role === "admin" ? `<button class="obtn sm" id="abAdmin">Editors &amp; captains</button>` : ""}
       <button class="obtn sm" id="abOut">Sign out</button>
     </div>`;
   const tg = box.querySelector("#abToggle");
@@ -365,8 +433,8 @@ async function openAdmin(){
   let ov = document.getElementById("adminOv");
   if (!ov) {
     ov = document.createElement("div"); ov.id = "adminOv"; ov.className = "ov";
-    ov.innerHTML = `<div class="pc adminpc"><div class="pc-head"><div><h2 class="pc-name">Manage editors</h2>
-      <div class="pc-meta">Editors can change nicknames, player comps, headshots and positions/tiers, and add players. Nothing else on the site.</div></div>
+    ov.innerHTML = `<div class="pc adminpc"><div class="pc-head"><div><h2 class="pc-name">Manage editors &amp; captains</h2>
+      <div class="pc-meta">Editors can edit players, rankings and run the draft. Captain accounts can draft for their team and customize it.</div></div>
       <button class="pc-close" aria-label="Close">✕</button></div><div class="pc-body" id="adminBody"></div></div>`;
     document.body.appendChild(ov);
     ov.addEventListener("click", e => { if (e.target === ov) ov.hidden = true; });
@@ -375,13 +443,30 @@ async function openAdmin(){
   ov.hidden = false;
   const body = ov.querySelector("#adminBody");
   body.innerHTML = `<div class="ed-none">Loading…</div>`;
-  const [rq, ed] = await Promise.all([getDocs(collection(db, "requests")), getDocs(collection(db, "editors"))]);
+  const [rq, ed, us] = await Promise.all([getDocs(collection(db, "requests")), getDocs(collection(db, "editors")), getDocs(collection(db, "users")).catch(() => ({docs: []}))]);
   const row = (d, btns) => `<div class="adm-row"><div><b>${esc(d.data().name)}</b><small>${esc(d.data().email)}</small></div><div>${btns}</div></div>`;
   body.innerHTML = `
     <div class="sec-t" style="margin-bottom:8px">Requests (${rq.size})</div>
     ${rq.size ? rq.docs.map(d => row(d, `<button class="obtn solid sm" data-ok="${esc(d.id)}">Approve</button> <button class="obtn sm" data-no="${esc(d.id)}">Deny</button>`)).join("") : `<div class="ed-none">No requests right now. Friends sign in and tap “Request edit access”.</div>`}
     <div class="sec-t" style="margin:18px 0 8px">Editors (${ed.size})</div>
-    ${ed.size ? ed.docs.map(d => row(d, `<button class="obtn sm" data-rm="${esc(d.id)}">Remove</button>`)).join("") : `<div class="ed-none">No editors yet.</div>`}`;
+    ${ed.size ? ed.docs.map(d => row(d, `<button class="obtn sm" data-rm="${esc(d.id)}">Remove</button>`)).join("") : `<div class="ed-none">No editors yet.</div>`}
+    <div class="sec-t" style="margin:18px 0 4px">Captain accounts (${esc(DRAFT_ID)} draft)</div>
+    <div class="ed-hint" style="margin:0 0 8px">Pick which signed-in account drafts for each captain. They draft live from their phone and can customize their team. Friends show up here after they sign in once.</div>
+    <div id="capRows"></div>`;
+  const people = {};   // uid -> {name, email} from everyone who has signed in, asked for access, or edits
+  [...us.docs, ...rq.docs, ...ed.docs].forEach(d => { const v = d.data(); if (!people[d.id]) people[d.id] = {name: v.name || "?", email: v.email || ""}; });
+  const caps = (window.tbCaptains && window.tbCaptains()) || [];
+  const capBox = body.querySelector("#capRows");
+  capBox.innerHTML = caps.length ? caps.map(c => {
+    const cur = Object.keys(TBC.captainsByUid).find(u => TBC.captainsByUid[u] === c) || "";
+    return `<div class="adm-row"><div><b>${esc(c)}</b><small>${esc(window.draftTeamName ? window.draftTeamName(c) : "")}</small></div>
+      <select data-cap="${esc(c)}" style="max-width:55%;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px"><option value="">— nobody —</option>${Object.entries(people).sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([u, v]) => `<option value="${esc(u)}" ${u === cur ? "selected" : ""}>${esc(v.name)} (${esc(v.email)})</option>`).join("")}</select></div>`;
+  }).join("") : `<div class="ed-none">No QBs (captains) on the board yet.</div>`;
+  capBox.querySelectorAll("select[data-cap]").forEach(sel => sel.onchange = async () => {
+    sel.disabled = true;
+    try { await TBC.assignCaptain(sel.dataset.cap, sel.value, sel.value ? people[sel.value].name : ""); } catch(err){ alert("Couldn't save: " + err.message); }
+    openAdmin();
+  });
   const byId = Object.fromEntries(rq.docs.map(d => [d.id, d.data()]));
   body.querySelectorAll("[data-ok]").forEach(b => b.onclick = async () => {
     const r = byId[b.dataset.ok];

@@ -243,6 +243,40 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .lv-danger{color:#ef6b5f !important;border-color:#5a2a2a !important}
   #liveViewBtn.is-live::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4b3f;margin-left:6px;vertical-align:1px;animation:lvpulse 1.4s infinite}
   td.num{white-space:nowrap}
+  /* captain draft room */
+  .tlogo{display:flex;align-items:center;justify-content:center;font-size:22px;background:#1b2336;overflow:hidden}
+  .tlogo img{width:100%;height:100%;object-fit:cover}
+  .my-team{display:flex;align-items:center;gap:12px;background:#151c2c;border:1px solid var(--mt,#3a4560);border-left:4px solid var(--mt,var(--accent));border-radius:10px;padding:10px 12px;margin-bottom:12px;flex-wrap:wrap}
+  .my-team .hs{width:52px;height:52px;flex:none}
+  .my-team .mt-body{flex:1;min-width:150px}
+  .my-team .lbl2{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .mt-name{font:800 18px Inter,sans-serif;color:#fff}
+  .mt-roster{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .mt-roster span{font-size:12px;background:#1f2940;border-radius:999px;padding:2px 8px;color:#c4cbd8}
+  .clock.mine{flex-wrap:wrap;background:#10301c;border-color:#2e9a55;animation:minepulse 1.6s infinite}
+  @keyframes minepulse{0%,100%{box-shadow:0 0 0 0 rgba(95,214,143,.0)}50%{box-shadow:0 0 0 4px rgba(95,214,143,.35)}}
+  .mine-banner{flex-basis:100%;font:800 15px Inter,sans-serif;color:#5fd68f}
+  .avail.mine .ap{border-color:#2e5a3d}
+  .av-tier{display:flex;justify-content:space-between;align-items:center;margin:10px 0 4px;padding:4px 8px;border-left:3px solid var(--tc);background:#141b2a;border-radius:4px;font:800 12px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);position:sticky;top:0;z-index:1}
+  .av-tier small{color:var(--muted);font-weight:600;letter-spacing:0;text-transform:none}
+  .dboard .colh.mine{background:#14251b}
+  .pick-ov{display:flex;align-items:center;justify-content:center;padding:16px;z-index:90}
+  .pick-box{background:#151c2c;border:1px solid #3a4560;border-radius:14px;padding:22px 20px;width:min(360px,100%);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .pick-box .lbl2{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .pick-hs{display:flex;justify-content:center;margin:12px 0}
+  .pick-hs .hs{width:96px;height:96px;font-size:28px}
+  .pick-name{font:800 22px Inter,sans-serif;color:#fff}
+  .pick-q{margin:14px 0 16px;color:#c4cbd8}
+  .pick-btns{display:flex;gap:10px}
+  .pick-btns .btn{flex:1;padding:12px;font-size:15px}
+  .team-ed .emo{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+  .team-ed .emo button{font-size:22px;background:#0f1525;border:1px solid var(--line);border-radius:8px;padding:6px 0;cursor:pointer}
+  .team-ed .emo button.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .team-ed .sw{display:flex;gap:8px;flex-wrap:wrap}
+  .team-ed .sw button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+  .team-ed .sw button.on{border-color:#fff}
+  .team-ed .prev{display:flex;align-items:center;gap:12px}
+  .team-ed .prev .hs{width:56px;height:56px}
   /* draft lottery */
   .lotto-ov{position:fixed;inset:0;z-index:80;background:radial-gradient(ellipse at center,#1d2640 0%,#070a12 75%);display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden}
   .lotto{width:min(520px,100%);text-align:center;max-height:100%;overflow:auto}
@@ -861,9 +895,54 @@ function renderDraft(board){
 // Stored in the cloud as draft/<season>: {status: "live" | "done", order: [captains], pool: [players], picks: [names]}.
 // Snake order, no pick clock. Editors start it, make each pick and can undo the last one;
 // only Jack (admin) can reset it. Everyone else sees every pick appear as it happens.
-// Team name: what an editor renamed it to (tb-cloud "teams/<season>"), else "Team <captain's last name>".
-function draftTeamName(c){ return ((window.TBC && TBC.teamNames) || {})[slug(c)] || "Team " + split(c).last; }
+// Team name / logo / color: set by the team's captain (or an editor) in "Customize team" (tb-cloud teamInfo),
+// else the older rename (teams/<season>), else "Team <captain's last name>".
+const teamInfoOf = c => ((window.TBC && TBC.teamInfo) || {})[c] || {};
+function draftTeamName(c){ return teamInfoOf(c).name || ((window.TBC && TBC.teamNames) || {})[slug(c)] || "Team " + split(c).last; }
+const teamColor = c => teamInfoOf(c).color || "";
+// Team logo element: uploaded image, emoji on the team color, or the captain's headshot.
+function teamBadge(c){
+  const t = teamInfoOf(c);
+  if (t.logo) {
+    const el = document.createElement("div"); el.className = "hs tlogo"; if (t.color) el.style.background = t.color;
+    if (/^data:image\//.test(t.logo)) { const im = new Image(); im.src = t.logo; im.alt = ""; el.appendChild(im); } else el.textContent = t.logo;
+    return el;
+  }
+  if (byName[c]) return headshot(byName[c]);
+  const el = document.createElement("div"); el.className = "hs"; el.textContent = c.split(" ").map(w => w[0]).join(""); return el;
+}
+const myCap = () => (window.TBC && TBC.myCap && TBC.myCap()) || null;
+const isMyTurn = L => { const m = myCap(); return !!(m && L && L.status === "live" && (L.picks || []).length < (L.pool || []).length && liveTeamFor(L, L.picks.length) === m); };
+let TURN_WAS_MINE = false;
+function myTeamCard(L){
+  const c = myCap(); if (!c) return null;
+  const d = document.createElement("div"); d.className = "my-team"; if (teamColor(c)) d.style.setProperty("--mt", teamColor(c));
+  const picks = L ? (L.picks || []).filter((x, i) => liveTeamFor(L, i) === c) : [];
+  d.appendChild(teamBadge(c));
+  d.insertAdjacentHTML("beforeend", `<div class="mt-body"><div class="lbl2">My team · you're the captain</div><div class="mt-name">${esc2(draftTeamName(c))}</div>
+    <div class="mt-roster">${[c, ...picks].map((x, i) => `<span>${i ? "" : "C · "}${esc2(x)}</span>`).join("")}</div></div>
+    <button class="btn" id="mtEdit">🎨 Customize</button>`);
+  d.querySelector("#mtEdit").onclick = () => TBC.openTeamEditor(c);
+  return d;
+}
+// "Are you sure?" pick pop-up (phones friendly, bigger than a browser confirm)
+function confirmPick(name, team){
+  return new Promise(ok => {
+    const p = byName[name], ov = document.createElement("div"); ov.className = "ov pick-ov";
+    ov.innerHTML = `<div class="pick-box"><div class="lbl2">${esc2(team)} is selecting</div><div class="pick-hs"></div>
+      <div class="pick-name">${esc2(name)}</div><div class="psub">${p ? (p.tier === "NA" ? "Unranked" : p.tier + " Tier") + " · " + p.prank : ""}</div>
+      <div class="pick-q">Are you sure you want to draft ${esc2(name.split(" ")[0])}?</div>
+      <div class="pick-btns"><button class="btn" id="pkNo">Cancel</button><button class="btn primary" id="pkYes">Draft ${esc2(name.split(" ")[0])}</button></div></div>`;
+    if (p) ov.querySelector(".pick-hs").appendChild(headshot(p));
+    document.body.appendChild(ov);
+    const done = v => { ov.remove(); ok(v); };
+    ov.querySelector("#pkNo").onclick = () => done(false); ov.querySelector("#pkYes").onclick = () => done(true);
+    ov.addEventListener("click", e => { if (e.target === ov) done(false); });
+  });
+}
+function editTeam(c){ TBC.openTeamEditor(c); }
 function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }
+window.tbCaptains = () => captains; window.draftTeamName = draftTeamName;
 let LIVE_SETUP = null, LIVE_SETUP_FROM = null;      // captain order being set up before the start (editors only, not saved until Start)
 let LIVE_SEEN = null;       // number of picks already shown, to flash the newest one
 function renderLive(board){
@@ -879,10 +958,11 @@ function renderLive(board){
   if (!L) {
     if (!window.TBC || !TBC.ready) { board.innerHTML = `<div class="empty">Loading the live draft…</div>`; return; }
     if (!ed) {
-      const LO = TBC.lottery;
-      board.innerHTML = `<div class="lv-wait"><div class="lv-big">🦃 The ${CURRENT_SEASON} draft hasn't started yet</div><div>When it starts, every pick shows up here live. No need to refresh.</div>
+      const LO = TBC.lottery, mt = myTeamCard(null);
+      if (mt) board.appendChild(mt);
+      board.insertAdjacentHTML("beforeend", `<div class="lv-wait"><div class="lv-big">🦃 The ${CURRENT_SEASON} draft hasn't started yet</div><div>When it starts, every pick shows up here live. No need to refresh.</div>
         ${LO && LO.order ? `<div class="lv-lotto-res"><h3>🎰 Draft lottery result</h3><ol>${LO.order.map(c => `<li>${esc2(draftTeamName(c))} <small>(${esc2(c)})</small></li>`).join("")}</ol><button class="btn" id="lvReplay">▶ Replay the lottery</button></div>`
-          : `<div style="margin-top:8px">Stay on this page to watch the draft lottery live.</div>`}</div>`;
+          : `<div style="margin-top:8px">Stay on this page to watch the draft lottery live.</div>`}</div>`);
       const rp = board.querySelector("#lvReplay"); if (rp) rp.onclick = () => playLottery(LO.order);
       return;
     }
@@ -896,12 +976,8 @@ function renderLive(board){
       const li = document.createElement("li");
       li.innerHTML = `<span class="slot">${i + 1}</span>`;
       if (byName[n]) li.appendChild(headshot(byName[n]));
-      li.insertAdjacentHTML("beforeend", `<span class="nm">${esc2(n)}<small class="psub" style="display:block">${esc2(draftTeamName(n))} <button class="tn-edit" title="Rename team">✎</button></small></span>`);
-      li.querySelector(".tn-edit").onclick = async () => {
-        const v = prompt(`Team name for ${n}'s team. Leave empty for "Team ${split(n).last}".`, (TBC.teamNames || {})[slug(n)] || "");
-        if (v === null) return;
-        try { await TBC.saveTeamName(slug(n), v.trim().slice(0, 30)); } catch(err){ alert("Couldn't rename: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
-      };
+      li.insertAdjacentHTML("beforeend", `<span class="nm">${esc2(n)}<small class="psub" style="display:block">${esc2(draftTeamName(n))} <button class="tn-edit" title="Customize team">✎</button>${TBC.capUser && TBC.capUser(n) ? ` · 📱 ${esc2(TBC.capUser(n))}` : ""}</small></span>`);
+      li.querySelector(".tn-edit").onclick = () => editTeam(n);
       const up = document.createElement("button"); up.className = "mini"; up.textContent = "▲"; up.disabled = i === 0;
       const dn = document.createElement("button"); dn.className = "mini"; dn.textContent = "▼"; dn.disabled = i === LIVE_SETUP.length - 1;
       up.onclick = () => { [LIVE_SETUP[i - 1], LIVE_SETUP[i]] = [LIVE_SETUP[i], LIVE_SETUP[i - 1]]; render(); };
@@ -926,7 +1002,7 @@ function renderLive(board){
     left.appendChild(b);
     right.innerHTML = `<h3>How it works</h3><div class="lv-how">
       <p>1. Set the order (or randomize it), then tap <b>Start the live draft</b>. It goes live for everyone on the site.</p>
-      <p>2. Whoever's running it taps a player on the left to make the pick for the team on the clock. There's no timer, take as long as you need.</p>
+      <p>2. Captains with a captain account (Manage editors → Captains) draft from their own phone: when they're on the clock they tap a player and confirm. An editor can also make any pick. No timer.</p>
       <p>3. Made a mistake? <b>Undo last pick</b>.</p>
       <p>4. When the last pick is in, the draft locks and every player's team shows on the Draft Board.</p></div>`;
     wrap.append(left, right); board.appendChild(wrap); return;
@@ -937,6 +1013,11 @@ function renderLive(board){
   const fresh = LIVE_SEEN != null && picks.length > LIVE_SEEN ? picks.length - 1 : -1;
   LIVE_SEEN = picks.length;
   left.innerHTML = `<div class="lv-status ${done ? "done" : ""}">${done ? "✅ Draft complete" : `<span class="live-dot"></span> LIVE`}<span>${picks.length} / ${total} picks</span></div>`;
+  const mt = myTeamCard(L); if (mt) left.appendChild(mt);
+  const mine = isMyTurn(L);
+  if (mine && !TURN_WAS_MINE) { try { navigator.vibrate && navigator.vibrate([250, 120, 250]); } catch(e){} document.title = "🟢 Your pick! · Turkey Bowl"; }
+  if (!mine && TURN_WAS_MINE) document.title = "Turkey Bowl Draft Board";
+  TURN_WAS_MINE = mine;
   if (picks.length) {
     const last = picks[picks.length - 1], c = liveTeamFor(L, picks.length - 1);
     const lp = document.createElement("div"); lp.className = "lv-last" + (fresh >= 0 ? " flash" : "");
@@ -946,8 +1027,9 @@ function renderLive(board){
   if (!done) {
     const i = picks.length, c = liveTeamFor(L, i);
     const clock = document.createElement("div"); clock.className = "clock";
-    if (byName[c]) clock.appendChild(headshot(byName[c]));
-    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">${esc2(draftTeamName(c))}</div></div>`);
+    clock.appendChild(teamBadge(c));
+    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">${esc2(draftTeamName(c))}</div>${TBC.capUser && TBC.capUser(c) ? `<div class="psub">📱 ${esc2(TBC.capUser(c))} is picking</div>` : ""}</div>`);
+    if (isMyTurn(L)) { clock.classList.add("mine"); clock.insertAdjacentHTML("afterbegin", `<div class="mine-banner">🟢 You're on the clock! Tap a player below to draft.</div>`); }
     left.appendChild(clock);
   }
   if (ed) {
@@ -968,19 +1050,23 @@ function renderLive(board){
     const avail = (L.pool || []).filter(x => !picks.includes(x))
       .sort((a, b) => (byName[a] ? players.indexOf(byName[a]) : 1e6) - (byName[b] ? players.indexOf(byName[b]) : 1e6))
       .filter(x => !q || x.toLowerCase().includes(q));
-    left.insertAdjacentHTML("beforeend", `<h3>${ed ? "Available — tap to draft" : "Available"}</h3>`);
-    const av = document.createElement("div"); av.className = "avail";
+    const canPick = ed || mine;
+    left.insertAdjacentHTML("beforeend", `<h3>Best available${canPick ? " — tap to draft" : ""}</h3>`);
+    const av = document.createElement("div"); av.className = "avail" + (mine ? " mine" : "");
+    let lastT = null;
+    const TBL = {QB: "QB Tier", S: "S Tier", A: "A Tier", B: "B Tier", C: "C Tier", D: "D Tier", NA: "Unranked"};
     avail.forEach(x => {
-      const p = byName[x];
-      const d = document.createElement("div"); d.className = "ap" + (ed ? "" : " ro");
+      const p = byName[x], t = p ? p.tier : "NA";
+      if (t !== lastT) { lastT = t; av.insertAdjacentHTML("beforeend", `<div class="av-tier" style="--tc:var(--t-${t})"><span>${TBL[t] || t}</span><small>${avail.filter(y => (byName[y] ? byName[y].tier : "NA") === t).length} left</small></div>`); }
+      const d = document.createElement("div"); d.className = "ap" + (canPick ? "" : " ro");
       if (p) d.style.setProperty("--tc", `var(--t-${p.tier})`);
       d.innerHTML = `<span class="r">${p ? p.rank : ""}</span>`;
       if (p) d.appendChild(headshot(p));
       d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
-      if (ed) d.onclick = async () => {
+      if (canPick) d.onclick = async () => {
         const c = liveTeamFor(L, picks.length);
-        if (!confirm(`${draftTeamName(c)} selects ${x}?`)) return;
-        try { await TBC.livePick(x, picks.length); } catch(err){ alert(err.code === "permission-denied" ? "You don't have edit access." : err.message); }
+        if (!(await confirmPick(x, draftTeamName(c)))) return;
+        try { await TBC.livePick(x, picks.length); } catch(err){ alert(err.code === "permission-denied" ? "It isn't your pick." : err.message); }
       };
       else d.onclick = () => openCard(x);
       av.appendChild(d);
@@ -993,13 +1079,11 @@ function renderLive(board){
   g.style.gridTemplateColumns = `repeat(${n}, minmax(110px,1fr))`;
   L.order.forEach(c => {
     const h = document.createElement("div"); h.className = "colh";
-    if (byName[c]) h.appendChild(headshot(byName[c]));
-    h.insertAdjacentHTML("beforeend", `<div class="tn">${esc2(draftTeamName(c))}${ed ? ` <button class="tn-edit" title="Rename team">✎</button>` : ""}</div><div class="sub">C: <span class="cap">${esc2(c)}</span></div>`);
-    const te = h.querySelector(".tn-edit"); if (te) te.onclick = async () => {
-      const v = prompt(`New name for ${draftTeamName(c)} (captain ${c}). Leave empty to go back to "Team ${split(c).last}".`, (TBC.teamNames || {})[slug(c)] || "");
-      if (v === null) return;
-      try { await TBC.saveTeamName(slug(c), v.trim().slice(0, 30)); } catch(err){ alert("Couldn't rename: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
-    };
+    h.appendChild(teamBadge(c));
+    if (teamColor(c)) h.style.borderTopColor = teamColor(c);
+    if (c === myCap()) h.classList.add("mine");
+    h.insertAdjacentHTML("beforeend", `<div class="tn">${esc2(draftTeamName(c))}${ed || c === myCap() ? ` <button class="tn-edit" title="Customize team">✎</button>` : ""}</div><div class="sub">C: <span class="cap">${esc2(c)}</span></div>`);
+    const te = h.querySelector(".tn-edit"); if (te) te.onclick = () => editTeam(c);
     if (byName[c]) linkName(h.querySelector(".cap"), c);
     g.appendChild(h);
   });

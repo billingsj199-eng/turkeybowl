@@ -86,7 +86,61 @@ service cloud.firestore {
         && (resource.data.status == 'live' || isAdmin())
         && (request.resource.data.picks.size() == resource.data.picks.size() + 1
             || request.resource.data.picks.size() == resource.data.picks.size() - 1);
+      // A captain account may make ONE pick: the next one, only when their team is on the clock (snake order).
+      allow update: if signedIn() && validDraft(request.resource.data)
+        && resource.data.status == 'live'
+        && request.resource.data.order == resource.data.order
+        && request.resource.data.pool == resource.data.pool
+        && request.resource.data.picks.size() == resource.data.picks.size() + 1
+        && request.resource.data.picks[0:resource.data.picks.size()] == resource.data.picks
+        && resource.data.pool.hasAny([request.resource.data.picks[resource.data.picks.size()]])
+        && !resource.data.picks.hasAny([request.resource.data.picks[resource.data.picks.size()]])
+        && request.resource.data.status == (request.resource.data.picks.size() >= resource.data.pool.size() ? 'done' : 'live')
+        && get(/databases/$(database)/documents/captains/$(season)).data.byUid[request.auth.uid]
+           == resource.data.order[onClock(resource.data.order.size(), resource.data.picks.size())];
       allow delete: if isAdmin();
+    }
+
+    // Which team is on the clock for pick number i (0-based) with n teams, snake order.
+    function onClock(n, i) {
+      return math.floor(i / n) % 2 == 0 ? i % n : n - 1 - (i % n);
+    }
+
+    // Captain accounts for a season: {byUid: {uid: captain name}, names: {uid: account name}}. Only Jack sets them.
+    match /captains/{season} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['byUid', 'names', 'by', 'at'])
+        && request.resource.data.byUid is map && request.resource.data.byUid.size() <= 20
+        && request.resource.data.names is map && request.resource.data.names.size() <= 20;
+    }
+
+    // Team look (name, logo, color). The team's captain account or an editor can change it.
+    match /teamInfo/{id} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && id.matches('^[0-9]{4}-[a-z0-9-]{1,60}$')
+        && request.resource.data.keys().hasOnly(['season', 'cap', 'name', 'logo', 'color', 'by', 'at'])
+        && request.resource.data.season is string && id.split('-')[0] == request.resource.data.season
+        && shortText(request.resource.data.cap, 60)
+        && shortText(request.resource.data.name, 30)
+        && request.resource.data.logo is string
+        && (request.resource.data.logo.size() <= 16 || (request.resource.data.logo.size() < 70000 && request.resource.data.logo.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$')))
+        && request.resource.data.color is string && request.resource.data.color.matches('^(#[0-9a-fA-F]{6})?$')
+        && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time
+        && (resource == null || resource.data.cap == request.resource.data.cap)
+        && (isEditor() || get(/databases/$(database)/documents/captains/$(request.resource.data.season)).data.byUid[request.auth.uid] == request.resource.data.cap);
+    }
+
+    // Everyone who signs in leaves their name, so Jack can pick captain accounts. Only Jack can see the list.
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'at'])
+        && shortText(request.resource.data.name, 80)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.at == request.time;
     }
 
     // Draft lottery result for a season. Editors can run it until the live draft starts.
