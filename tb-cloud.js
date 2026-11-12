@@ -3,6 +3,7 @@
 //   players/{slug}  {nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
 //   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
+//   teams/<season>  {names: {captainSlug: "Team name"}, by, at}  - team names editors set at/after the draft
 //   photos/{slug}   {img: small JPEG as a data: URL, by, at}  - headshot uploaded on the site (beats images/*.jpg)
 //   requests/{uid}  "Request edit access"      editors/{uid}  people Jack approved
 // Everyone sees all of it. Only approved editors (and the admin) can change it.
@@ -28,7 +29,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
-  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null,
+  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {},
   canEdit(){ return this.role === "editor" || this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
@@ -48,6 +49,8 @@ const DRAFT_ID = String(typeof CURRENT_SEASON !== "undefined" ? CURRENT_SEASON :
 const draftRef = doc(db, "draft", DRAFT_ID);
 onSnapshot(draftRef, d => { TBC.live = d.exists() ? d.data() : null; changed(); },
   err => console.warn("Turkey Bowl cloud: couldn't load the live draft", err));
+onSnapshot(doc(db, "teams", DRAFT_ID), d => { const n = d.exists() ? d.data().names : null; TBC.teamNames = n && typeof n === "object" ? n : {}; changed(); },
+  err => console.warn("Turkey Bowl cloud: couldn't load team names", err));
 onSnapshot(collection(db, "photos"), snap => {
   const p = {}; snap.forEach(d => { const v = d.data().img; if (typeof v === "string" && v.startsWith("data:image/")) p[d.id] = v; });
   TBC.photos = p; changed();
@@ -116,6 +119,12 @@ TBC.liveUndo = async expect => runTransaction(db, async tx => {
   tx.update(draftRef, {picks: d.picks.slice(0, -1), status: "live", by: by(), at: serverTimestamp()});
 });
 TBC.liveReset = () => deleteDoc(draftRef);
+// Rename a team (keyed by its captain). Empty name = back to "Team <captain's last name>".
+TBC.saveTeamName = async (capSlug, name) => {
+  const names = {...TBC.teamNames};
+  if (name) names[capSlug] = name; else delete names[capSlug];
+  await setDoc(doc(db, "teams", DRAFT_ID), {names, by: by(), at: serverTimestamp()});
+};
 TBC.savePhoto = async (slug, img) => img
   ? setDoc(doc(db, "photos", slug), {img, by: by(), at: serverTimestamp()})
   : deleteDoc(doc(db, "photos", slug));

@@ -243,6 +243,9 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .lv-danger{color:#ef6b5f !important;border-color:#5a2a2a !important}
   #liveViewBtn.is-live::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4b3f;margin-left:6px;vertical-align:1px;animation:lvpulse 1.4s infinite}
   td.num{white-space:nowrap}
+  .tn-edit{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px}
+  .tn-edit:hover{color:var(--accent)}
+  .pc-pick{font:700 10px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid #5a4620;border-radius:999px;padding:2px 7px;margin-left:4px;vertical-align:1px}
   .drag-h{display:inline-block;cursor:grab;color:var(--muted);font-size:16px;line-height:1;padding:4px 6px;margin:-4px 4px -4px -6px;touch-action:none;user-select:none;-webkit-user-select:none}
   .drag-h:hover{color:var(--accent)}
   tr.dragging{opacity:.85;outline:2px solid var(--accent);outline-offset:-2px;background:#1f2940}
@@ -487,8 +490,8 @@ function buildPlayers(){
   // The live draft (tb-cloud "draft/<season>") fills in everyone's team as picks come in.
   const L = window.TBC && TBC.live;
   if (L && Array.isArray(L.order) && L.order.length) {
-    L.order.forEach(c => { if (byName[c] && !byName[c].team) byName[c].team = "Team " + split(c).last; });
-    (L.picks || []).forEach((n, i) => { const c = liveTeamFor(L, i); if (byName[n] && !byName[n].team) byName[n].team = "Team " + split(c).last; });
+    L.order.forEach(c => { if (byName[c] && !byName[c].team) { byName[c].team = draftTeamName(c); byName[c].pick = "Captain"; } });
+    (L.picks || []).forEach((n, i) => { const c = liveTeamFor(L, i); if (byName[n] && !byName[n].team) { byName[n].team = draftTeamName(c); byName[n].pick = `${Math.floor(i / L.order.length) + 1}.${String(i % L.order.length + 1).padStart(2, "0")}`; } });
   }
   captains = players.filter(p => p.pos === "QB").map(p => p.name);
   pool = players.filter(p => p.pos !== "QB" && !p.out).map(p => p.name);
@@ -606,7 +609,7 @@ function drawCard(){
         <div class="pc-title"><h2 class="pc-name">${window.TBC ? TBC.nameHTML(p.first, p.last, slug(p.name)) : p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span>${window.TBC && TBC.canEdit() ? `<button class="obtn sm pc-edit" id="pcEdit">✎ Edit player</button>` : ""}</div>
         <div class="pc-meta">
           <span class="pill pos-${p.pos}">${p.pos}</span>
-          <span>${teamLabel(p)}</span><span class="dot">·</span>
+          <span>${teamLabel(p)}${p.pick ? ` <span class="pc-pick">${p.pick === "Captain" ? "Captain" : "Pick " + p.pick}</span>` : ""}</span><span class="dot">·</span>
           <span>Age ${dash(bio.age)}</span><span class="dot">·</span>
           <span>${bio.ht ? bio.ht : "Ht —"}</span><span class="dot">·</span>
           <span>${bio.wt ? bio.wt + " lbs" : "Wt —"}</span><span class="dot">·</span>
@@ -824,6 +827,8 @@ function renderDraft(board){
 // Stored in the cloud as draft/<season>: {status: "live" | "done", order: [captains], pool: [players], picks: [names]}.
 // Snake order, no pick clock. Editors start it, make each pick and can undo the last one;
 // only Jack (admin) can reset it. Everyone else sees every pick appear as it happens.
+// Team name: what an editor renamed it to (tb-cloud "teams/<season>"), else "Team <captain's last name>".
+function draftTeamName(c){ return ((window.TBC && TBC.teamNames) || {})[slug(c)] || "Team " + split(c).last; }
 function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }
 let LIVE_SETUP = null;      // captain order being set up before the start (editors only, not saved until Start)
 let LIVE_SEEN = null;       // number of picks already shown, to flash the newest one
@@ -851,7 +856,12 @@ function renderLive(board){
       const li = document.createElement("li");
       li.innerHTML = `<span class="slot">${i + 1}</span>`;
       if (byName[n]) li.appendChild(headshot(byName[n]));
-      li.insertAdjacentHTML("beforeend", `<span class="nm">${esc2(n)}</span>`);
+      li.insertAdjacentHTML("beforeend", `<span class="nm">${esc2(n)}<small class="psub" style="display:block">${esc2(draftTeamName(n))} <button class="tn-edit" title="Rename team">✎</button></small></span>`);
+      li.querySelector(".tn-edit").onclick = async () => {
+        const v = prompt(`Team name for ${n}'s team. Leave empty for "Team ${split(n).last}".`, (TBC.teamNames || {})[slug(n)] || "");
+        if (v === null) return;
+        try { await TBC.saveTeamName(slug(n), v.trim().slice(0, 30)); } catch(err){ alert("Couldn't rename: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
+      };
       const up = document.createElement("button"); up.className = "mini"; up.textContent = "▲"; up.disabled = i === 0;
       const dn = document.createElement("button"); dn.className = "mini"; dn.textContent = "▼"; dn.disabled = i === LIVE_SETUP.length - 1;
       up.onclick = () => { [LIVE_SETUP[i - 1], LIVE_SETUP[i]] = [LIVE_SETUP[i], LIVE_SETUP[i - 1]]; render(); };
@@ -884,14 +894,14 @@ function renderLive(board){
   if (picks.length) {
     const last = picks[picks.length - 1], c = liveTeamFor(L, picks.length - 1);
     const lp = document.createElement("div"); lp.className = "lv-last" + (fresh >= 0 ? " flash" : "");
-    lp.innerHTML = `<div class="lbl2">Latest pick · ${Math.floor((picks.length - 1) / n) + 1}.${String((picks.length - 1) % n + 1).padStart(2, "0")} · Team ${esc2(split(c).last)}</div>`;
+    lp.innerHTML = `<div class="lbl2">Latest pick · ${Math.floor((picks.length - 1) / n) + 1}.${String((picks.length - 1) % n + 1).padStart(2, "0")} · ${esc2(draftTeamName(c))}</div>`;
     lp.appendChild(who(last)); left.appendChild(lp);
   }
   if (!done) {
     const i = picks.length, c = liveTeamFor(L, i);
     const clock = document.createElement("div"); clock.className = "clock";
     if (byName[c]) clock.appendChild(headshot(byName[c]));
-    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">Team ${esc2(split(c).last)}</div></div>`);
+    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">${esc2(draftTeamName(c))}</div></div>`);
     left.appendChild(clock);
   }
   if (ed) {
@@ -923,7 +933,7 @@ function renderLive(board){
       d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
       if (ed) d.onclick = async () => {
         const c = liveTeamFor(L, picks.length);
-        if (!confirm(`Team ${split(c).last} selects ${x}?`)) return;
+        if (!confirm(`${draftTeamName(c)} selects ${x}?`)) return;
         try { await TBC.livePick(x, picks.length); } catch(err){ alert(err.code === "permission-denied" ? "You don't have edit access." : err.message); }
       };
       else d.onclick = () => openCard(x);
@@ -938,7 +948,12 @@ function renderLive(board){
   L.order.forEach(c => {
     const h = document.createElement("div"); h.className = "colh";
     if (byName[c]) h.appendChild(headshot(byName[c]));
-    h.insertAdjacentHTML("beforeend", `<div class="tn">Team ${esc2(split(c).last)}</div><div class="sub">C: <span class="cap">${esc2(c)}</span></div>`);
+    h.insertAdjacentHTML("beforeend", `<div class="tn">${esc2(draftTeamName(c))}${ed ? ` <button class="tn-edit" title="Rename team">✎</button>` : ""}</div><div class="sub">C: <span class="cap">${esc2(c)}</span></div>`);
+    const te = h.querySelector(".tn-edit"); if (te) te.onclick = async () => {
+      const v = prompt(`New name for ${draftTeamName(c)} (captain ${c}). Leave empty to go back to "Team ${split(c).last}".`, (TBC.teamNames || {})[slug(c)] || "");
+      if (v === null) return;
+      try { await TBC.saveTeamName(slug(c), v.trim().slice(0, 30)); } catch(err){ alert("Couldn't rename: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
+    };
     if (byName[c]) linkName(h.querySelector(".cap"), c);
     g.appendChild(h);
   });
