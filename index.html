@@ -174,6 +174,41 @@
   .foot-note{color:#5f6a80;font-size:11px;margin-top:10px}
   .hide-sm{}
   @media (max-width:600px){ .hide-sm{display:none} td{padding:8px 6px} }
+
+  /* ---- nickname, player comp, editor panel, sign-in (tb-cloud.js) ---- */
+  .pc-nick{color:var(--accent);text-transform:none;font-style:italic;letter-spacing:0}
+  .pc-edit{margin-left:auto}
+  .comp-card{display:flex;align-items:center;gap:10px;margin-top:10px;background:#1b2336;border:1px solid #29334a;border-radius:10px;padding:6px 12px 6px 6px;width:fit-content;max-width:100%}
+  .comp-card img{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#0f1525;flex:none}
+  .comp-k{font:700 10px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .comp-n{font:700 15px Inter,sans-serif;color:#fff;line-height:1.2}
+  .comp-t{font-size:12px;color:#c4cbd8}
+  @media (max-width:520px){ .comp-card{margin:10px auto 0} .pc-edit{margin:0} }
+  .pc-edhost:empty{display:none}
+  .pc-edhost{padding:14px 22px;border-bottom:1px solid var(--line);background:#121a2a}
+  .ed{display:grid;gap:14px}
+  .ed-row label{display:block;font:700 11px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .ed-row input{width:100%;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font:14px Inter,sans-serif}
+  .ed-row input:focus{outline:none;border-color:var(--accent)}
+  .ed-hint{font-size:12px;color:#5f6a80;margin-top:5px}
+  .ed-res{display:grid;gap:4px;margin-top:6px;max-height:300px;overflow:auto}
+  .ed-opt{display:flex;align-items:center;gap:10px;background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:6px 10px;color:var(--ink);cursor:pointer;text-align:left;font:14px Inter,sans-serif}
+  .ed-opt:hover{border-color:var(--accent)}
+  .ed-opt img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#0f1525;flex:none}
+  .ed-opt small{display:block;color:var(--muted);font-size:12px}
+  .ed-picked{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .ed-picked .comp-card{margin-top:0}
+  .ed-none{color:var(--muted);font-size:13px;padding:6px 2px}
+  .ed-btns{display:flex;align-items:center;gap:8px}
+  .ed-msg{font-size:13px;color:var(--muted)}
+  .authbox{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .ab-name{font:600 13px Inter,sans-serif;color:#c4cbd8}
+  .ab-chip{font:700 10px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:#232c40;color:#c4cbd8}
+  .ab-admin,.ab-editor{background:#2a2210;color:#f1d39a}
+  @media (max-width:700px){ .ab-name,.ab-chip{display:none} }
+  .adminpc{max-width:560px}
+  .adm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:9px 12px;margin-bottom:6px}
+  .adm-row small{display:block;color:var(--muted);font-size:12px}
 </style>
 <link rel="stylesheet" href="film.css">
 </head>
@@ -436,8 +471,13 @@ const CURRENT_SEASON = 2026;
 const PC = {name:null, side:"off", mode:"total", season:CURRENT_SEASON};
 const fmt = (v, d=1) => Number.isInteger(v) ? String(v) : v.toFixed(d);
 
+// Nicknames / comps / sign-in come from tb-cloud.js; redraw an open card when they change
+// (but never while someone is typing in the edit panel).
+document.addEventListener("tbc-change", () => {
+  if (!document.getElementById("ov").hidden && PC.name && !PC.editing) drawCard();
+});
 function openCard(name){
-  PC.name = name; PC.side = "off"; PC.mode = "total"; PC.season = CURRENT_SEASON;
+  PC.name = name; PC.side = "off"; PC.mode = "total"; PC.season = CURRENT_SEASON; PC.editing = false;
   drawCard();
   document.getElementById("ov").hidden = false;
   document.body.style.overflow = "hidden";
@@ -463,7 +503,7 @@ function drawCard(){
     <div class="pc-head">
       <span class="hsx"></span>
       <div style="min-width:0">
-        <div class="pc-title"><h2 class="pc-name">${p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span></div>
+        <div class="pc-title"><h2 class="pc-name">${window.TBC ? TBC.nameHTML(p.first, p.last, slug(p.name)) : p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span>${window.TBC && TBC.canEdit() ? `<button class="obtn sm pc-edit" id="pcEdit">✎ Edit nickname / comp</button>` : ""}</div>
         <div class="pc-meta">
           <span class="pill pos-${p.pos}">${p.pos}</span>
           <span>${teamLabel(p)}</span><span class="dot">·</span>
@@ -472,12 +512,19 @@ function drawCard(){
           <span>${bio.wt ? bio.wt + " lbs" : "Wt —"}</span><span class="dot">·</span>
           <span>#${p.rank}</span>
         </div>
+        ${window.TBC ? TBC.compHTML((TBC.profile(slug(p.name)) || {}).comp) : ""}
       </div>
       <button class="pc-close" aria-label="Close">✕</button>
     </div>
+    <div class="pc-edhost" id="pcEdHost"></div>
     <div class="pc-body"></div>`;
   pc.querySelector(".hsx").replaceWith(headshot(p));
   pc.querySelector(".pc-close").onclick = closeCard;
+  const edBtn = pc.querySelector("#pcEdit");
+  if (edBtn) edBtn.onclick = () => {
+    PC.editing = true; edBtn.style.display = "none";
+    TBC.openEditor(pc.querySelector("#pcEdHost"), p, slug(p.name), () => { PC.editing = false; drawCard(); });
+  };
 
   const body = pc.querySelector(".pc-body");
   const side = PC.side, cols = COLS[side];
@@ -728,5 +775,6 @@ render();
 </script>
 <script src="film.js"></script>
 <script src="history.js"></script>
+<script type="module" src="tb-cloud.js"></script>
 </body>
 </html>

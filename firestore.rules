@@ -1,0 +1,60 @@
+rules_version = '2';
+// Turkey Bowl site: who can read and change what.
+//   players/{slug}   nickname + comp for a player card. Anyone can read; approved editors can change.
+//   requests/{uid}   "Request edit access". The person themself creates it; only the admin can see the list.
+//   editors/{uid}    people the admin approved. Only the admin can add or remove them.
+// ADMIN_UIDS = the Google account(s) that run the site (Jack).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.uid in ['__ADMIN_UID__']; }
+    function isEditor() {
+      return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/editors/$(request.auth.uid)));
+    }
+    function shortText(v, max) { return v is string && v.size() <= max; }
+    function validComp(c) {
+      return c == null || (
+        c is map && c.keys().hasOnly(['name', 'team', 'league', 'id', 'img'])
+        && shortText(c.name, 60) && c.name.size() > 0
+        && shortText(c.team, 60)
+        && c.league in ['nfl', 'college-football']
+        && c.id is string && c.id.matches('^[0-9]{1,12}$')
+        && c.img is string && c.img.matches('^https://a[.]espncdn[.]com/.{1,200}$')
+      );
+    }
+
+    match /players/{slug} {
+      allow read: if true;
+      allow create, update: if isEditor()
+        && slug.matches('^[a-z0-9-]{1,60}$')
+        && request.resource.data.keys().hasOnly(['nickname', 'comp', 'by', 'at'])
+        && request.resource.data.keys().hasAll(['nickname', 'comp', 'by', 'at'])
+        && shortText(request.resource.data.nickname, 30)
+        && validComp(request.resource.data.comp)
+        && shortText(request.resource.data.by, 60)
+        && request.resource.data.at == request.time;
+      allow delete: if isEditor();
+    }
+
+    match /requests/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'at'])
+        && shortText(request.resource.data.name, 80)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.at == request.time;
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    match /editors/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'email', 'at'])
+        && shortText(request.resource.data.name, 80)
+        && shortText(request.resource.data.email, 120);
+      allow delete: if isAdmin();
+    }
+  }
+}
