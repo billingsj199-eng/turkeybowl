@@ -7,7 +7,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && request.auth.uid in ['__ADMIN_UID__']; }
+    function isAdmin() { return signedIn() && request.auth.uid in ['Xh4m7OKapLMUAH3M124PC54KsE82']; }   // Jack
     function isEditor() {
       return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/editors/$(request.auth.uid)));
     }
