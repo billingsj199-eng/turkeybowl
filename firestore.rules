@@ -1,6 +1,7 @@
 rules_version = '2';
 // Turkey Bowl site: who can read and change what.
-//   players/{slug}   nickname + comp for a player card. Anyone can read; approved editors can change.
+//   players/{slug}   nickname, comp, position/tier, and players added on the site. Anyone can read; approved editors can change.
+//   photos/{slug}    headshots uploaded on the site. Anyone can read; approved editors can change.
 //   requests/{uid}   "Request edit access". The person themself creates it; only the admin can see the list.
 //   editors/{uid}    people the admin approved. Only the admin can add or remove them.
 // ADMIN_UIDS = the Google account(s) that run the site (Jack).
@@ -23,14 +24,36 @@ service cloud.firestore {
       );
     }
 
+    // Fields are optional because saves merge: a position change doesn't have to resend the nickname.
+    function validPlayer(d) {
+      return d.keys().hasOnly(['nickname', 'comp', 'tier', 'name', 'added', 'by', 'at'])
+        && d.keys().hasAll(['by', 'at'])
+        && (!('nickname' in d) || shortText(d.nickname, 30))
+        && (!('comp' in d) || validComp(d.comp))
+        && (!('tier' in d) || d.tier in ['QB', 'S', 'A', 'B', 'C', 'D', 'NA'])
+        && (!('name' in d) || (d.name is string && d.name.matches("^[A-Za-z][A-Za-z.' -]{2,39}$")))
+        && (!('added' in d) || d.added == true)
+        && shortText(d.by, 60)
+        && d.at == request.time;
+    }
+
     match /players/{slug} {
       allow read: if true;
       allow create, update: if isEditor()
         && slug.matches('^[a-z0-9-]{1,60}$')
-        && request.resource.data.keys().hasOnly(['nickname', 'comp', 'by', 'at'])
-        && request.resource.data.keys().hasAll(['nickname', 'comp', 'by', 'at'])
-        && shortText(request.resource.data.nickname, 30)
-        && validComp(request.resource.data.comp)
+        && validPlayer(request.resource.data);
+      allow delete: if isEditor();
+    }
+
+    // Headshots uploaded on the site: a small JPEG stored as a data: URL (the site shrinks it to 256px first).
+    match /photos/{slug} {
+      allow read: if true;
+      allow create, update: if isEditor()
+        && slug.matches('^[a-z0-9-]{1,60}$')
+        && request.resource.data.keys().hasOnly(['img', 'by', 'at'])
+        && request.resource.data.img is string
+        && request.resource.data.img.size() < 200000
+        && request.resource.data.img.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$')
         && shortText(request.resource.data.by, 60)
         && request.resource.data.at == request.time;
       allow delete: if isEditor();

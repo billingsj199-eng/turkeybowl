@@ -1,8 +1,9 @@
 // ===================== TURKEY BOWL CLOUD (sign-in, nicknames, comps) =====================
 // Firebase project "gallturkeybowl" (Turkey Bowl only). Rules live in firestore.rules.
-//   players/{slug}  {nickname, comp:{name,team,league,id,img}|null, by, at}  - shown on player cards
+//   players/{slug}  {nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
+//   photos/{slug}   {img: small JPEG as a data: URL, by, at}  - headshot uploaded on the site (beats images/*.jpg)
 //   requests/{uid}  "Request edit access"      editors/{uid}  people Jack approved
-// Everyone can see nicknames and comps. Only approved editors (and the admin) can change them.
+// Everyone sees all of it. Only approved editors (and the admin) can change it.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -25,9 +26,10 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
-  ready: false, user: null, role: "viewer", profiles: {},
+  ready: false, user: null, role: "viewer", profiles: {}, photos: {},
   canEdit(){ return this.role === "editor" || this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
+  photo(slug){ return this.photos[slug] || null; },
 };
 const changed = () => document.dispatchEvent(new CustomEvent("tbc-change"));
 
@@ -36,6 +38,10 @@ onSnapshot(collection(db, "players"), snap => {
   const p = {}; snap.forEach(d => p[d.id] = d.data());
   TBC.profiles = p; TBC.ready = true; changed();
 }, err => { console.warn("Turkey Bowl cloud: couldn't load nicknames/comps", err); TBC.ready = true; changed(); });
+onSnapshot(collection(db, "photos"), snap => {
+  const p = {}; snap.forEach(d => { const v = d.data().img; if (typeof v === "string" && v.startsWith("data:image/")) p[d.id] = v; });
+  TBC.photos = p; changed();
+}, err => console.warn("Turkey Bowl cloud: couldn't load headshots", err));
 
 // ---- who is signed in, and what they're allowed to do ----
 async function roleFor(u){
@@ -61,14 +67,58 @@ TBC.requestAccess = async () => {
   await setDoc(doc(db, "requests", u.uid), {name: u.name.slice(0, 80), email: u.email, at: serverTimestamp()});
   TBC.role = "pending"; renderAuthBox(); changed();
 };
-TBC.saveProfile = async (slug, {nickname, comp}) => {
-  await setDoc(doc(db, "players", slug), {
-    nickname: (nickname || "").trim().slice(0, 30),
-    comp: comp ? {name: comp.name.slice(0, 60), team: (comp.team || "").slice(0, 60), league: comp.league, id: String(comp.id), img: comp.img} : null,
-    by: (TBC.user?.name || "").slice(0, 60),
-    at: serverTimestamp(),
-  });
+const by = () => (TBC.user?.name || "").slice(0, 60);
+const slugOf = n => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// Only the fields passed in change (merge), so a nickname edit never wipes a position change and vice versa.
+TBC.saveProfile = async (slug, {nickname, comp, tier}) => {
+  const d = {by: by(), at: serverTimestamp()};
+  if (nickname !== undefined) d.nickname = (nickname || "").trim().slice(0, 30);
+  if (comp !== undefined) d.comp = comp ? {name: comp.name.slice(0, 60), team: (comp.team || "").slice(0, 60), league: comp.league, id: String(comp.id), img: comp.img} : null;
+  if (tier !== undefined) d.tier = tier;
+  await setDoc(doc(db, "players", slug), d, {merge: true});
 };
+TBC.savePhoto = async (slug, img) => img
+  ? setDoc(doc(db, "photos", slug), {img, by: by(), at: serverTimestamp()})
+  : deleteDoc(doc(db, "photos", slug));
+TBC.addPlayer = async (name, tier) => {
+  const slug = slugOf(name);
+  await setDoc(doc(db, "players", slug), {name, added: true, tier, by: by(), at: serverTimestamp()}, {merge: true});
+  return slug;
+};
+TBC.removePlayer = async slug => {
+  await deleteDoc(doc(db, "photos", slug)).catch(() => {});
+  await deleteDoc(doc(db, "players", slug));
+};
+
+// Shrink a picked photo to a 256px square JPEG (about 15-25 KB) so it fits in the database.
+// Tall photos are cropped a little above center, where the face usually is.
+TBC.shrinkPhoto = file => new Promise((ok, bad) => {
+  if (!file || !/^image\//.test(file.type)) return bad(new Error("That isn't a picture."));
+  const url = URL.createObjectURL(file), im = new Image();
+  im.onload = () => {
+    const S = 256, side = Math.min(im.naturalWidth, im.naturalHeight);
+    const sx = (im.naturalWidth - side) / 2, sy = (im.naturalHeight - side) * 0.3;
+    const c = document.createElement("canvas"); c.width = c.height = S;
+    const g = c.getContext("2d"); g.imageSmoothingQuality = "high";
+    g.drawImage(im, sx, sy, side, side, 0, 0, S, S);
+    URL.revokeObjectURL(url);
+    let q = 0.85, out = c.toDataURL("image/jpeg", q);
+    while (out.length > 140000 && q > 0.4) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+    ok(out);
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Couldn't open that picture (try a JPG or PNG).")); };
+  im.src = url;
+});
+
+const TIER_OPTS = [["S","S Tier"],["A","A Tier"],["B","B Tier"],["C","C Tier"],["D","D Tier"],["NA","Unranked"]];
+const posTierHTML = (pos, tier) => `
+  <div class="ed-row ed-2">
+    <div><label>Position</label><select id="edPos"><option value="QB" ${pos === "QB" ? "selected" : ""}>QB</option><option value="FLEX" ${pos !== "QB" ? "selected" : ""}>FLEX</option></select></div>
+    <div id="edTierWrap" ${pos === "QB" ? "hidden" : ""}><label>Tier</label><select id="edTier">${TIER_OPTS.map(([k, l]) => `<option value="${k}" ${k === tier ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+  </div>
+  <div class="ed-hint" style="margin-top:-8px">QBs are the captains in the mock draft. FLEX players are ranked by tier.</div>`;
+const wirePosTier = $ => { $("#edPos").onchange = e => { $("#edTierWrap").hidden = e.target.value === "QB"; }; };
+const readTier = $ => $("#edPos").value === "QB" ? "QB" : $("#edTier").value;
 
 // ---- ESPN player search (NFL + college football only) ----
 TBC.searchPlayers = async q => {
@@ -98,9 +148,16 @@ TBC.compHTML = comp => comp ? `
 // Edit panel inside the open player card. onDone() redraws the card.
 TBC.openEditor = (host, p, slug, onDone) => {
   const cur = TBC.profile(slug) || {};
-  let pick = cur.comp || null, timer = null, seq = 0;
+  let pick = cur.comp || null, timer = null, seq = 0, newPhoto;   // newPhoto: undefined = unchanged, "" = remove, data URL = new
+  const ini = esc((p.first[0] || "") + (p.last[0] || ""));
   host.innerHTML = `
     <div class="ed">
+      <div class="ed-row"><label>Headshot</label>
+        <div class="ed-photo"><span id="edPh"></span>
+          <label class="obtn sm" style="margin:0;cursor:pointer">📷 Upload photo<input type="file" id="edFile" accept="image/*"></label>
+          <button class="obtn sm" id="edPhRm" type="button" ${TBC.photo(slug) ? "" : "hidden"}>Remove uploaded photo</button></div>
+        <div class="ed-hint">Any photo works. It's cropped to a square around the face and shrunk.</div></div>
+      ${posTierHTML(p.pos, p.tier === "QB" ? (p.prev !== "QB" ? p.prev : "NA") : p.tier)}
       <div class="ed-row"><label>Nickname</label>
         <input id="edNick" maxlength="30" placeholder="e.g. The Mailman" value="${esc(cur.nickname || "")}">
         <div class="ed-hint">Shows as ${esc(p.first)} “Nickname” ${esc(p.last)}</div></div>
@@ -108,9 +165,28 @@ TBC.openEditor = (host, p, slug, onDone) => {
         <div id="edPick"></div>
         <input id="edSearch" placeholder="Type a player's name, e.g. Puka Nacua" autocomplete="off">
         <div class="ed-res" id="edRes"></div></div>
-      <div class="ed-btns"><button class="obtn solid" id="edSave">Save</button><button class="obtn" id="edCancel">Cancel</button><span class="ed-msg" id="edMsg"></span></div>
+      <div class="ed-btns"><button class="obtn solid" id="edSave">Save</button><button class="obtn" id="edCancel">Cancel</button><span class="ed-msg" id="edMsg"></span>
+        ${p.added ? `<button class="obtn sm ed-danger" id="edDel" type="button">Remove player</button>` : ""}</div>
     </div>`;
   const $ = s => host.querySelector(s);
+  const drawPh = () => {
+    const src = newPhoto === undefined ? (TBC.photo(slug) || host.closest(".pc")?.querySelector(".pc-head .hs img")?.src) : newPhoto;
+    $("#edPh").innerHTML = src ? `<img class="ph" src="${esc(src)}" alt="">` : `<span class="ph">${ini}</span>`;
+  };
+  drawPh();
+  $("#edFile").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    $("#edMsg").textContent = "Preparing photo…";
+    try { newPhoto = await TBC.shrinkPhoto(f); drawPh(); $("#edPhRm").hidden = false; $("#edMsg").textContent = "Photo ready. Tap Save."; }
+    catch(err){ $("#edMsg").textContent = err.message; }
+  };
+  $("#edPhRm").onclick = () => { newPhoto = ""; $("#edPhRm").hidden = true; drawPh(); };
+  wirePosTier($);
+  const del = $("#edDel"); if (del) del.onclick = async () => {
+    if (!confirm(`Remove ${p.name} from the board? This deletes the player, their photo, nickname and comp.`)) return;
+    try { await TBC.removePlayer(slug); onDone(true); } catch(err){ $("#edMsg").textContent = "Couldn't remove: " + err.message; }
+  };
   const drawPick = () => {
     $("#edPick").innerHTML = pick ? `<div class="ed-picked">${TBC.compHTML(pick)}<button class="obtn sm" id="edClear">Remove comp</button></div>` : "";
     const c = host.querySelector("#edClear"); if (c) c.onclick = () => { pick = null; drawPick(); };
@@ -138,10 +214,46 @@ TBC.openEditor = (host, p, slug, onDone) => {
   $("#edCancel").onclick = onDone;
   $("#edSave").onclick = async () => {
     $("#edSave").disabled = true; $("#edMsg").textContent = "Saving…";
-    try { await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick}); onDone(); }
+    try {
+      const tier = readTier($);
+      await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick, ...(tier !== p.tier ? {tier} : {})});
+      if (newPhoto !== undefined) await TBC.savePhoto(slug, newPhoto || null);
+      onDone();
+    }
     catch(err){ $("#edSave").disabled = false; $("#edMsg").textContent = "Couldn't save: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message); }
   };
-  $("#edNick").focus();
+};
+
+// "+ Add player" on the board (editors only). taken(slug) says if that name is already on the board;
+// onDone(name) opens the new player's card.
+TBC.openAddPlayer = (onDone, taken) => {
+  let ov = document.getElementById("addOv");
+  if (!ov) {
+    ov = document.createElement("div"); ov.id = "addOv"; ov.className = "ov";
+    document.body.appendChild(ov);
+    ov.addEventListener("click", e => { if (e.target === ov) ov.hidden = true; });
+  }
+  ov.innerHTML = `<div class="pc adminpc"><div class="pc-head"><div><h2 class="pc-name">Add player</h2>
+      <div class="pc-meta">They show up on the board for everyone. Add a photo, nickname and comp from their card after.</div></div>
+      <button class="pc-close" aria-label="Close">✕</button></div>
+    <div class="pc-body"><div class="ed">
+      <div class="ed-row"><label>First and last name</label><input id="apName" maxlength="40" placeholder="e.g. Chris Romano" autocomplete="off"></div>
+      ${posTierHTML("FLEX", "NA")}
+      <div class="ed-btns"><button class="obtn solid" id="apSave">Add player</button><button class="obtn" id="apCancel">Cancel</button><span class="ed-msg" id="apMsg"></span></div>
+    </div></div></div>`;
+  ov.hidden = false;
+  const $ = s => ov.querySelector(s), close = () => { ov.hidden = true; };
+  ov.querySelector(".pc-close").onclick = close; $("#apCancel").onclick = close;
+  wirePosTier($);
+  $("#apName").focus();
+  $("#apSave").onclick = async () => {
+    const name = $("#apName").value.trim().replace(/\s+/g, " ").replace(/(^|[ '-])([a-z])/g, (m, a, c) => a + c.toUpperCase());
+    if (!/^[A-Za-z][A-Za-z.' -]{2,39}$/.test(name) || name.split(" ").length < 2) { $("#apMsg").textContent = "Type a first and last name (letters only)."; return; }
+    if ((taken && taken(slugOf(name))) || TBC.profile(slugOf(name))?.added) { $("#apMsg").textContent = name + " is already on the board."; return; }
+    $("#apSave").disabled = true; $("#apMsg").textContent = "Adding…";
+    try { await TBC.addPlayer(name, readTier($)); close(); onDone && onDone(name); }
+    catch(err){ $("#apSave").disabled = false; $("#apMsg").textContent = "Couldn't add: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message); }
+  };
 };
 
 // ---- top-bar sign-in box + admin panel ----
@@ -182,7 +294,7 @@ async function openAdmin(){
   if (!ov) {
     ov = document.createElement("div"); ov.id = "adminOv"; ov.className = "ov";
     ov.innerHTML = `<div class="pc adminpc"><div class="pc-head"><div><h2 class="pc-name">Manage editors</h2>
-      <div class="pc-meta">Editors can change nicknames and player comps. Nothing else on the site.</div></div>
+      <div class="pc-meta">Editors can change nicknames, player comps, headshots and positions/tiers, and add players. Nothing else on the site.</div></div>
       <button class="pc-close" aria-label="Close">✕</button></div><div class="pc-body" id="adminBody"></div></div>`;
     document.body.appendChild(ov);
     ov.addEventListener("click", e => { if (e.target === ov) ov.hidden = true; });
@@ -206,7 +318,7 @@ async function openAdmin(){
   });
   body.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => { await deleteDoc(doc(db, "requests", b.dataset.no)); openAdmin(); });
   body.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
-    if (!confirm("Remove this editor? They won't be able to change nicknames or comps anymore.")) return;
+    if (!confirm("Remove this editor? They won't be able to edit players anymore.")) return;
     await deleteDoc(doc(db, "editors", b.dataset.rm)); openAdmin();
   });
 }

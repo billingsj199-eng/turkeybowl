@@ -201,7 +201,7 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .ed-picked{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
   .ed-picked .comp-card{margin-top:0}
   .ed-none{color:var(--muted);font-size:13px;padding:6px 2px}
-  .ed-btns{display:flex;align-items:center;gap:8px}
+  .ed-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ed-msg{font-size:13px;color:var(--muted)}
   .authbox{margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap}
   .ab-name{font:600 13px Inter,sans-serif;color:#c4cbd8}
@@ -225,6 +225,13 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     #abIn{padding:6px 10px}
   }
   .adminpc{max-width:560px}
+  .ed-row select{background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font:14px Inter,sans-serif}
+  .ed-2{display:flex;gap:12px;flex-wrap:wrap}
+  .ed-2 > div{min-width:130px}
+  .ed-photo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .ed-photo .ph{width:72px;height:72px;border-radius:50%;object-fit:cover;background:#0f1525;border:2px solid #3a4560;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font:700 20px Inter,sans-serif}
+  .ed-photo input[type=file]{display:none}
+  .ed-danger{margin-left:auto;color:#ef6b5f !important;border-color:#5a2a2a !important}
   .adm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:9px 12px;margin-bottom:6px}
   .adm-row small{display:block;color:var(--muted);font-size:12px}
 </style>
@@ -251,6 +258,7 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     <button class="btn view on" data-view="table">Table</button>
     <button class="btn view" data-view="cards">Tier Cards</button>
     <button class="btn view" data-view="draft">Mock Draft</button>
+    <button class="btn primary" id="addPlayerBtn" hidden style="margin-left:auto">+ Add player</button>
   </div>
   <div class="summary" id="summary"></div>
   <main id="board"></main>
@@ -419,15 +427,35 @@ const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""
 // Names on phones: "Jeremy Christiansen" -> "J. Christiansen" (CSS swaps .nm-f / .nm-s at 600px).
 const nmHTML = p => p.first ? `<span class="nm-f">${p.name}</span><span class="nm-s">${p.first[0]}. ${p.last}</span>` : p.name;
 
-const players = PLAYERS.map(p => ({...p, ...split(p.name), tier: norm(p.tier26 || p.tier25), prev: norm(p.tier25)}))
-  .sort((a,b) => TI(a.tier) - TI(b.tier) || a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
-const tierCount = {}, posCount = {};
-players.forEach((p,i) => {
-  p.pos = p.tier === "QB" ? "QB" : "FLEX";
-  posCount[p.pos] = (posCount[p.pos]||0)+1; p.prank = p.pos + posCount[p.pos];
-  p.rank = posCount[p.pos];   // numbering restarts at 1 for FLEX
-  tierCount[p.tier] = (tierCount[p.tier]||0)+1; p.trank = p.tier==="NA" ? "—" : p.tier + tierCount[p.tier];
-});
+// The board = PLAYERS above + changes editors make on the site (tb-cloud.js): players they add,
+// and position / tier changes (QB position = QB tier). Rebuilt in place whenever those change.
+const players = [], byName = {};
+let tierCount = {}, posCount = {}, captains = [], pool = [];
+function buildPlayers(){
+  const prof = (window.TBC && TBC.profiles) || {};
+  const list = PLAYERS.map(p => ({...p}));
+  Object.entries(prof).forEach(([s, d]) => {
+    if (d.added && d.name && !list.some(p => slug(p.name) === s)) list.push({name: d.name, tier25: "N/A", added: true});
+  });
+  players.length = 0;
+  list.forEach(p => {
+    const c = prof[slug(p.name)] || {};
+    players.push({...p, ...split(p.name), tier: norm(c.tier || p.tier26 || p.tier25), prev: norm(p.tier25)});
+  });
+  players.sort((a,b) => TI(a.tier) - TI(b.tier) || a.last.localeCompare(b.last) || a.first.localeCompare(b.first));
+  tierCount = {}; posCount = {};
+  players.forEach(p => {
+    p.pos = p.tier === "QB" ? "QB" : "FLEX";
+    posCount[p.pos] = (posCount[p.pos]||0)+1; p.prank = p.pos + posCount[p.pos];
+    p.rank = posCount[p.pos];   // numbering restarts at 1 for FLEX
+    tierCount[p.tier] = (tierCount[p.tier]||0)+1; p.trank = p.tier==="NA" ? "—" : p.tier + tierCount[p.tier];
+  });
+  Object.keys(byName).forEach(k => delete byName[k]);
+  players.forEach(p => byName[p.name] = p);
+  captains = players.filter(p => p.pos === "QB").map(p => p.name);
+  pool = players.filter(p => p.pos !== "QB" && !p.out).map(p => p.name);
+}
+buildPlayers();
 
 let filter = "ALL", view = "table";
 const chips = document.getElementById("chips");
@@ -448,7 +476,8 @@ function headshot(p){
   const el = document.createElement("div"); el.className = "hs";
   el.style.setProperty("--tc", `var(--t-${p.tier})`);
   const ini = (p.first[0]||"") + (p.last[0]||"");
-  const tries = p.img ? [p.img] : ["jpg","png","jpeg","webp"].map(e => `images/${slug(p.name)}.${e}`);
+  const up = window.TBC && TBC.photo(slug(p.name));   // photo an editor uploaded on the site wins
+  const tries = [up, ...(p.img ? [p.img] : ["jpg","png","jpeg","webp"].map(e => `images/${slug(p.name)}.${e}`))].filter(Boolean);
   let i = 0; const img = new Image(); img.alt = p.name;
   img.onload = () => el.classList.add("has-img");
   img.onerror = () => { i++; if (i < tries.length) img.src = tries[i]; else { img.remove(); el.textContent = ini; } };
@@ -494,7 +523,10 @@ const fmt = (v, d=1) => Number.isInteger(v) ? String(v) : v.toFixed(d);
 // Nicknames / comps / sign-in come from tb-cloud.js; redraw an open card when they change
 // (but never while someone is typing in the edit panel).
 document.addEventListener("tbc-change", () => {
-  if (!document.getElementById("ov").hidden && PC.name && !PC.editing) drawCard();
+  buildPlayers(); fixMD(); render();
+  const ab = document.getElementById("addPlayerBtn"); if (ab) ab.hidden = !(window.TBC && TBC.canEdit());
+  if (!document.getElementById("ov").hidden && PC.name && !PC.editing && byName[PC.name]) drawCard();
+  if (PENDING_PLAYER && TBC.ready) { const hit = players.find(p => slug(p.name) === PENDING_PLAYER); PENDING_PLAYER = null; if (hit && document.getElementById("ov").hidden) openCard(hit.name); }
 });
 function openCard(name){
   PC.name = name; PC.side = "off"; PC.mode = "total"; PC.season = CURRENT_SEASON; PC.editing = false;
@@ -512,7 +544,8 @@ document.getElementById("ov").addEventListener("click", e => { if (e.target.id =
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.getElementById("ov").hidden) closeCard(); });
 
 function drawCard(){
-  const p = byName[PC.name], s = STATS[p.name] || {}, bio = s.bio || {};
+  const p = byName[PC.name]; if (!p) return closeCard();
+  const s = STATS[p.name] || {}, bio = s.bio || {};
   const allG = allGamesFor(p.name);
   const seasonList = [...new Set([CURRENT_SEASON, ...allG.map(g => g.season).filter(Boolean)])].sort((a,b) => b - a);
   const games = allG.filter(g => (g.season || CURRENT_SEASON) === PC.season);
@@ -523,7 +556,7 @@ function drawCard(){
     <div class="pc-head">
       <span class="hsx"></span>
       <div style="min-width:0">
-        <div class="pc-title"><h2 class="pc-name">${window.TBC ? TBC.nameHTML(p.first, p.last, slug(p.name)) : p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span>${window.TBC && TBC.canEdit() ? `<button class="obtn sm pc-edit" id="pcEdit">✎ Edit nickname / comp</button>` : ""}</div>
+        <div class="pc-title"><h2 class="pc-name">${window.TBC ? TBC.nameHTML(p.first, p.last, slug(p.name)) : p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span>${window.TBC && TBC.canEdit() ? `<button class="obtn sm pc-edit" id="pcEdit">✎ Edit player</button>` : ""}</div>
         <div class="pc-meta">
           <span class="pill pos-${p.pos}">${p.pos}</span>
           <span>${teamLabel(p)}</span><span class="dot">·</span>
@@ -543,7 +576,7 @@ function drawCard(){
   const edBtn = pc.querySelector("#pcEdit");
   if (edBtn) edBtn.onclick = () => {
     PC.editing = true; edBtn.style.display = "none";
-    TBC.openEditor(pc.querySelector("#pcEdHost"), p, slug(p.name), () => { PC.editing = false; drawCard(); });
+    TBC.openEditor(pc.querySelector("#pcEdHost"), p, slug(p.name), removed => { PC.editing = false; if (removed === true || !byName[PC.name]) closeCard(); else drawCard(); });
   };
 
   const body = pc.querySelector(".pc-body");
@@ -636,12 +669,14 @@ const store = {
   get(){ try { return JSON.parse(localStorage.getItem("tb-mock-2026")||"null"); } catch(e){ return null; } },
   set(v){ try { localStorage.setItem("tb-mock-2026", JSON.stringify(v)); } catch(e){} }
 };
-const byName = Object.fromEntries(players.map(p => [p.name, p]));
-const captains = players.filter(p => p.pos === "QB").map(p => p.name);
-const pool = players.filter(p => p.pos !== "QB" && !p.out).map(p => p.name);
 let MD = store.get();
-if (!MD || !Array.isArray(MD.order) || MD.order.length !== captains.length || !MD.order.every(n => captains.includes(n)))
-  MD = {order:[...captains], picks:[]};
+// Captains can change (an editor moves someone to QB), so check the saved mock draft still fits.
+function fixMD(){
+  if (!MD || !Array.isArray(MD.order) || !Array.isArray(MD.picks) || MD.order.length !== captains.length || !MD.order.every(n => captains.includes(n)))
+    MD = {order:[...captains], picks:[]};
+  MD.picks = MD.picks.filter(n => pool.includes(n));
+}
+fixMD();
 const saveMD = () => store.set(MD);
 const N = () => MD.order.length;
 const totalPicks = () => pool.length;
@@ -791,7 +826,10 @@ function renderCards(board, list){
   });
 }
 render();
-{ const q = new URLSearchParams(location.search).get("player"); const hit = q && players.find(p => slug(p.name) === q); if (hit) openCard(hit.name); }
+// ?player=slug opens that card (players added on the site load a moment later, so wait for them)
+let PENDING_PLAYER = null;
+{ const q = new URLSearchParams(location.search).get("player"); const hit = q && players.find(p => slug(p.name) === q); if (hit) openCard(hit.name); else if (q) PENDING_PLAYER = q; }
+document.getElementById("addPlayerBtn").onclick = () => window.TBC && TBC.openAddPlayer(name => openCard(name), s => players.some(p => slug(p.name) === s));
 </script>
 <script src="film.js"></script>
 <script src="history.js"></script>
