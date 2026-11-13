@@ -81,6 +81,10 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .card .hs{width:84px;height:84px;margin:0 auto 10px;font-size:26px;border-width:3px}
   .card .rk{position:absolute;top:8px;left:10px;color:var(--muted);font-weight:700;font-size:12px}
   .card .pill{position:absolute;top:8px;right:8px}
+  .card .hsw{position:relative;width:84px;margin:0 auto 10px}
+  .card .hsw .hs{margin:0}
+  .card .hsw .col-logo{position:absolute;right:-12px;bottom:-6px;width:40px;height:40px;padding:4px;border-radius:50%;background:#0f1525;border:2px solid var(--line);box-sizing:border-box}
+  .card .hsw .col-logo b{border:0;border-radius:50%;font-size:9px}
   .empty{color:var(--muted);text-align:center;padding:40px}
 
   /* ---- Mock draft ---- */
@@ -1318,7 +1322,10 @@ function renderCards(board, list){
     items.forEach(p => {
       const c = document.createElement("article"); c.className = "card";
       c.innerHTML = `<span class="rk">#${p.rank}</span><span class="pill">${tlabel(p.tier)}</span>`;
-      c.appendChild(headshot(p));
+      const hw = document.createElement("div"); hw.className = "hsw";   // headshot, with the college logo badge on its corner
+      hw.appendChild(headshot(p));
+      if (window.TBC) hw.insertAdjacentHTML("beforeend", TBC.collegeLogo((TBC.profile(slug(p.name)) || {}).college));
+      c.appendChild(hw);
       c.insertAdjacentHTML("beforeend", `<div class="pname">${nmHTML(p)}</div><div class="psub">${teamLabel(p)}</div><div class="psub">${p.prank} · ${p.trank}</div>`);
       c.style.cursor = "pointer"; c.addEventListener("click", () => openCard(p.name));
       grid.appendChild(c);
