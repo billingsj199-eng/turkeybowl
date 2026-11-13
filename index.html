@@ -200,6 +200,16 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .ed-opt small{display:block;color:var(--muted);font-size:12px}
   .ed-picked{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
   .ed-picked .comp-card{margin-top:0}
+  /* ---- college logo + tag ---- */
+  .col-logo{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:none;border-radius:6px;overflow:hidden;vertical-align:middle}
+  .col-logo img{width:100%;height:100%;object-fit:contain;display:block}
+  .col-logo b{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#232c40;border:1px solid #3a4560;border-radius:6px;color:#c4cbd8;font:700 10px Inter,sans-serif;letter-spacing:.02em}
+  .col-logo.lg{width:36px;height:36px}
+  td.col{width:42px;padding-left:2px;padding-right:2px;text-align:center}
+  td.col .col-logo{width:32px;height:32px}
+  .col-tag{display:inline-flex;align-items:center;gap:6px;background:#1b2336;border:1px solid #29334a;border-radius:999px;padding:2px 10px 2px 3px;font-size:13px;font-weight:600;color:#e6e9ef;white-space:nowrap}
+  .col-tag .col-logo{width:22px;height:22px}
+  @media (max-width:600px){ td.col{width:30px} td.col .col-logo{width:24px;height:24px} }
   .ed-none{color:var(--muted);font-size:13px;padding:6px 2px}
   .ed-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ed-msg{font-size:13px;color:var(--muted)}
@@ -677,6 +687,7 @@ function drawCard(){
         <div class="pc-title"><h2 class="pc-name">${window.TBC ? TBC.nameHTML(p.first, p.last, slug(p.name)) : p.name}</h2><span class="pill pc-tier">${p.tier === "NA" ? "Unranked" : p.tier + " Tier"}</span>${window.TBC && TBC.canEdit() ? `<button class="obtn sm pc-edit" id="pcEdit">✎ Edit player</button>` : ""}</div>
         <div class="pc-meta">
           <span class="pill pos-${p.pos}">${p.pos}</span>
+          ${window.TBC && cb.college ? TBC.collegeTag(cb.college) : ""}
           <span>${teamLabel(p)}${p.pick ? ` <span class="pc-pick">${p.pick === "Captain" ? "Captain" : "Pick " + p.pick}</span>` : ""}</span><span class="dot">·</span>
           <span>Age ${dash(bio.age)}</span><span class="dot">·</span>
           <span>${bio.ht ? String(bio.ht).replace("-", "'") + '"' : "Ht —"}</span><span class="dot">·</span>
@@ -1179,7 +1190,7 @@ function confetti(host){
 
 function renderTable(board, list){
   const t = document.createElement("table");
-  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th>Player</th><th class="hide-sm">Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
+  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th class="col" title="College"></th><th>Player</th><th class="hide-sm">Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
   const tb = document.createElement("tbody");
   PPG_POOL = ppgPool();
   const TB = {QB:"Quarterbacks", S:"Elite", A:"Tier A", B:"Tier B", C:"Tier C", D:"Tier D", NA:"Unranked"};
@@ -1187,7 +1198,7 @@ function renderTable(board, list){
   const tierBar = k => {
     const br = document.createElement("tr"); br.className = "tbreak"; br.dataset.tier = k;
     br.style.setProperty("--tc", `var(--t-${k})`);
-    br.innerHTML = `<td colspan="7">${RANK_EDIT && k !== "QB" ? `<span class="drag-h" title="Drag to move the tier line">⠿</span>` : ""}<span class="tb-badge">${k === "NA" ? "—" : k}</span><span class="tb-label">${TB[k]}</span></td>`;
+    br.innerHTML = `<td colspan="8">${RANK_EDIT && k !== "QB" ? `<span class="drag-h" title="Drag to move the tier line">⠿</span>` : ""}<span class="tb-badge">${k === "NA" ? "—" : k}</span><span class="tb-label">${TB[k]}</span></td>`;
     tb.appendChild(br);
   };
   const flush = upTo => { while (lastTier !== upTo) { lastTier = lastTier === null ? "QB" : TIERS[TI(lastTier) + 1].key; tierBar(lastTier); } };
@@ -1197,6 +1208,7 @@ function renderTable(board, list){
     const tr = document.createElement("tr"); tr.className = "prow"; tr.dataset.slug = slug(p.name);
     tr.style.setProperty("--tc", `var(--t-${p.tier})`);
     tr.innerHTML = `<td class="num">${RANK_EDIT ? `<span class="drag-h" title="Drag to re-rank">⠿</span>` : ""}${p.rank}</td>
+      <td class="col">${window.TBC ? TBC.collegeLogo((TBC.profile(slug(p.name)) || {}).college) : ""}</td>
       <td><div class="player"><span class="hsx"></span><div><div style="display:flex;align-items:center;gap:8px"><span class="pname">${nmHTML(p)}</span><span class="pill" title="${p.tier==="NA"?"Unranked":p.tier+" Tier"}">${tlabel(p.tier)}</span></div>
         <div class="psub">${teamLabel(p)}</div></div></div></td>
       <td class="hide-sm"><span class="pill pos-${p.pos}">${p.pos}</span></td>

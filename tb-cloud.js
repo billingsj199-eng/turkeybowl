@@ -1,6 +1,6 @@
 // ===================== TURKEY BOWL CLOUD (sign-in, nicknames, comps) =====================
 // Firebase project "gallturkeybowl" (Turkey Bowl only). Rules live in firestore.rules.
-//   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, tier, name+added (players added on the site), by, at}
+//   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, college:{name,id|null}|null (admin only), tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
 //   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
 //   lottery/<season> {order: [captains], id, by, at}  - draft lottery result (everyone on Live Draft watches it run)
@@ -33,6 +33,7 @@ const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 const TBC = window.TBC = {
   ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null, teamInfo: {}, captainsByUid: {},
   canEdit(){ return this.role === "editor" || this.role === "admin"; },
+  isAdmin(){ return this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
 };
@@ -101,11 +102,12 @@ TBC.requestAccess = async () => {
 };
 const by = () => (TBC.user?.name || "").slice(0, 60);
 // Only the fields passed in change (merge), so a nickname edit never wipes a position change and vice versa.
-TBC.saveProfile = async (slug, {nickname, comp, tier, ...bio}) => {
+TBC.saveProfile = async (slug, {nickname, comp, tier, college, ...bio}) => {
   const d = {by: by(), at: serverTimestamp()};
   if (nickname !== undefined) d.nickname = (nickname || "").trim().slice(0, 30);
   if (comp !== undefined) d.comp = comp ? {name: comp.name.slice(0, 60), team: (comp.team || "").slice(0, 60), league: comp.league, id: String(comp.id), img: comp.img} : null;
   if (tier !== undefined) d.tier = tier;
+  if (college !== undefined) d.college = college ? {name: college.name.trim().slice(0, 40), id: college.id ? String(college.id) : null} : null;
   ["num", "age", "ht", "wt"].forEach(k => { if (bio[k] !== undefined) d[k] = bio[k]; });   // null clears it
   await setDoc(doc(db, "players", slug), d, {merge: true});
 };
@@ -260,6 +262,30 @@ TBC.searchPlayers = async q => {
   });
 };
 
+// ---- colleges: colleges.js (ESPN's college football + basketball schools, all divisions), loaded only when the admin searches ----
+let COLLEGES = null;
+TBC.colleges = () => COLLEGES || (COLLEGES = new Promise((ok, bad) => {
+  if (window.TB_COLLEGES) return ok();
+  const sc = document.createElement("script"); sc.src = "colleges.js?v=1";
+  sc.onload = ok; sc.onerror = () => { COLLEGES = null; sc.remove(); bad(new Error("couldn't load colleges.js")); };
+  document.head.appendChild(sc);
+}).then(() => (window.TB_COLLEGES || []).map(([name, full, abbr, id]) => ({name, full, abbr, id}))));
+TBC.searchColleges = async q => {
+  q = q.trim().toLowerCase(); if (q.length < 2) return [];
+  const list = await TBC.colleges();
+  const hit = t => t.name.toLowerCase().startsWith(q) ? 0 : t.abbr.toLowerCase() === q ? 1 : t.full.toLowerCase().includes(q) ? 2 : -1;
+  return list.map(t => [hit(t), t]).filter(([h]) => h >= 0).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([, t]) => t);
+};
+// Logo (ESPN's dark-background version, else the regular one) or, for a school ESPN doesn't have, its initials. cls sizes it (.col-logo in index.html).
+TBC.collegeLogo = (c, cls = "col-logo") => {
+  if (!c || !c.name) return "";
+  const words = c.name.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
+  const ini = (words.filter(w => /^[A-Z0-9]/.test(w)).map(w => w[0]).join("") || words.map(w => w[0]).join("") || "?").slice(0, 3).toUpperCase();
+  return c.id ? `<span class="${cls}" title="${esc(c.name)}"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/${esc(c.id)}.png" alt="${esc(c.name)}" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=this.src.replace('/500-dark/','/500/')}else this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${ini}'}))"></span>`
+    : `<span class="${cls}" title="${esc(c.name)}"><b>${ini}</b></span>`;
+};
+TBC.collegeTag = c => c && c.name ? `<span class="col-tag">${TBC.collegeLogo(c)}<span>${esc(c.name)}</span></span>` : "";
+
 // ---- small UI helpers used by the player card (index.html) ----
 TBC.nameHTML = (first, last, slug) => {
   const n = TBC.profile(slug)?.nickname;
@@ -275,7 +301,8 @@ TBC.compHTML = comp => comp ? `
 // Edit panel inside the open player card. onDone() redraws the card.
 TBC.openEditor = (host, p, slug, onDone) => {
   const cur = TBC.profile(slug) || {};
-  let pick = cur.comp || null, timer = null, seq = 0, newPhoto;   // newPhoto: undefined = unchanged, "" = remove, data URL = new
+  let pick = cur.comp || null, timer = null, seq = 0, newPhoto;
+  let colPick = cur.college || null, colTimer = null, colSeq = 0;   // newPhoto: undefined = unchanged, "" = remove, data URL = new
   const ini = esc((p.first[0] || "") + (p.last[0] || ""));
   host.innerHTML = `
     <div class="ed">
@@ -291,6 +318,11 @@ TBC.openEditor = (host, p, slug, onDone) => {
         <div><label>Height</label><span class="ed-ht"><select id="edFt"><option value="">ft</option>${[4,5,6,7].map(f => `<option ${String(cur.ht || "").split("-")[0] === String(f) ? "selected" : ""}>${f}</option>`).join("")}</select><select id="edIn"><option value="">in</option>${[...Array(12).keys()].map(i => `<option ${cur.ht && String(cur.ht).split("-")[1] === String(i) ? "selected" : ""}>${i}</option>`).join("")}</select></span></div>
         <div><label>Weight (lbs)</label><input id="edWt" inputmode="numeric" maxlength="3" placeholder="—" value="${esc(cur.wt ?? "")}"></div>
       </div>
+      ${TBC.isAdmin() ? `<div class="ed-row"><label>College</label>
+        <div id="edColPick"></div>
+        <input id="edColSearch" placeholder="Type a school, e.g. Penn State or Ithaca" autocomplete="off">
+        <div class="ed-res" id="edColRes"></div>
+        <div class="ed-hint">Shows as a logo next to their name on the Draft Board. Only the admin can change it.</div></div>` : ""}
       <div class="ed-row"><label>Nickname</label>
         <input id="edNick" maxlength="30" placeholder="e.g. The Mailman" value="${esc(cur.nickname || "")}">
         <div class="ed-hint">Shows as ${esc(p.first)} “Nickname” ${esc(p.last)}</div></div>
@@ -325,6 +357,37 @@ TBC.openEditor = (host, p, slug, onDone) => {
     const c = host.querySelector("#edClear"); if (c) c.onclick = () => { pick = null; drawPick(); };
   };
   drawPick();
+  if (TBC.isAdmin()) {
+    const drawCol = () => {
+      $("#edColPick").innerHTML = colPick ? `<div class="ed-picked">${TBC.collegeTag(colPick)}<button class="obtn sm" id="edColClear" type="button">Remove college</button></div>` : "";
+      const c = host.querySelector("#edColClear"); if (c) c.onclick = () => { colPick = null; drawCol(); };
+    };
+    drawCol();
+    $("#edColSearch").oninput = e => {
+      clearTimeout(colTimer);
+      const q = e.target.value, my = ++colSeq;
+      colTimer = setTimeout(async () => {
+        const res = $("#edColRes");
+        if (q.trim().length < 2) { res.innerHTML = ""; return; }
+        let list = [], failed = false;
+        try { list = await TBC.searchColleges(q); } catch(err){ failed = true; }
+        if (my !== colSeq) return;
+        res.innerHTML = failed ? `<div class="ed-none">Couldn't load the school list. You can still use the name as typed.</div>` : "";
+        const pickIt = x => { colPick = x; drawCol(); res.innerHTML = ""; $("#edColSearch").value = ""; };
+        list.forEach(x => {
+          const b = document.createElement("button"); b.type = "button"; b.className = "ed-opt";
+          b.innerHTML = `${TBC.collegeLogo(x, "col-logo lg")}<span><b>${esc(x.name)}</b><small>${esc(x.full)}</small></span>`;
+          b.onclick = () => pickIt({name: x.name, id: x.id});
+          res.appendChild(b);
+        });
+        const typed = q.trim().replace(/\s+/g, " ").slice(0, 40);
+        const b = document.createElement("button"); b.type = "button"; b.className = "ed-opt";
+        b.innerHTML = `${TBC.collegeLogo({name: typed}, "col-logo lg")}<span><b>Use “${esc(typed)}”</b><small>No logo (school isn't listed)</small></span>`;
+        b.onclick = () => pickIt({name: typed, id: null});
+        res.appendChild(b);
+      }, 200);
+    };
+  }
   $("#edSearch").oninput = e => {
     clearTimeout(timer);
     const q = e.target.value, my = ++seq;
@@ -355,7 +418,8 @@ TBC.openEditor = (host, p, slug, onDone) => {
       const ft = $("#edFt").value, inch = $("#edIn").value;
       if (!ft !== !inch) throw new Error("Pick both feet and inches for height (or neither).");
       const bio = {num: num || null, age: int($("#edAge").value, 10, 99, "Age"), wt: int($("#edWt").value, 80, 400, "Weight"), ht: ft ? `${ft}-${inch}` : null};
-      await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick, ...bio, ...(tier !== p.tier ? {tier} : {})});
+      const colChanged = TBC.isAdmin() && ((colPick?.name || "") !== (cur.college?.name || "") || (colPick?.id || null) !== (cur.college?.id || null));
+      await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick, ...bio, ...(tier !== p.tier ? {tier} : {}), ...(colChanged ? {college: colPick} : {})});
       if (newPhoto !== undefined) await TBC.savePhoto(slug, newPhoto || null);
       onDone();
     }
