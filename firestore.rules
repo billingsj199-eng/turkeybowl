@@ -9,14 +9,14 @@ rules_version = '2';
 //   photos/{slug}    headshots uploaded on the site. Anyone can read; approved editors can change.
 //   requests/{uid}   "Request edit access". The person themself creates it; only the admin can see the list.
 //   editors/{uid}    people the admin approved. Only the admin can add or remove them.
-// ADMIN_UIDS = the Google account(s) that run the site (Jack). "Editors" below means the admin only.
+// ADMIN_UIDS = the Google account(s) that run the site (Jack).
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function isAdmin() { return signedIn() && request.auth.uid in ['Xh4m7OKapLMUAH3M124PC54KsE82']; }   // Jack
-    // Only the admin can edit anything (approved "editors" no longer get edit rights).
-    // Captain accounts can still make their own live-draft pick and customize their own team (rules below).
-    function isEditor() { return isAdmin(); }
+    function isEditor() {
+      return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/editors/$(request.auth.uid)));
+    }
     function shortText(v, max) { return v is string && v.size() <= max; }
     function validComp(c) {
       return c == null || (
