@@ -6,6 +6,9 @@ rules_version = '2';
 //   draft/{season}   the live draft. Anyone can watch; editors run it; only the admin can reset it.
 //   lottery/{season} draft lottery result. Anyone can read; editors run it before the draft starts.
 //   teams/{season}   team names. Anyone can read; editors can rename.
+//   trades/{id}      trade offers between captains (picks not made yet + drafted players). The proposing captain (or an
+//                    editor) creates one; the other captain (or an editor) accepts/declines; the proposer can cancel.
+//                    Accepting also writes draft/{season}.owners (pick -> team) and .moved (player -> team), checked below.
 //   photos/{slug}    headshots uploaded on the site. Anyone can read; approved editors can change.
 //   requests/{uid}   "Request edit access". The person themself creates it; only the admin can see the list.
 //   editors/{uid}    people the admin approved. Only the admin can add or remove them.
@@ -80,7 +83,7 @@ service cloud.firestore {
     match /draft/{season} {
       allow read: if true;
       function validDraft(d) {
-        return d.keys().hasOnly(['status', 'order', 'pool', 'picks', 'by', 'at'])
+        return d.keys().hasOnly(['status', 'order', 'pool', 'picks', 'owners', 'moved', 'tradesDone', 'by', 'at'])
           && d.keys().hasAll(['status', 'order', 'pool', 'picks', 'by', 'at'])
           && d.status in ['live', 'done']
           && d.order is list && d.order.size() >= 2 && d.order.size() <= 20
@@ -94,10 +97,13 @@ service cloud.firestore {
         && request.resource.data.order == resource.data.order
         && request.resource.data.pool == resource.data.pool
         && (resource.data.status == 'live' || isAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['picks', 'status', 'moved', 'by', 'at'])
         && (request.resource.data.picks.size() == resource.data.picks.size() + 1
             || request.resource.data.picks.size() == resource.data.picks.size() - 1);
-      // A captain account may make ONE pick: the next one, only when their team is on the clock (snake order).
+      // A captain account may make ONE pick: the next one, only when their team is on the clock
+      // (snake order, unless that pick was traded: draft.owners["<pick index>"]).
       allow update: if signedIn() && validDraft(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['picks', 'status', 'by', 'at'])
         && resource.data.status == 'live'
         && request.resource.data.order == resource.data.order
         && request.resource.data.pool == resource.data.pool
@@ -107,7 +113,112 @@ service cloud.firestore {
         && !resource.data.picks.hasAny([request.resource.data.picks[resource.data.picks.size()]])
         && request.resource.data.status == (request.resource.data.picks.size() >= resource.data.pool.size() ? 'done' : 'live')
         && get(/databases/$(database)/documents/captains/$(season)).data.byUid[request.auth.uid]
-           == resource.data.order[onClock(resource.data.order.size(), resource.data.picks.size())];
+           == pickOwner(resource.data.get('owners', {}), resource.data.order, resource.data.picks.size());
+      // Applying an accepted trade (same commit as trades/{id} going pending -> accepted).
+      allow update: if signedIn() && tradeApplied(season);
+      allow delete: if isAdmin();
+    }
+
+    // Who owns pick number i (0-based): a trade (owners map) or else the snake order.
+    // These helpers take small pieces (owners, moved, order), never the whole draft doc: passing big values
+    // around is what eats Firestore's 1000-expression budget for a rule.
+    function pickOwner(o, order, i) {
+      return o.get(string(i), order[onClock(order.size(), i)]);
+    }
+    // Who has a drafted player now: a trade (moved map) or else whoever made that pick.
+    function playerOwner(o, m, order, name, i) {
+      return m.get(name, pickOwner(o, order, i));
+    }
+    // The signed-in person's captain name for a season ('' if they aren't a captain).
+    function capOf(season) {
+      return exists(/databases/$(database)/documents/captains/$(season))
+        ? get(/databases/$(database)/documents/captains/$(season)).data.byUid.get(request.auth.uid, '') : '';
+    }
+    // Applying an accepted trade, in the same commit as trades/{id} going pending -> accepted.
+    function tradeApplied(season) {
+      return request.resource.data.get('tradesDone', []).size() == resource.data.get('tradesDone', []).size() + 1
+        && tradeCheck(season, resource.data, request.resource.data,
+             request.resource.data.tradesDone[request.resource.data.tradesDone.size() - 1]);
+    }
+    function tradeCheck(season, d0, d1, tid) {
+      return d1.diff(d0).affectedKeys().hasOnly(['owners', 'moved', 'tradesDone', 'by', 'at'])
+        && d1.tradesDone.size() <= 300 && d1.tradesDone.hasAll(d0.get('tradesDone', [])) && !d0.get('tradesDone', []).hasAny([tid])
+        && get(/databases/$(database)/documents/trades/$(tid)).data.status == 'pending'
+        && shortText(d1.by, 60) && d1.at == request.time
+        && tradeMoves(season, d0, d1.get('owners', {}), d1.get('moved', {}),
+             getAfter(/databases/$(database)/documents/trades/$(tid)).data);
+    }
+    function tradeMoves(season, d0, o1, m1, t) {
+      return t.status == 'accepted' && t.season == season
+        && (isEditor() || capOf(season) == t.to)
+        && o1.diff(d0.get('owners', {})).affectedKeys().hasOnly(t.givePicks.concat(t.getPicks))
+        && m1.diff(d0.get('moved', {})).affectedKeys().hasOnly(t.givePlayers.concat(t.getPlayers))
+        && tradeSides(d0.get('owners', {}), d0.get('moved', {}), d0.order, d0.picks, o1, m1, t);
+    }
+    function tradeSides(o0, m0, order, picks, o1, m1, t) {
+      return picksOk(o0, o1, order, picks.size(), t.givePicks, t.from, t.to)
+        && picksOk(o0, o1, order, picks.size(), t.getPicks, t.to, t.from)
+        && playersOk({'o0': o0, 'm0': m0, 'order': order, 'picks': picks}, m1, t.givePlayers, t.givePlayerIdx, t.from, t.to)
+        && playersOk({'o0': o0, 'm0': m0, 'order': order, 'picks': picks}, m1, t.getPlayers, t.getPlayerIdx, t.to, t.from);
+    }
+    // Each side has at most 3 items (validTrade), so these check items 0..2.
+    // A traded pick: not made yet, belonged to `from` (trade or snake order), belongs to `to` after.
+    // (A non-number k makes int() fail, which denies.)
+    function pickItemOk(o0, o1, order, made, k, from, to) {
+      return int(k) >= made && o0.get(k, order[onClock(order.size(), int(k))]) == from && o1.get(k, '') == to;
+    }
+    function picksOk(o0, o1, order, made, ks, from, to) {
+      return (ks.size() < 1 || pickItemOk(o0, o1, order, made, ks[0], from, to))
+        && (ks.size() < 2 || pickItemOk(o0, o1, order, made, ks[1], from, to))
+        && (ks.size() < 3 || pickItemOk(o0, o1, order, made, ks[2], from, to));
+    }
+    // A traded player: really drafted at pick i, belonged to `from` (earlier trade, else whoever made pick i),
+    // belongs to `to` after. c = {o0: owners before, m0: moved before, order, picks}. A bad index fails, which denies.
+    function playerItemOk(c, m1, name, i, from, to) {
+      return c.picks[i] == name && m1.get(name, '') == to
+        && c.m0.get(name, c.o0.get(string(i), c.order[onClock(c.order.size(), i)])) == from;
+    }
+    function playersOk(c, m1, ns, ix, from, to) {
+      return (ns.size() < 1 || playerItemOk(c, m1, ns[0], ix[0], from, to))
+        && (ns.size() < 2 || playerItemOk(c, m1, ns[1], ix[1], from, to))
+        && (ns.size() < 3 || playerItemOk(c, m1, ns[2], ix[2], from, to));
+    }
+
+    // Trade offers. {season, from, to (captain names), givePicks/getPicks: ["<pick index>"], givePlayers/getPlayers: [names],
+    // givePlayerIdx/getPlayerIdx: [pick index each player was drafted at], note, status, by, at}. Up to 3 items (picks + players) a side:
+    // that's what fits in Firestore's per-request rule budget (tested in the emulator at full size).
+    match /trades/{id} {
+      allow read: if true;
+      function validTrade(t) {
+        return t.keys().hasOnly(['season', 'from', 'to', 'givePicks', 'getPicks', 'givePlayers', 'getPlayers', 'givePlayerIdx', 'getPlayerIdx', 'note', 'status', 'by', 'at'])
+          && t.keys().hasAll(['season', 'from', 'to', 'givePicks', 'getPicks', 'givePlayers', 'getPlayers', 'givePlayerIdx', 'getPlayerIdx', 'note', 'status', 'by', 'at'])
+          && t.season is string && t.season.matches('^[0-9]{4}$')
+          && shortText(t.from, 60) && shortText(t.to, 60) && t.from != t.to
+          && t.givePicks is list && t.givePicks.size() <= 3 && t.getPicks is list && t.getPicks.size() <= 3
+          && t.givePlayers is list && t.givePlayers.size() <= 3 && t.getPlayers is list && t.getPlayers.size() <= 3
+          && t.givePlayerIdx is list && t.givePlayerIdx.size() == t.givePlayers.size()
+          && t.getPlayerIdx is list && t.getPlayerIdx.size() == t.getPlayers.size()
+          && t.givePicks.size() + t.givePlayers.size() <= 3 && t.getPicks.size() + t.getPlayers.size() <= 3
+          && t.givePicks.size() + t.givePlayers.size() + t.getPicks.size() + t.getPlayers.size() > 0
+          && shortText(t.note, 200) && shortText(t.by, 60) && t.at == request.time;
+      }
+      allow create: if signedIn() && validTrade(request.resource.data)
+        && request.resource.data.status == 'pending'
+        && exists(/databases/$(database)/documents/draft/$(request.resource.data.season))
+        && get(/databases/$(database)/documents/draft/$(request.resource.data.season)).data.order.hasAll([request.resource.data.from, request.resource.data.to])
+        && (isEditor() || capOf(request.resource.data.season) == request.resource.data.from);
+      // The other captain (or an editor) accepts or declines; the proposer (or an editor) cancels.
+      // Accepting must apply the trade to the draft in the same commit (draft tradesDone gains this id).
+      allow update: if signedIn() && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'by', 'at'])
+        && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time
+        && (
+          (request.resource.data.status == 'declined' && (isEditor() || capOf(resource.data.season) == resource.data.to))
+          || (request.resource.data.status == 'cancelled' && (isEditor() || capOf(resource.data.season) == resource.data.from))
+          || (request.resource.data.status == 'accepted' && (isEditor() || capOf(resource.data.season) == resource.data.to)
+              && getAfter(/databases/$(database)/documents/draft/$(resource.data.season)).data.get('tradesDone', []).hasAny([id])
+              && !get(/databases/$(database)/documents/draft/$(resource.data.season)).data.get('tradesDone', []).hasAny([id]))
+        );
       allow delete: if isAdmin();
     }
 

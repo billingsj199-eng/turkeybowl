@@ -100,6 +100,7 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .mini:disabled{opacity:.3;cursor:default}
   .row-btns{display:flex;flex-wrap:wrap;gap:6px}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1205}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
   .clock{background:#2a1f0a;border:1px solid #6b4a12;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
   .clock .lbl2{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
   .clock .who{font-weight:700;font-size:16px}
@@ -285,6 +286,50 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .mt-name{font:800 18px Inter,sans-serif;color:#fff}
   .mt-roster{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
   .mt-roster span{font-size:12px;background:#1f2940;border-radius:999px;padding:2px 8px;color:#c4cbd8}
+  /* ---- Teams view + trades ---- */
+  .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:999px;background:#ef4b3f;color:#fff;font:700 11px/18px Inter,sans-serif;text-align:center;margin-left:6px}
+  .tm-switch{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;margin-top:12px}
+  .tm-chip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-bottom:3px solid var(--mt,var(--line));border-radius:10px;padding:6px 12px 6px 6px;color:var(--ink);font:600 13px Inter,sans-serif;cursor:pointer;white-space:nowrap;flex:none}
+  .tm-chip .hs{width:30px;height:30px;font-size:11px;flex:none}
+  .tm-chip.on{background:var(--panel2);border-color:#56627e;box-shadow:inset 0 0 0 1px #56627e}
+  .tm-chip small{color:var(--accent)}
+  .tm-wrap{margin-top:4px}
+  .tm-head .row-btns{width:100%}
+  .ros .rr{display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid var(--line);border-radius:6px}
+  .ros .rr:hover{background:#1a2338}
+  .ros .rr .hs{width:34px;height:34px;font-size:11px;flex:none}
+  .ros .rr .comp-hs{width:38px;height:38px}
+  .ros .rr .psub .col-logo{width:18px;height:18px;margin-left:6px;vertical-align:-4px}
+  .ros .rr .psub .col-logo.none{display:none}
+  .fp{display:flex;flex-wrap:wrap;gap:6px}
+  .fp span{background:#1f2940;border:1px solid #2c3750;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600}
+  .fp small{color:var(--muted);font-weight:500}
+  .trade{background:#151c2c;border:1px solid #2a3449;border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .trade .tr-top{display:flex;align-items:center;gap:8px;font-size:13px;color:#c4cbd8;margin-bottom:6px;flex-wrap:wrap}
+  .trade .tr-st{margin-left:auto;font:700 11px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 8px}
+  .st-pending{background:#2a1f0a;color:var(--accent)} .st-accepted{background:#10291b;color:#5fd68f} .st-declined,.st-cancelled{background:#2a1416;color:#ef6b5f}
+  .tr-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0}
+  .tr-who{font-weight:700;font-size:13px;min-width:120px;color:#fff}
+  .ti{background:#1f2940;border-radius:999px;padding:3px 10px;font-size:12px;color:#e6e9ef}
+  .ti.pk{background:#2a1f0a;color:var(--accent)}
+  .ti.none{background:none;color:var(--muted)}
+  .tr-note{font-size:13px;color:#c4cbd8;font-style:italic;margin-top:4px}
+  .tr-warn{font-size:12px;color:#ef6b5f;margin-top:4px}
+  .trade .row-btns{margin-top:8px}
+  .offers-banner{background:#13233a;border:1px solid #2f5f9a;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:600}
+  .trade-ov .trade-box{background:#151c2c;border:1px solid #3a4560;border-radius:14px;padding:18px;width:min(640px,100%);max-height:92vh;overflow:auto;box-sizing:border-box}
+  .tb-teams{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+  .tb-teams select{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px;font:inherit}
+  .tb-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:560px){ .tb-cols{grid-template-columns:1fr} }
+  .tb-col h4{margin:0 0 6px;font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+  .tb-col h4 small{color:var(--muted)}
+  .tb-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:14px;user-select:none}
+  .tb-item.on{border-color:var(--accent);background:#2a1f0a}
+  .tb-item.dis{opacity:.4;cursor:default}
+  .tb-item small{color:var(--muted);margin-left:auto;white-space:nowrap}
+  .tb-note{width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font:inherit;margin-top:10px}
+  .dboard .cell .tr-to{font-size:10px;color:var(--accent);font-weight:700;line-height:1.2}
   .clock.mine{flex-wrap:wrap;background:#10301c;border-color:#2e9a55;animation:minepulse 1.6s infinite}
   @keyframes minepulse{0%,100%{box-shadow:0 0 0 0 rgba(95,214,143,.0)}50%{box-shadow:0 0 0 4px rgba(95,214,143,.35)}}
   .mine-banner{flex-basis:100%;font:800 15px Inter,sans-serif;color:#5fd68f}
@@ -388,6 +433,7 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     <button class="btn view" data-view="cards">Tier Cards</button>
     <button class="btn view" data-view="draft">Mock Draft</button>
     <button class="btn view" data-view="live" id="liveViewBtn">🔴 Live Draft</button>
+    <button class="btn view" data-view="teams" id="teamsViewBtn">👥 Teams</button>
     <button class="btn" id="rankEditBtn" hidden style="margin-left:auto">⇅ Edit rankings</button>
     <button class="btn primary" id="addPlayerBtn" hidden>+ Add player</button>
   </div>
@@ -591,7 +637,7 @@ function buildPlayers(){
   const L = window.TBC && TBC.live;
   if (L && Array.isArray(L.order) && L.order.length) {
     L.order.forEach(c => { if (byName[c] && !byName[c].team) { byName[c].team = draftTeamName(c); byName[c].pick = "Captain"; } });
-    (L.picks || []).forEach((n, i) => { const c = liveTeamFor(L, i); if (byName[n] && !byName[n].team) { byName[n].team = draftTeamName(c); byName[n].pick = `${Math.floor(i / L.order.length) + 1}.${String(i % L.order.length + 1).padStart(2, "0")}`; } });
+    (L.picks || []).forEach((n, i) => { const c = playerOwnerOf(L, n); if (byName[n] && !byName[n].team) { byName[n].team = draftTeamName(c); byName[n].pick = pickLabel(L, i); } });
   }
   captains = players.filter(p => p.pos === "QB").map(p => p.name);
   // Draft pool (mock + live): ranked FLEX players only. Unranked = not playing this year, so they stay on the
@@ -662,11 +708,14 @@ function render(){
   const list = RANK_EDIT ? players : visible();
   const LV = window.TBC && TBC.live, lvOn = LV && LV.status === "live";
   document.getElementById("liveViewBtn").classList.toggle("is-live", !!lvOn);
+  const nIn = offersToMe().length;   // trade offers waiting on me (captain)
+  document.getElementById("teamsViewBtn").innerHTML = `👥 Teams${nIn ? `<span class="badge">${nIn}</span>` : ""}`;
   document.getElementById("summary").innerHTML =
     `<span class="hl">TURKEY BOWL 2026</span> &nbsp; Showing <b>${list.length}</b> &nbsp;·&nbsp; QB <b>${posCount.QB||0}</b> &nbsp;·&nbsp; FLEX <b>${posCount.FLEX||0}</b> &nbsp;·&nbsp; Drafted <b>${players.filter(p=>p.team).length}</b>`;
   const board = document.getElementById("board"); board.innerHTML = "";
   if (view === "draft") { renderDraft(board); return; }
   if (view === "live") { renderLive(board); return; }
+  if (view === "teams") { renderTeams(board); return; }
   if (!list.length) { board.innerHTML = `<div class="empty">No players match.</div>`; return; }
   view === "table" ? renderTable(board, list) : renderCards(board, list);
 }
@@ -965,17 +1014,19 @@ function teamBadge(c){
   const el = document.createElement("div"); el.className = "hs"; el.textContent = c.split(" ").map(w => w[0]).join(""); return el;
 }
 const myCap = () => (window.TBC && TBC.myCap && TBC.myCap()) || null;
-const isMyTurn = L => { const m = myCap(); return !!(m && L && L.status === "live" && (L.picks || []).length < (L.pool || []).length && liveTeamFor(L, L.picks.length) === m); };
+const isMyTurn = L => { const m = myCap(); return !!(m && L && L.status === "live" && (L.picks || []).length < (L.pool || []).length && pickOwnerOf(L, L.picks.length) === m); };
 let TURN_WAS_MINE = false;
 function myTeamCard(L){
   const c = myCap(); if (!c) return null;
   const d = document.createElement("div"); d.className = "my-team"; if (teamColor(c)) d.style.setProperty("--mt", teamColor(c));
-  const picks = L ? (L.picks || []).filter((x, i) => liveTeamFor(L, i) === c) : [];
+  const picks = L ? rosterOf(L, c).map(r => r.name) : [];
   d.appendChild(teamBadge(c));
   d.insertAdjacentHTML("beforeend", `<div class="mt-body"><div class="lbl2">My team · you're the captain</div><div class="mt-name">${esc2(draftTeamName(c))}</div>
     <div class="mt-roster">${[c, ...picks].map((x, i) => `<span>${i ? "" : "C · "}${esc2(x)}</span>`).join("")}</div></div>
-    <button class="btn" id="mtEdit">🎨 Customize</button>`);
+    <div class="row-btns" style="margin:0"><button class="btn" id="mtEdit">🎨 Customize</button>${L ? `<button class="btn" id="mtTrade">🔁 Trade</button>` : ""}<button class="btn" id="mtTeam">👥 My team page</button></div>`);
   d.querySelector("#mtEdit").onclick = () => TBC.openTeamEditor(c);
+  const tb = d.querySelector("#mtTrade"); if (tb) tb.onclick = () => openTradeBuilder(c);
+  d.querySelector("#mtTeam").onclick = () => goTeam(c);
   return d;
 }
 // "Are you sure?" pick pop-up (phones friendly, bigger than a browser confirm)
@@ -995,7 +1046,14 @@ function confirmPick(name, team){
   });
 }
 function editTeam(c){ TBC.openTeamEditor(c); }
-function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }
+function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }   // snake slot
+// Trades move picks and players (draft.owners / draft.moved, same rules as firestore.rules):
+function pickOwnerOf(L, i){ return (L.owners || {})[String(i)] || liveTeamFor(L, i); }
+function playerOwnerOf(L, name){ const i = (L.picks || []).indexOf(name); return i < 0 ? null : ((L.moved || {})[name] || pickOwnerOf(L, i)); }
+function pickLabel(L, i){ const n = L.order.length; return `${Math.floor(i / n) + 1}.${String(i % n + 1).padStart(2, "0")}`; }
+function rosterOf(L, c){ return (L.picks || []).map((name, i) => ({name, i})).filter(r => playerOwnerOf(L, r.name) === c); }
+function futurePicksOf(L, c){ const out = []; for (let i = (L.picks || []).length; i < (L.pool || []).length; i++) if (pickOwnerOf(L, i) === c) out.push(i); return out; }
+function offersToMe(){ const me = myCap(); return me && window.TBC ? (TBC.trades || []).filter(t => t.status === "pending" && t.to === me) : []; }
 window.tbCaptains = () => captains; window.draftTeamName = draftTeamName;
 let LIVE_SETUP = null, LIVE_SETUP_FROM = null;      // captain order being set up before the start (editors only, not saved until Start)
 let LIVE_SEEN = null;       // number of picks already shown, to flash the newest one
@@ -1068,21 +1126,28 @@ function renderLive(board){
   LIVE_SEEN = picks.length;
   left.innerHTML = `<div class="lv-status ${done ? "done" : ""}">${done ? "✅ Draft complete" : `<span class="live-dot"></span> LIVE`}<span>${picks.length} / ${total} picks</span></div>`;
   const mt = myTeamCard(L); if (mt) left.appendChild(mt);
+  const inOffers = offersToMe();
+  if (inOffers.length) {
+    const ob = document.createElement("div"); ob.className = "offers-banner";
+    ob.innerHTML = `<span>📨 ${inOffers.length} trade offer${inOffers.length > 1 ? "s" : ""} waiting for you</span><button class="btn primary">Review</button>`;
+    ob.querySelector("button").onclick = () => goTeam(myCap());
+    left.appendChild(ob);
+  }
   const mine = isMyTurn(L);
   if (mine && !TURN_WAS_MINE) { try { navigator.vibrate && navigator.vibrate([250, 120, 250]); } catch(e){} document.title = "🟢 Your pick! · Turkey Bowl"; }
   if (!mine && TURN_WAS_MINE) document.title = "Turkey Bowl Draft Board";
   TURN_WAS_MINE = mine;
   if (picks.length) {
-    const last = picks[picks.length - 1], c = liveTeamFor(L, picks.length - 1);
+    const last = picks[picks.length - 1], c = pickOwnerOf(L, picks.length - 1);
     const lp = document.createElement("div"); lp.className = "lv-last" + (fresh >= 0 ? " flash" : "");
     lp.innerHTML = `<div class="lbl2">Latest pick · ${Math.floor((picks.length - 1) / n) + 1}.${String((picks.length - 1) % n + 1).padStart(2, "0")} · ${esc2(draftTeamName(c))}</div>`;
     lp.appendChild(who(last)); left.appendChild(lp);
   }
   if (!done) {
-    const i = picks.length, c = liveTeamFor(L, i);
+    const i = picks.length, c = pickOwnerOf(L, i), viaT = c !== liveTeamFor(L, i);
     const clock = document.createElement("div"); clock.className = "clock";
     clock.appendChild(teamBadge(c));
-    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">${esc2(draftTeamName(c))}</div>${TBC.capUser && TBC.capUser(c) ? `<div class="psub">📱 ${esc2(TBC.capUser(c))} is picking</div>` : ""}</div>`);
+    clock.insertAdjacentHTML("beforeend", `<div><div class="lbl2">On the clock · Rd ${Math.floor(i / n) + 1}, Pick ${i + 1}</div><div class="who">${esc2(draftTeamName(c))}</div>${viaT ? `<div class="psub">⇄ pick from ${esc2(draftTeamName(liveTeamFor(L, i)))} (trade)</div>` : ""}${TBC.capUser && TBC.capUser(c) ? `<div class="psub">📱 ${esc2(TBC.capUser(c))} is picking</div>` : ""}</div>`);
     if (isMyTurn(L)) { clock.classList.add("mine"); clock.insertAdjacentHTML("afterbegin", `<div class="mine-banner">🟢 You're on the clock! Tap a player below to draft.</div>`); }
     left.appendChild(clock);
   }
@@ -1118,7 +1183,7 @@ function renderLive(board){
       if (p) d.appendChild(headshot(p));
       d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}${colLogo(x)}</div></div>${compHS(x)}${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
       if (canPick) d.onclick = async () => {
-        const c = liveTeamFor(L, picks.length);
+        const c = pickOwnerOf(L, picks.length);
         if (!(await confirmPick(x, draftTeamName(c)))) return;
         try { await TBC.livePick(x, picks.length); } catch(err){ alert(err.code === "permission-denied" ? "It isn't your pick." : err.message); }
       };
@@ -1150,17 +1215,207 @@ function renderLive(board){
     if (name) {
       const p = byName[name]; if (p) { cell.style.setProperty("--tc", `var(--t-${p.tier})`); cell.appendChild(headshot(p)); }
       if (i === fresh) cell.classList.add("flash");
-      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}${p ? " · " + tlabel(p.tier) : ""}</div><div class="cn">${esc2(name)}</div></div>${colLogo(name, "col-logo cl")}`);
+      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}${p ? " · " + tlabel(p.tier) : ""}</div><div class="cn">${esc2(name)}</div>${playerOwnerOf(L, name) !== liveTeamFor(L, i) ? `<div class="tr-to">⇄ ${esc2(draftTeamName(playerOwnerOf(L, name)))}</div>` : ""}</div>${colLogo(name, "col-logo cl")}`);
       if (p) linkName(cell.querySelector(".cn"), name);
     } else {
       if (i === picks.length) cell.classList.add("now");
       cell.classList.add("emptyc");
-      cell.innerHTML = `<div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}</div>`;
+      cell.innerHTML = `<div><div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}</div>${pickOwnerOf(L, i) !== liveTeamFor(L, i) ? `<div class="tr-to">⇄ ${esc2(draftTeamName(pickOwnerOf(L, i)))}</div>` : ""}</div>`;
     }
     g.appendChild(cell);
   }
   right.appendChild(g);
+  const done3 = (TBC.trades || []).filter(t => t.status === "accepted").slice(0, 5);
+  if (done3.length) { right.insertAdjacentHTML("beforeend", `<h3 style="margin-top:16px">Latest trades</h3>`); done3.forEach(t => right.appendChild(tradeCard(t))); }
   wrap.append(left, right); board.appendChild(wrap);
+}
+
+// ===== Teams (anyone can look at any team; opens on your own) =====
+// Roster (follows trades), upcoming picks, and trades. A team's captain (or an editor) can customize the team
+// and send / answer trade offers here. Trades: up to 3 items a side, picks not made yet + drafted players.
+let TEAM_SEL = null;
+function goTeam(c){
+  TEAM_SEL = c; view = "teams";
+  document.querySelectorAll(".btn.view").forEach(x => x.classList.toggle("on", x.dataset.view === "teams"));
+  render(); window.scrollTo({top: document.getElementById("board").getBoundingClientRect().top + scrollY - 70, behavior: "smooth"});
+}
+function tradeItemsHTML(t, side){
+  const L = window.TBC && TBC.live;
+  const pls = side === "give" ? t.givePlayers : t.getPlayers, pks = side === "give" ? t.givePicks : t.getPicks;
+  return [...pls.map(n => `<span class="ti">${esc2(n)}</span>`),
+          ...pks.map(k => `<span class="ti pk">Pick ${L ? pickLabel(L, +k) : "#" + (+k + 1)}</span>`)].join("") || `<span class="ti none">nothing</span>`;
+}
+// One trade offer. Buttons depend on who's looking: the other captain answers, the sender can cancel, editors can do both.
+function tradeCard(t){
+  const L = window.TBC && TBC.live, me = myCap(), ed = !!(window.TBC && TBC.canEdit());
+  const d = document.createElement("div"); d.className = "trade";
+  const when = t.at && t.at.toDate ? t.at.toDate().toLocaleString([], {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"}) : "";
+  const label = {pending: "Pending", accepted: "Done", declined: "Declined", cancelled: "Cancelled"}[t.status] || t.status;
+  const problem = t.status === "pending" && L ? TBC.tradeProblem(t, L) : "";
+  d.innerHTML = `<div class="tr-top"><b>${esc2(draftTeamName(t.from))}</b> ⇄ <b>${esc2(draftTeamName(t.to))}</b><span class="psub">${esc2(when)}</span><span class="tr-st st-${esc2(t.status)}">${esc2(label)}</span></div>
+    <div class="tr-row"><span class="tr-who">${esc2(draftTeamName(t.to))} gets</span>${tradeItemsHTML(t, "give")}</div>
+    <div class="tr-row"><span class="tr-who">${esc2(draftTeamName(t.from))} gets</span>${tradeItemsHTML(t, "get")}</div>
+    ${t.note ? `<div class="tr-note">“${esc2(t.note)}”</div>` : ""}
+    ${problem ? `<div class="tr-warn">⚠ ${esc2(problem)}</div>` : ""}`;
+  if (t.status === "pending") {
+    const b = document.createElement("div"); b.className = "row-btns";
+    const add = (txt, cls, fn) => { const x = document.createElement("button"); x.className = "btn " + cls; x.textContent = txt; x.onclick = async () => {
+      x.disabled = true;
+      try { await fn(); } catch(err){ x.disabled = false; alert(err.code === "permission-denied" ? "That isn't allowed (the offer may have changed). Refresh and try again." : err.message); }
+    }; b.appendChild(x); return x; };
+    const toMe = me === t.to, fromMe = me === t.from;
+    if (toMe || ed) {
+      const a = add(toMe ? "✅ Accept" : `✅ Accept for ${draftTeamName(t.to)}`, "primary", async () => {
+        if (!confirm(`Accept this trade?\n\n${draftTeamName(t.to)} gets: ${[...t.givePlayers, ...t.givePicks.map(k => "Pick " + pickLabel(L, +k))].join(", ") || "nothing"}\n${draftTeamName(t.from)} gets: ${[...t.getPlayers, ...t.getPicks.map(k => "Pick " + pickLabel(L, +k))].join(", ") || "nothing"}`)) return;
+        await TBC.acceptTrade(t.id);
+      });
+      if (problem) a.disabled = true;
+      add(toMe ? "Decline" : "Decline", "", () => TBC.declineTrade(t.id));
+    }
+    if (fromMe || (ed && !toMe)) add(fromMe ? "Cancel offer" : "Cancel (veto)", "", () => TBC.cancelTrade(t.id));
+    if (toMe && !problem) add("↩ Counter", "", async () => openTradeBuilder(t.to, t.from));
+    if (b.children.length) d.appendChild(b);
+  }
+  return d;
+}
+function renderTeams(board){
+  const L = window.TBC && TBC.live, ed = !!(window.TBC && TBC.canEdit()), me = myCap();
+  const caps = L ? L.order : captains;
+  if (!caps.length) { board.innerHTML = `<div class="empty">No teams yet. Teams are the QBs (captains).</div>`; return; }
+  if (!TEAM_SEL || !caps.includes(TEAM_SEL)) TEAM_SEL = me && caps.includes(me) ? me : caps[0];
+  const c = TEAM_SEL, mine = c === me;
+  const sw = document.createElement("div"); sw.className = "tm-switch";
+  caps.forEach(x => {
+    const b = document.createElement("button"); b.className = "tm-chip" + (x === c ? " on" : "");
+    if (teamColor(x)) b.style.setProperty("--mt", teamColor(x));
+    b.appendChild(teamBadge(x));
+    b.insertAdjacentHTML("beforeend", `<span>${esc2(draftTeamName(x))}${x === me ? " <small>(you)</small>" : ""}</span>`);
+    b.onclick = () => { TEAM_SEL = x; render(); };
+    sw.appendChild(b);
+  });
+  board.appendChild(sw);
+  const wrap = document.createElement("div"); wrap.className = "md tm-wrap";
+  const left = document.createElement("div"); left.className = "panel";
+  const right = document.createElement("div"); right.className = "panel";
+
+  const head = document.createElement("div"); head.className = "my-team tm-head"; if (teamColor(c)) head.style.setProperty("--mt", teamColor(c));
+  head.appendChild(teamBadge(c));
+  head.insertAdjacentHTML("beforeend", `<div class="mt-body"><div class="lbl2">${mine ? "My team · you're the captain" : "Team"}</div><div class="mt-name">${esc2(draftTeamName(c))}</div>
+    <div class="psub">Captain: <span class="cap">${esc2(c)}</span>${TBC.capUser && TBC.capUser(c) ? ` · 📱 ${esc2(TBC.capUser(c))}` : ""}</div></div>`);
+  if (byName[c]) linkName(head.querySelector(".cap"), c);
+  const hb = document.createElement("div"); hb.className = "row-btns"; hb.style.margin = "0";
+  const hbtn = (txt, cls, fn) => { const x = document.createElement("button"); x.className = "btn " + cls; x.textContent = txt; x.onclick = fn; hb.appendChild(x); };
+  if (mine || ed) hbtn("🎨 Customize", "", () => TBC.openTeamEditor(c));
+  if (L && mine) hbtn("🔁 Propose a trade", "primary", () => openTradeBuilder(c));
+  else if (L && me) hbtn("🔁 Trade with this team", "primary", () => openTradeBuilder(me, c));
+  else if (L && ed) hbtn("🔁 Make a trade", "primary", () => openTradeBuilder(c));
+  if (hb.children.length) head.appendChild(hb);
+  left.appendChild(head);
+
+  // roster: captain, then everyone this team has now (drafted or traded for)
+  const ros = L ? rosterOf(L, c) : [];
+  left.insertAdjacentHTML("beforeend", `<h3>Roster · ${ros.length + 1} player${ros.length ? "s" : ""}</h3>`);
+  const list = document.createElement("div"); list.className = "ros";
+  const row = (name, sub) => {
+    const p = byName[name], r = document.createElement("div"); r.className = "rr";
+    if (p) { r.style.setProperty("--tc", `var(--t-${p.tier})`); r.appendChild(headshot(p)); }
+    r.insertAdjacentHTML("beforeend", `<div style="flex:1;min-width:0"><div class="pname">${esc2(name)}</div><div class="psub">${sub}${colLogo(name)}</div></div>${compHS(name)}${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
+    if (p) { r.style.cursor = "pointer"; r.onclick = () => openCard(name); }
+    list.appendChild(r);
+  };
+  row(c, "Captain · QB");
+  ros.forEach(x => {
+    const p = byName[x.name], viaT = (L.moved || {})[x.name] && L.moved[x.name] !== pickOwnerOf(L, x.i);
+    row(x.name, `${p ? p.prank + " · " : ""}Pick ${pickLabel(L, x.i)}${viaT ? ` · ⇄ from ${esc2(draftTeamName(pickOwnerOf(L, x.i)))}` : ""}`);
+  });
+  left.appendChild(list);
+  if (!L) left.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">The roster fills in during the live draft.</div>`);
+
+  // picks still to make
+  const fut = L ? futurePicksOf(L, c) : [];
+  if (fut.length) {
+    left.insertAdjacentHTML("beforeend", `<h3 style="margin-top:14px">Upcoming picks</h3>`);
+    const fp = document.createElement("div"); fp.className = "fp";
+    fp.innerHTML = fut.map(i => `<span>Pick ${pickLabel(L, i)} <small>#${i + 1}${liveTeamFor(L, i) !== c ? ` · ⇄ from ${esc2(draftTeamName(liveTeamFor(L, i)))}` : ""}</small></span>`).join("");
+    left.appendChild(fp);
+  }
+
+  // trades
+  const trades = (TBC.trades || []);
+  if (!L) right.innerHTML = `<h3>Trades</h3><div class="psub">Trades open once the live draft starts: captains can swap picks they haven't made yet and players already drafted, during or after the draft.</div>`;
+  else {
+    const sec = (title, arr, empty) => {
+      right.insertAdjacentHTML("beforeend", `<h3 style="margin-top:${right.children.length ? 14 : 0}px">${title}</h3>`);
+      if (!arr.length) { if (empty) right.insertAdjacentHTML("beforeend", `<div class="psub">${empty}</div>`); return; }
+      arr.forEach(t => right.appendChild(tradeCard(t)));
+    };
+    const pend = trades.filter(t => t.status === "pending");
+    if (me) {
+      sec("📨 Offers to you", pend.filter(t => t.to === me), "No offers right now.");
+      sec("📤 Offers you sent", pend.filter(t => t.from === me), "");
+    }
+    if (ed) sec("All open offers (editor)", pend.filter(t => t.to !== me && t.from !== me), "No other open offers.");
+    if (!me && !ed) sec(`Open offers · ${esc2(draftTeamName(c))}`, pend.filter(t => t.to === c || t.from === c), "None right now.");
+    sec(`Trade history · ${esc2(draftTeamName(c))}`, trades.filter(t => t.status !== "pending" && (t.to === c || t.from === c)), "No trades yet.");
+  }
+  wrap.append(left, right); board.appendChild(wrap);
+}
+
+// Trade builder: pick the two teams (a captain is always their own team; editors pick both), tick up to 3 items a
+// side (players already drafted + picks not made yet), add a message, send. The other captain answers on Teams.
+function openTradeBuilder(from, to){
+  const L = window.TBC && TBC.live; if (!L) return alert("Trades open once the live draft starts.");
+  const ed = TBC.canEdit(), me = myCap();
+  if (!ed && !me) return alert("Only captains (and editors) can make trades.");
+  let F = ed ? (from || me || L.order[0]) : me;
+  let T = to && to !== F ? to : L.order.find(x => x !== F);
+  const sel = {give: new Set(), get: new Set()};   // "n:<player>" or "p:<pick index>"
+  const ov = document.createElement("div"); ov.className = "ov trade-ov"; document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.addEventListener("click", e => { if (e.target === ov) close(); });
+  const items = c => [
+    ...rosterOf(L, c).map(r => ({k: "n:" + r.name, label: r.name, sub: (byName[r.name] ? byName[r.name].tier + " tier · " : "") + "drafted " + pickLabel(L, r.i)})),
+    ...futurePicksOf(L, c).map(i => ({k: "p:" + i, label: "Pick " + pickLabel(L, i), sub: "#" + (i + 1) + " overall"})),
+  ];
+  const draw = () => {
+    const opts = (val, not) => L.order.filter(x => x !== not).map(x => `<option value="${esc2(x)}" ${x === val ? "selected" : ""}>${esc2(draftTeamName(x))}</option>`).join("");
+    const col = (side, c) => {
+      const s = sel[side], its = items(c);
+      return `<div class="tb-col"><h4>${esc2(draftTeamName(c))} gives <small>(${s.size}/3)</small></h4>
+        ${its.length ? its.map(it => `<div class="tb-item ${s.has(it.k) ? "on" : s.size >= 3 ? "dis" : ""}" data-side="${side}" data-k="${esc2(it.k)}"><span>${s.has(it.k) ? "☑" : "☐"}</span><b>${esc2(it.label)}</b><small>${esc2(it.sub)}</small></div>`).join("")
+          : `<div class="psub">Nothing to trade yet.</div>`}</div>`;
+    };
+    ov.innerHTML = `<div class="trade-box"><h3 style="margin-top:0">🔁 Propose a trade</h3>
+      <div class="tb-teams">${ed ? `<select id="tbF">${opts(F, null)}</select>` : `<b>${esc2(draftTeamName(F))}</b>`} ⇄ <select id="tbT">${opts(T, F)}</select></div>
+      <div class="tb-cols">${col("give", F)}${col("get", T)}</div>
+      <div class="psub" style="margin-top:6px">Up to 3 a side: players already drafted and picks not made yet.</div>
+      <input class="tb-note" id="tbNote" maxlength="200" placeholder="Add a message (optional)" value="${esc2(ov.dataset.note || "")}">
+      <div class="pick-btns" style="margin-top:12px"><button class="btn" id="tbNo">Cancel</button><button class="btn primary" id="tbGo">Send offer</button></div>
+      <div class="psub" id="tbMsg" style="margin-top:8px"></div></div>`;
+    const keepNote = () => { ov.dataset.note = ov.querySelector("#tbNote").value; };
+    const f = ov.querySelector("#tbF"); if (f) f.onchange = e => { keepNote(); F = e.target.value; if (T === F) T = L.order.find(x => x !== F); sel.give.clear(); sel.get.clear(); draw(); };
+    ov.querySelector("#tbT").onchange = e => { keepNote(); T = e.target.value; sel.get.clear(); draw(); };
+    ov.querySelectorAll(".tb-item").forEach(el => el.onclick = () => {
+      const s = sel[el.dataset.side], k = el.dataset.k;
+      if (s.has(k)) s.delete(k); else if (s.size < 3) s.add(k); else return;
+      keepNote(); draw();
+    });
+    ov.querySelector("#tbNo").onclick = close;
+    ov.querySelector("#tbGo").onclick = async () => {
+      if (!sel.give.size && !sel.get.size) { ov.querySelector("#tbMsg").textContent = "Pick at least one player or pick."; return; }
+      const split = side => ({picks: [...sel[side]].filter(k => k[0] === "p").map(k => +k.slice(2)), players: [...sel[side]].filter(k => k[0] === "n").map(k => k.slice(2))});
+      const g = split("give"), r = split("get");
+      ov.querySelector("#tbGo").disabled = true; ov.querySelector("#tbMsg").textContent = "Sending…";
+      try {
+        await TBC.proposeTrade({from: F, to: T, givePicks: g.picks, givePlayers: g.players, getPicks: r.picks, getPlayers: r.players, note: ov.querySelector("#tbNote").value});
+        close(); alert(`Offer sent to ${draftTeamName(T)}. They'll see it on their Teams page.`);
+      } catch(err){
+        ov.querySelector("#tbGo").disabled = false;
+        ov.querySelector("#tbMsg").textContent = "Couldn't send: " + (err.code === "permission-denied" ? "you can only trade for your own team." : err.message);
+      }
+    };
+  };
+  draw();
 }
 
 // ===== Draft lottery animation =====

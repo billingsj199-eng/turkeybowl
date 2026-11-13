@@ -15,7 +15,8 @@
       "Claude memory notes/**",
       "*.bak*",
       "**/node_modules/**",
-      "tools/**"
+      "tools/**",
+      "*.log"
     ],
     "headers": [
       {

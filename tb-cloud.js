@@ -2,7 +2,10 @@
 // Firebase project "gallturkeybowl" (Turkey Bowl only). Rules live in firestore.rules.
 //   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, college:{name,id|null}|null, tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
-//   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
+//   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names],
+//                   owners: {"<pick index>": captain} (traded picks), moved: {player: captain} (traded players), tradesDone: [trade ids], by, at}
+//   trades/{id}     trade offers: {season, from, to, givePicks/getPicks: ["<pick index>"], givePlayers/getPlayers: [names],
+//                   givePlayerIdx/getPlayerIdx: [pick index], note, status: pending|accepted|declined|cancelled, by, at}
 //   lottery/<season> {order: [captains], id, by, at}  - draft lottery result (everyone on Live Draft watches it run)
 //   teams/<season>  {names: {captainSlug: "Team name"}, by, at}  - team names editors set at/after the draft
 //   photos/{slug}   {img: small JPEG as a data: URL, by, at}  - headshot uploaded on the site (beats images/*.jpg)
@@ -11,7 +14,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction }
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction, query, where }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // The web config is public by design (it only identifies the project); the rules do the protecting.
@@ -31,7 +34,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
-  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null, teamInfo: {}, captainsByUid: {},
+  ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null, teamInfo: {}, captainsByUid: {}, trades: [],
   canEdit(){ return this.role === "editor" || this.role === "admin"; },   // approved editors + the admin
   isAdmin(){ return this.role === "admin"; },   // editors/captains list stays admin-only
   profile(slug){ return this.profiles[slug] || null; },
@@ -52,6 +55,12 @@ const DRAFT_ID = String(typeof CURRENT_SEASON !== "undefined" ? CURRENT_SEASON :
 const draftRef = doc(db, "draft", DRAFT_ID);
 onSnapshot(draftRef, d => { TBC.live = d.exists() ? d.data() : null; changed(); },
   err => console.warn("Turkey Bowl cloud: couldn't load the live draft", err));
+// Trade offers for this season, newest first
+onSnapshot(query(collection(db, "trades"), where("season", "==", DRAFT_ID)), snap => {
+  const t = []; snap.forEach(d => t.push({id: d.id, ...d.data()}));
+  const ms = x => x.at && x.at.toMillis ? x.at.toMillis() : Date.now();
+  TBC.trades = t.sort((a, b) => ms(b) - ms(a)); changed();
+}, err => console.warn("Turkey Bowl cloud: couldn't load trades", err));
 onSnapshot(doc(db, "teams", DRAFT_ID), d => { const n = d.exists() ? d.data().names : null; TBC.teamNames = n && typeof n === "object" ? n : {}; changed(); },
   err => console.warn("Turkey Bowl cloud: couldn't load team names", err));
 onSnapshot(doc(db, "lottery", DRAFT_ID), d => { TBC.lottery = d.exists() ? d.data() : null; changed(); },
@@ -138,7 +147,50 @@ TBC.liveUndo = async expect => runTransaction(db, async tx => {
   const s = await tx.get(draftRef); if (!s.exists()) return;
   const d = s.data();
   if (d.picks.length !== expect) throw new Error("The board changed. Check it and try again.");
-  tx.update(draftRef, {picks: d.picks.slice(0, -1), status: "live", by: by(), at: serverTimestamp()});
+  const gone = d.picks[d.picks.length - 1], moved = {...(d.moved || {})}, had = gone in moved;
+  delete moved[gone];   // an undone pick takes back any trade of that player too
+  tx.update(draftRef, {picks: d.picks.slice(0, -1), status: "live", ...(had ? {moved} : {}), by: by(), at: serverTimestamp()});
+});
+// ---- trades ----
+// Ownership, same rules as firestore.rules: a pick belongs to owners[i] or the snake order; a drafted player to
+// moved[name] or whoever made that pick.
+const snakeOwner = (d, i) => { const n = d.order.length, r = Math.floor(i / n), s = i % n; return d.order[r % 2 === 0 ? s : n - 1 - s]; };
+TBC.pickOwner = (d, i) => (d.owners || {})[String(i)] || snakeOwner(d, i);
+TBC.playerOwner = (d, name) => { const i = (d.picks || []).indexOf(name); return i < 0 ? null : ((d.moved || {})[name] || TBC.pickOwner(d, i)); };
+// Why a pending trade can't go through any more ("" = still fine).
+TBC.tradeProblem = (t, d) => {
+  if (!d) return "The draft isn't running.";
+  const made = (d.picks || []).length;
+  const pickBad = (ks, who) => ks.some(k => +k < made) ? "A pick in it has already been made." : ks.some(k => TBC.pickOwner(d, +k) !== who) ? "A pick in it changed hands." : "";
+  const plBad = (ns, ix, who) => ns.some((n, j) => d.picks[ix[j]] !== n || TBC.playerOwner(d, n) !== who) ? "A player in it changed teams." : "";
+  return pickBad(t.givePicks, t.from) || pickBad(t.getPicks, t.to) || plBad(t.givePlayers, t.givePlayerIdx, t.from) || plBad(t.getPlayers, t.getPlayerIdx, t.to);
+};
+// offer = {from, to, givePicks: [i], getPicks: [i], givePlayers: [names], getPlayers: [names], note}
+TBC.proposeTrade = async o => {
+  const d = TBC.live; if (!d) throw new Error("Trades open once the live draft starts.");
+  const idx = ns => ns.map(n => d.picks.indexOf(n));
+  const t = {season: DRAFT_ID, from: o.from, to: o.to, givePicks: o.givePicks.map(String), getPicks: o.getPicks.map(String),
+    givePlayers: o.givePlayers, getPlayers: o.getPlayers, givePlayerIdx: idx(o.givePlayers), getPlayerIdx: idx(o.getPlayers),
+    note: (o.note || "").trim().slice(0, 200), status: "pending"};
+  const why = TBC.tradeProblem(t, d); if (why) throw new Error(why);
+  await setDoc(doc(collection(db, "trades")), {...t, by: by(), at: serverTimestamp()});
+};
+const tradeStatus = (id, status) => updateDoc(doc(db, "trades", id), {status, by: by(), at: serverTimestamp()});
+TBC.declineTrade = id => tradeStatus(id, "declined");
+TBC.cancelTrade = id => tradeStatus(id, "cancelled");
+// Accept: move the picks/players on the draft and mark the offer accepted, in one commit (rules check both together).
+TBC.acceptTrade = async id => runTransaction(db, async tx => {
+  const tRef = doc(db, "trades", id);
+  const [ds, ts] = [await tx.get(draftRef), await tx.get(tRef)];
+  if (!ds.exists()) throw new Error("The draft isn't running.");
+  if (!ts.exists() || ts.data().status !== "pending") throw new Error("That offer isn't open any more.");
+  const d = ds.data(), t = ts.data(), why = TBC.tradeProblem(t, d);
+  if (why) throw new Error(why + " This offer can't go through any more.");
+  const owners = {...(d.owners || {})}, moved = {...(d.moved || {})};
+  t.givePicks.forEach(k => owners[k] = t.to); t.getPicks.forEach(k => owners[k] = t.from);
+  t.givePlayers.forEach(n => moved[n] = t.to); t.getPlayers.forEach(n => moved[n] = t.from);
+  tx.update(draftRef, {owners, moved, tradesDone: [...(d.tradesDone || []), id], by: by(), at: serverTimestamp()});
+  tx.update(tRef, {status: "accepted", by: by(), at: serverTimestamp()});
 });
 TBC.liveReset = () => deleteDoc(draftRef);
 // Draft lottery: shuffle the captains (fair Fisher-Yates using the browser's crypto random), save it,
