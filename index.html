@@ -294,6 +294,9 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .dboard .colh.mine{background:#14251b}
   .pick-ov{display:flex;align-items:center;justify-content:center;padding:16px;z-index:90}
   .pick-box{background:#151c2c;border:1px solid #3a4560;border-radius:14px;padding:22px 20px;width:min(360px,100%);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .pick-col{margin-top:10px}
+  .pick-col .col-tag{font-size:14px;padding:3px 12px 3px 4px}
+  .pick-col .col-tag .col-logo{width:28px;height:28px}
   .pick-box .lbl2{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
   .pick-hs{display:flex;justify-content:center;margin:12px 0}
   .pick-hs .hs{width:96px;height:96px;font-size:28px}
@@ -979,6 +982,7 @@ function confirmPick(name, team){
     const p = byName[name], ov = document.createElement("div"); ov.className = "ov pick-ov";
     ov.innerHTML = `<div class="pick-box"><div class="lbl2">${esc2(team)} is selecting</div><div class="pick-hs"></div>
       <div class="pick-name">${esc2(name)}</div><div class="psub">${p ? (p.tier === "NA" ? "Unranked" : p.tier + " Tier") + " · " + p.prank : ""}</div>
+      ${(() => { const c = window.TBC && (TBC.profile(slug(name)) || {}).college; return c ? `<div class="pick-col">${TBC.collegeTag(c)}</div>` : ""; })()}
       <div class="pick-q">Are you sure you want to draft ${esc2(name.split(" ")[0])}?</div>
       <div class="pick-btns"><button class="btn" id="pkNo">Cancel</button><button class="btn primary" id="pkYes">Draft ${esc2(name.split(" ")[0])}</button></div></div>`;
     if (p) ov.querySelector(".pick-hs").appendChild(headshot(p));
