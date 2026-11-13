@@ -263,11 +263,11 @@ TBC.searchPlayers = async q => {
   });
 };
 
-// ---- colleges: colleges.js (ESPN's college football + basketball schools, all divisions), loaded only when the admin searches ----
+// ---- colleges: colleges.js (ESPN's college football + basketball schools, plus every NCAA.com school ESPN lacks), loaded on first search ----
 let COLLEGES = null;
 TBC.colleges = () => COLLEGES || (COLLEGES = new Promise((ok, bad) => {
   if (window.TB_COLLEGES) return ok();
-  const sc = document.createElement("script"); sc.src = "colleges.js?v=1";
+  const sc = document.createElement("script"); sc.src = "colleges.js?v=2";
   sc.onload = ok; sc.onerror = () => { COLLEGES = null; sc.remove(); bad(new Error("couldn't load colleges.js")); };
   document.head.appendChild(sc);
 }).then(() => (window.TB_COLLEGES || []).map(([name, full, abbr, id]) => ({name, full, abbr, id}))));
@@ -277,13 +277,19 @@ TBC.searchColleges = async q => {
   const hit = t => t.name.toLowerCase().startsWith(q) ? 0 : t.abbr.toLowerCase() === q ? 1 : t.full.toLowerCase().includes(q) ? 2 : -1;
   return list.map(t => [hit(t), t]).filter(([h]) => h >= 0).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([, t]) => t);
 };
-// Logo (ESPN's dark-background version, else the regular one) or, for a school ESPN doesn't have, its initials. cls sizes it (.col-logo in index.html).
+// Logo, or the school's initials if no logo loads. id = ESPN team id (dark-background logo, else the regular one)
+// or "n-<slug>" for a school from NCAA.com (dark-background logo, else the regular one). cls sizes it (.col-logo in index.html).
+const LOGO_URLS = id => /^n-/.test(id)
+  ? ["bgd", "bgl"].map(v => `https://www.ncaa.com/sites/default/files/images/logos/schools/${v}/${id.slice(2)}.svg`)
+  : ["500-dark", "500"].map(v => `https://a.espncdn.com/i/teamlogos/ncaa/${v}/${id}.png`);
 TBC.collegeLogo = (c, cls = "col-logo") => {
   if (!c || !c.name) return "";
   const words = c.name.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
   const ini = (words.filter(w => /^[A-Z0-9]/.test(w)).map(w => w[0]).join("") || words.map(w => w[0]).join("") || "?").slice(0, 3).toUpperCase();
-  return c.id ? `<span class="${cls}" title="${esc(c.name)}"><img src="https://a.espncdn.com/i/teamlogos/ncaa/500-dark/${esc(c.id)}.png" alt="${esc(c.name)}" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=this.src.replace('/500-dark/','/500/')}else this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${ini}'}))"></span>`
-    : `<span class="${cls}" title="${esc(c.name)}"><b>${ini}</b></span>`;
+  const id = String(c.id || "");
+  if (!/^([0-9]{1,8}|n-[a-z0-9-]{1,60})$/.test(id)) return `<span class="${cls}" title="${esc(c.name)}"><b>${ini}</b></span>`;
+  const [a, b] = LOGO_URLS(id);
+  return `<span class="${cls}" title="${esc(c.name)}"><img src="${a}" alt="${esc(c.name)}" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${b}'}else this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${ini}'}))"></span>`;
 };
 TBC.collegeTag = c => c && c.name ? `<span class="col-tag">${TBC.collegeLogo(c)}<span>${esc(c.name)}</span></span>` : "";
 

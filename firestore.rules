@@ -29,12 +29,12 @@ service cloud.firestore {
       );
     }
 
-    // College tag: {name, id} where id is ESPN's college team id (logo), or null for a school ESPN doesn't have.
+    // College tag: {name, id} where id is ESPN's college team id or "n-<NCAA.com slug>" (for the logo), or null for a typed-in school.
     function validCollege(c) {
       return c == null || (
         c is map && c.keys().hasOnly(['name', 'id'])
         && shortText(c.name, 40) && c.name.size() > 0
-        && (!('id' in c) || c.id == null || (c.id is string && c.id.matches('^[0-9]{1,8}$')))
+        && (!('id' in c) || c.id == null || (c.id is string && c.id.matches('^([0-9]{1,8}|n-[a-z0-9-]{1,60})$')))
       );
     }
     // Fields are optional because saves merge: a position change doesn't have to resend the nickname.
