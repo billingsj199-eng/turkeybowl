@@ -446,7 +446,7 @@ const PLAYERS = [
   {name:"Danny Surtz",         tier25:"QB", tier26:"QB"},
   {name:"Mike Surtz",          tier25:"N/A"},
   {name:"Nick Strobino",       tier25:"N/A"},
-  // Played in 2025, not playing in 2026 (out:true keeps them on the board but out of the mock draft)
+  // Played in 2025, not playing in 2026 (tier26 "N/A" = unranked: stays on the board, out of both drafts; giving them a tier puts them back in)
   {name:"Tristan Oliva",       tier25:"S", tier26:"N/A", out:true},
   {name:"Matt Garfield",       tier25:"D", tier26:"N/A", out:true},
   {name:"Hunter Mosely",       tier25:"D", tier26:"N/A", out:true},
@@ -554,7 +554,7 @@ const TI = k => TIERS.findIndex(t => t.key === k);
 const norm = t => (!t || t === "N/A") ? "NA" : t;
 const tlabel = k => k === "NA" ? "—" : k;
 const split = n => { const p = n.trim().split(/\s+/); return {first:p.slice(0,-1).join(" "), last:p[p.length-1]}; };
-const teamLabel = p => p.team || (p.out ? "Not playing 2026" : "Undrafted");
+const teamLabel = p => p.team || (p.tier === "NA" ? "Not playing 2026" : "Undrafted");   // unranked = not playing
 const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 // Names on phones: "Jeremy Christiansen" -> "J. Christiansen" (CSS swaps .nm-f / .nm-s at 600px).
 const nmHTML = p => p.first ? `<span class="nm-f">${p.name}</span><span class="nm-s">${p.first[0]}. ${p.last}</span>` : p.name;
@@ -594,7 +594,9 @@ function buildPlayers(){
     (L.picks || []).forEach((n, i) => { const c = liveTeamFor(L, i); if (byName[n] && !byName[n].team) { byName[n].team = draftTeamName(c); byName[n].pick = `${Math.floor(i / L.order.length) + 1}.${String(i % L.order.length + 1).padStart(2, "0")}`; } });
   }
   captains = players.filter(p => p.pos === "QB").map(p => p.name);
-  pool = players.filter(p => p.pos !== "QB" && !p.out).map(p => p.name);
+  // Draft pool (mock + live): ranked FLEX players only. Unranked = not playing this year, so they stay on the
+  // Draft Board (history is kept forever) but never show up in either draft. Set a tier to put someone back in.
+  pool = players.filter(p => p.pos !== "QB" && p.tier !== "NA").map(p => p.name);
 }
 buildPlayers();
 
@@ -1022,7 +1024,7 @@ function renderLive(board){
     if (loOk && LIVE_SETUP_FROM !== LO.id) { LIVE_SETUP = [...LO.order]; LIVE_SETUP_FROM = LO.id; }
     if (!LIVE_SETUP || LIVE_SETUP.length !== captains.length || !LIVE_SETUP.every(n => captains.includes(n))) LIVE_SETUP = [...captains];
     const draftPool = pool.slice();
-    left.innerHTML = `<h3>Set the draft order</h3>${loOk ? `<div class="lv-lotto-tag">🎰 Set by the draft lottery${LO.by ? " · run by " + esc2(LO.by) : ""}</div>` : ""}<div class="psub" style="margin-bottom:8px">Captains = everyone at QB. ${draftPool.length} players in the pool (everyone else not marked out), ${Math.ceil(draftPool.length / Math.max(1, LIVE_SETUP.length))} rounds, snake, no clock.</div>`;
+    left.innerHTML = `<h3>Set the draft order</h3>${loOk ? `<div class="lv-lotto-tag">🎰 Set by the draft lottery${LO.by ? " · run by " + esc2(LO.by) : ""}</div>` : ""}<div class="psub" style="margin-bottom:8px">Captains = everyone at QB. ${draftPool.length} players in the pool (every ranked FLEX player; unranked players aren't playing), ${Math.ceil(draftPool.length / Math.max(1, LIVE_SETUP.length))} rounds, snake, no clock.</div>`;
     const ol = document.createElement("ul"); ol.className = "order";
     LIVE_SETUP.forEach((n, i) => {
       const li = document.createElement("li");
