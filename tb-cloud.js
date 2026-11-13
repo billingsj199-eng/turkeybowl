@@ -1,6 +1,6 @@
 // ===================== TURKEY BOWL CLOUD (sign-in, nicknames, comps) =====================
 // Firebase project "gallturkeybowl" (Turkey Bowl only). Rules live in firestore.rules.
-//   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, college:{name,id|null}|null (admin only), tier, name+added (players added on the site), by, at}
+//   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, college:{name,id|null}|null, tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
 //   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names], by, at}
 //   lottery/<season> {order: [captains], id, by, at}  - draft lottery result (everyone on Live Draft watches it run)
@@ -33,7 +33,7 @@ const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 const TBC = window.TBC = {
   ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null, teamInfo: {}, captainsByUid: {},
   canEdit(){ return this.role === "editor" || this.role === "admin"; },   // approved editors + the admin
-  isAdmin(){ return this.role === "admin"; },   // college tags + editors/captains list stay admin-only
+  isAdmin(){ return this.role === "admin"; },   // editors/captains list stays admin-only
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
 };
@@ -319,11 +319,11 @@ TBC.openEditor = (host, p, slug, onDone) => {
         <div><label>Height</label><span class="ed-ht"><select id="edFt"><option value="">ft</option>${[4,5,6,7].map(f => `<option ${String(cur.ht || "").split("-")[0] === String(f) ? "selected" : ""}>${f}</option>`).join("")}</select><select id="edIn"><option value="">in</option>${[...Array(12).keys()].map(i => `<option ${cur.ht && String(cur.ht).split("-")[1] === String(i) ? "selected" : ""}>${i}</option>`).join("")}</select></span></div>
         <div><label>Weight (lbs)</label><input id="edWt" inputmode="numeric" maxlength="3" placeholder="—" value="${esc(cur.wt ?? "")}"></div>
       </div>
-      ${TBC.isAdmin() ? `<div class="ed-row"><label>College</label>
+      ${TBC.canEdit() ? `<div class="ed-row"><label>College</label>
         <div id="edColPick"></div>
         <input id="edColSearch" placeholder="Type a school, e.g. Penn State or Ithaca" autocomplete="off">
         <div class="ed-res" id="edColRes"></div>
-        <div class="ed-hint">Shows as a logo next to their name on the Draft Board. Only the admin can change it.</div></div>` : ""}
+        <div class="ed-hint">Shows as a logo next to their name on the Draft Board and in the drafts.</div></div>` : ""}
       <div class="ed-row"><label>Nickname</label>
         <input id="edNick" maxlength="30" placeholder="e.g. The Mailman" value="${esc(cur.nickname || "")}">
         <div class="ed-hint">Shows as ${esc(p.first)} “Nickname” ${esc(p.last)}</div></div>
@@ -358,7 +358,7 @@ TBC.openEditor = (host, p, slug, onDone) => {
     const c = host.querySelector("#edClear"); if (c) c.onclick = () => { pick = null; drawPick(); };
   };
   drawPick();
-  if (TBC.isAdmin()) {
+  if (TBC.canEdit()) {
     const drawCol = () => {
       $("#edColPick").innerHTML = colPick ? `<div class="ed-picked">${TBC.collegeTag(colPick)}<button class="obtn sm" id="edColClear" type="button">Remove college</button></div>` : "";
       const c = host.querySelector("#edColClear"); if (c) c.onclick = () => { colPick = null; drawCol(); };
@@ -419,7 +419,7 @@ TBC.openEditor = (host, p, slug, onDone) => {
       const ft = $("#edFt").value, inch = $("#edIn").value;
       if (!ft !== !inch) throw new Error("Pick both feet and inches for height (or neither).");
       const bio = {num: num || null, age: int($("#edAge").value, 10, 99, "Age"), wt: int($("#edWt").value, 80, 400, "Weight"), ht: ft ? `${ft}-${inch}` : null};
-      const colChanged = TBC.isAdmin() && ((colPick?.name || "") !== (cur.college?.name || "") || (colPick?.id || null) !== (cur.college?.id || null));
+      const colChanged = TBC.canEdit() && ((colPick?.name || "") !== (cur.college?.name || "") || (colPick?.id || null) !== (cur.college?.id || null));
       await TBC.saveProfile(slug, {nickname: $("#edNick").value, comp: pick, ...bio, ...(tier !== p.tier ? {tier} : {}), ...(colChanged ? {college: colPick} : {})});
       if (newPhoto !== undefined) await TBC.savePhoto(slug, newPhoto || null);
       onDone();

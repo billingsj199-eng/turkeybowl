@@ -1,7 +1,7 @@
 rules_version = '2';
 // Turkey Bowl site: who can read and change what.
 //   players/{slug}   nickname, comp, position/tier, and players added on the site. Anyone can read; approved editors can change.
-//                    college {name, id}: only the admin can set or change it.
+//                    college {name, id}: editors set it like everything else on the player.
 //   board/order      drag-and-drop order of the Draft Board. Anyone can read; approved editors can change.
 //   draft/{season}   the live draft. Anyone can watch; editors run it; only the admin can reset it.
 //   lottery/{season} draft lottery result. Anyone can read; editors run it before the draft starts.
@@ -37,12 +37,6 @@ service cloud.firestore {
         && (!('id' in c) || c.id == null || (c.id is string && c.id.matches('^[0-9]{1,8}$')))
       );
     }
-    // Editors' merges carry the existing college along untouched; only the admin may set or change it.
-    function collegeOk(d) {
-      return !('college' in d) || isAdmin()
-        || (resource != null && 'college' in resource.data && resource.data.college == d.college);
-    }
-
     // Fields are optional because saves merge: a position change doesn't have to resend the nickname.
     function validPlayer(d) {
       return d.keys().hasOnly(['nickname', 'comp', 'tier', 'name', 'added', 'num', 'age', 'ht', 'wt', 'college', 'by', 'at'])
@@ -57,7 +51,6 @@ service cloud.firestore {
         && (!('ht' in d) || d.ht == null || (d.ht is string && d.ht.matches('^[4-7]-([0-9]|1[01])$')))
         && (!('wt' in d) || d.wt == null || (d.wt is int && d.wt >= 80 && d.wt <= 400))
         && (!('college' in d) || validCollege(d.college))
-        && collegeOk(d)
         && shortText(d.by, 60)
         && d.at == request.time;
     }
