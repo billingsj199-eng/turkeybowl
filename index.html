@@ -228,10 +228,10 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .col-logo img{width:100%;height:100%;object-fit:contain;display:block}
   .col-logo b{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#232c40;border:1px solid #3a4560;border-radius:6px;color:#c4cbd8;font:700 10px Inter,sans-serif;letter-spacing:.02em}
   .col-logo.lg{width:36px;height:36px}
-  .col-logo.tl{width:28px;height:28px}
+  .col-logo.tl{width:36px;height:36px;margin:-8px 0}   /* bigger logo without making the row taller */
   .col-tag{display:inline-flex;align-items:center;gap:6px;background:#1b2336;border:1px solid #29334a;border-radius:999px;padding:2px 10px 2px 3px;font-size:13px;font-weight:600;color:#e6e9ef;white-space:nowrap}
   .col-tag .col-logo{width:22px;height:22px}
-  @media (max-width:600px){ .col-logo.tl{width:22px;height:22px} }
+  @media (max-width:600px){ .col-logo.tl{width:28px;height:28px;margin:-4px 0} }
   .ed-none{color:var(--muted);font-size:13px;padding:6px 2px}
   .ed-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ed-msg{font-size:13px;color:var(--muted)}
