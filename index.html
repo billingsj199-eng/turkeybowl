@@ -104,6 +104,15 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .avail .ap:hover{background:#1a2338}
   .avail .ap .r{width:24px;color:var(--muted);font-weight:700;text-align:right}
   .avail .ap .hs{width:30px;height:30px;font-size:11px}
+  /* Only the admin edits: Film Room + History edit controls hidden for everyone else (body.tb-admin set by tb-cloud.js) */
+  body:not(.tb-admin) :is(#addGame,#expBtn,#impBtn,#vLog,#vEditGame,#vPart,#editPlay,#addChamp,#addAward,.cedit,.aw-edit){display:none!important}
+  /* Player comp headshot column (board table + mock/live draft lists) */
+  .comp-hs{display:inline-block;width:56px;height:56px;border-radius:50%;overflow:hidden;background:#0f1525;box-shadow:0 0 0 2px #3a4560;flex:none;vertical-align:middle}
+  .comp-hs img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+  .comp-hs.none{background:none;box-shadow:none}
+  th.comp-col,td.comp-col{width:68px;text-align:center;padding-left:4px;padding-right:4px}
+  .avail .ap .comp-hs{width:42px;height:42px}
+  @media (max-width:600px){ .comp-hs{width:44px;height:44px} th.comp-col,td.comp-col{width:52px} .avail .ap .comp-hs{width:38px;height:38px} }
   .boardwrap{overflow-x:auto}
   .dboard{display:grid;gap:6px;min-width:640px}
   .dboard .colh{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;background:var(--panel2);border-radius:8px;border-top:3px solid var(--t-QB);text-align:center}
@@ -205,8 +214,8 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .col-logo img{width:100%;height:100%;object-fit:contain;display:block}
   .col-logo b{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#232c40;border:1px solid #3a4560;border-radius:6px;color:#c4cbd8;font:700 10px Inter,sans-serif;letter-spacing:.02em}
   .col-logo.lg{width:36px;height:36px}
-  td.col{width:42px;padding-left:2px;padding-right:2px;text-align:center}
-  td.col .col-logo{width:32px;height:32px}
+  th.col,td.col{width:48px;padding-left:2px;padding-right:2px;text-align:center}
+  td.col .col-logo{width:40px;height:40px}
   .col-tag{display:inline-flex;align-items:center;gap:6px;background:#1b2336;border:1px solid #29334a;border-radius:999px;padding:2px 10px 2px 3px;font-size:13px;font-weight:600;color:#e6e9ef;white-space:nowrap}
   .col-tag .col-logo{width:22px;height:22px}
   @media (max-width:600px){ td.col{width:30px} td.col .col-logo{width:24px;height:24px} }
@@ -601,6 +610,15 @@ function headshot(p){
   return el;
 }
 
+// Player comp headshot only (comp set by an editor on the player card). Name shows on hover.
+// Used as the Comp column on the board table and in the mock / live draft lists.
+function compHS(name){
+  const c = window.TBC && (TBC.profile(slug(name)) || {}).comp;
+  if (!c || !c.img) return `<span class="comp-hs none"></span>`;
+  const tip = esc2("Comp: " + c.name + (c.team ? " · " + c.team : ""));
+  return `<span class="comp-hs" title="${tip}"><img src="${esc2(c.img)}" alt="${tip}" loading="lazy" onerror="this.parentNode.classList.add('none');this.remove()"></span>`;
+}
+
 function movement(p){
   if (p.prev === "NA" && p.tier !== "NA") return `<span class="move new">NEW</span>`;
   const d = TI(p.prev) - TI(p.tier);
@@ -858,7 +876,7 @@ function renderDraft(board){
       const d = document.createElement("div"); d.className = "ap"; d.style.setProperty("--tc", `var(--t-${p.tier})`);
       d.innerHTML = `<span class="r">${p.rank}</span>`;
       d.appendChild(headshot(p));
-      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${n}</div><div class="psub">${p.prank}</div></div><span class="pill">${tlabel(p.tier)}</span>`);
+      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${n}</div><div class="psub">${p.prank}</div></div>${compHS(n)}<span class="pill">${tlabel(p.tier)}</span>`);
       d.onclick = () => pick(n);
       av.appendChild(d);
     });
@@ -1073,7 +1091,7 @@ function renderLive(board){
       if (p) d.style.setProperty("--tc", `var(--t-${p.tier})`);
       d.innerHTML = `<span class="r">${p ? p.rank : ""}</span>`;
       if (p) d.appendChild(headshot(p));
-      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
+      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${compHS(x)}${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
       if (canPick) d.onclick = async () => {
         const c = liveTeamFor(L, picks.length);
         if (!(await confirmPick(x, draftTeamName(c)))) return;
@@ -1190,7 +1208,7 @@ function confetti(host){
 
 function renderTable(board, list){
   const t = document.createElement("table");
-  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th class="col" title="College"></th><th>Player</th><th class="hide-sm">Pos</th><th>Pos Rank</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
+  t.innerHTML = `<thead><tr><th style="text-align:center">#</th><th>Player</th><th class="col" title="College"></th><th class="comp-col">Comp</th><th style="text-align:center">PPG</th><th class="hide-sm">'25 Tier</th><th class="hide-sm">+/-</th></tr></thead>`;
   const tb = document.createElement("tbody");
   PPG_POOL = ppgPool();
   const TB = {QB:"Quarterbacks", S:"Elite", A:"Tier A", B:"Tier B", C:"Tier C", D:"Tier D", NA:"Unranked"};
@@ -1198,7 +1216,7 @@ function renderTable(board, list){
   const tierBar = k => {
     const br = document.createElement("tr"); br.className = "tbreak"; br.dataset.tier = k;
     br.style.setProperty("--tc", `var(--t-${k})`);
-    br.innerHTML = `<td colspan="8">${RANK_EDIT && k !== "QB" ? `<span class="drag-h" title="Drag to move the tier line">⠿</span>` : ""}<span class="tb-badge">${k === "NA" ? "—" : k}</span><span class="tb-label">${TB[k]}</span></td>`;
+    br.innerHTML = `<td colspan="7">${RANK_EDIT && k !== "QB" ? `<span class="drag-h" title="Drag to move the tier line">⠿</span>` : ""}<span class="tb-badge">${k === "NA" ? "—" : k}</span><span class="tb-label">${TB[k]}</span></td>`;
     tb.appendChild(br);
   };
   const flush = upTo => { while (lastTier !== upTo) { lastTier = lastTier === null ? "QB" : TIERS[TI(lastTier) + 1].key; tierBar(lastTier); } };
@@ -1208,11 +1226,10 @@ function renderTable(board, list){
     const tr = document.createElement("tr"); tr.className = "prow"; tr.dataset.slug = slug(p.name);
     tr.style.setProperty("--tc", `var(--t-${p.tier})`);
     tr.innerHTML = `<td class="num">${RANK_EDIT ? `<span class="drag-h" title="Drag to re-rank">⠿</span>` : ""}${p.rank}</td>
-      <td class="col">${window.TBC ? TBC.collegeLogo((TBC.profile(slug(p.name)) || {}).college) : ""}</td>
       <td><div class="player"><span class="hsx"></span><div><div style="display:flex;align-items:center;gap:8px"><span class="pname">${nmHTML(p)}</span><span class="pill" title="${p.tier==="NA"?"Unranked":p.tier+" Tier"}">${tlabel(p.tier)}</span></div>
         <div class="psub">${teamLabel(p)}</div></div></div></td>
-      <td class="hide-sm"><span class="pill pos-${p.pos}">${p.pos}</span></td>
-      <td class="trank">${p.prank}</td>
+      <td class="col">${window.TBC ? TBC.collegeLogo((TBC.profile(slug(p.name)) || {}).college) : ""}</td>
+      <td class="comp-col">${compHS(p.name)}</td>
       <td class="ppg">${(() => { const v = ppgOf(p.name); if (v == null) return ""; const c = pctClass(PPG_POOL, +v.toFixed(2)); return `<span class="pcv ${c}">${v.toFixed(1)}</span>`; })()}</td>
       <td class="hide-sm prev">${p.prev==="NA" ? "—" : p.prev}</td>
       <td class="hide-sm">${movement(p)}</td>`;

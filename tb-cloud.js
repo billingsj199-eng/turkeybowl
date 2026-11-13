@@ -32,7 +32,7 @@ const LEAGUE = {"nfl": "NFL", "college-football": "CFB"};
 
 const TBC = window.TBC = {
   ready: false, user: null, role: "viewer", profiles: {}, photos: {}, order: [], live: null, teamNames: {}, lottery: null, teamInfo: {}, captainsByUid: {},
-  canEdit(){ return this.role === "editor" || this.role === "admin"; },
+  canEdit(){ return this.role === "admin"; },   // only the admin can edit anything
   isAdmin(){ return this.role === "admin"; },
   profile(slug){ return this.profiles[slug] || null; },
   photo(slug){ return this.photos[slug] || null; },
@@ -75,15 +75,14 @@ onSnapshot(collection(db, "photos"), snap => {
 async function roleFor(u){
   if (!u) return "viewer";
   try { await getDocs(collection(db, "requests")); return "admin"; } catch(e){}   // only the admin may list requests
-  try { if ((await getDoc(doc(db, "editors", u.uid))).exists()) return "editor"; } catch(e){}
-  try { if ((await getDoc(doc(db, "requests", u.uid))).exists()) return "pending"; } catch(e){}
-  return "viewer";
+  return "viewer";   // editors / edit requests no longer grant anything: only the admin edits
 }
 onAuthStateChanged(auth, async u => {
   TBC.user = u ? {uid: u.uid, name: u.displayName || u.email || "Someone", email: u.email || ""} : null;
   // remember who has signed in, so Jack can pick captain accounts from a list
   if (u) setDoc(doc(db, "users", u.uid), {name: TBC.user.name.slice(0, 80), email: TBC.user.email, at: serverTimestamp()}).catch(() => {});
   TBC.role = await roleFor(u);
+  document.body.classList.toggle("tb-admin", TBC.role === "admin");   // shows Film Room / History edit buttons
   renderAuthBox(); changed();
 });
 
@@ -203,7 +202,7 @@ TBC.openTeamEditor = cap => {
   $("#teSave").onclick = async () => {
     $("#teSave").disabled = true; $("#teMsg").textContent = "Saving…";
     try { await TBC.saveTeam(cap, {name: $("#teName").value, logo, color}); close(); }
-    catch(err){ $("#teSave").disabled = false; $("#teMsg").textContent = "Couldn't save: " + (err.code === "permission-denied" ? "only this team's captain or an editor can change it." : err.message); }
+    catch(err){ $("#teSave").disabled = false; $("#teMsg").textContent = "Couldn't save: " + (err.code === "permission-denied" ? "only this team's captain or the admin can change it." : err.message); }
   };
 };
 TBC.savePhoto = async (slug, img) => img
@@ -476,7 +475,6 @@ function renderAuthBox(){
       <span class="ab-name" title="${esc(u.email)}">${esc(u.name.split(" ")[0])}</span>
       ${chip ? `<span class="ab-chip ab-${TBC.role}">${chip}</span>` : ""}
       ${TBC.myCap() ? `<span class="ab-chip ab-editor">Captain</span>` : ""}
-      ${TBC.role === "viewer" ? `<button class="obtn sm" id="abReq">Request edit access</button>` : ""}
       ${TBC.role === "admin" ? `<button class="obtn sm" id="abAdmin">Editors &amp; captains</button>` : ""}
       <button class="obtn sm" id="abOut">Sign out</button>
     </div>`;
