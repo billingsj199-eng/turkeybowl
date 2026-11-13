@@ -116,6 +116,16 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .comp-hs.none{background:none;box-shadow:none}
   th.comp-col,td.comp-col{width:68px;text-align:center;padding-left:4px;padding-right:4px}
   .avail .ap .comp-hs{width:42px;height:42px}
+  .avail .ap .psub .col-logo{width:18px;height:18px;margin-left:6px;vertical-align:-4px}
+  .avail .ap .psub .col-logo b{font-size:7px;border-radius:4px}
+  .avail .ap .psub .col-logo.none{display:none}
+  .avail .ap > div{min-width:0}
+  .avail .ap .pname{white-space:normal;line-height:1.2}   /* long names wrap instead of pushing the list sideways */
+  .col-logo.none{visibility:hidden}
+  .dboard .cell{position:relative}
+  .dboard .cell .col-logo.cl{position:absolute;top:4px;right:4px;width:20px;height:20px}
+  .dboard .cell .col-logo.cl.none{display:none}
+  .dboard .cell .col-logo.cl b{font-size:8px}
   @media (max-width:600px){ .comp-hs{width:44px;height:44px} th.comp-col,td.comp-col{width:52px} .avail .ap .comp-hs{width:38px;height:38px} }
   .boardwrap{overflow-x:auto}
   .dboard{display:grid;gap:6px;min-width:640px}
@@ -623,6 +633,12 @@ function compHS(name){
   return `<span class="comp-hs" title="${tip}"><img src="${esc2(c.img)}" alt="${tip}" loading="lazy" onerror="this.parentNode.classList.add('none');this.remove()"></span>`;
 }
 
+// College logo (set by the admin in Edit player). Empty placeholder keeps the draft lists lined up.
+function colLogo(name, cls = "col-logo"){
+  const c = window.TBC && (TBC.profile(slug(name)) || {}).college;
+  return c ? TBC.collegeLogo(c, cls) : `<span class="${cls} none"></span>`;
+}
+
 function movement(p){
   if (p.prev === "NA" && p.tier !== "NA") return `<span class="move new">NEW</span>`;
   const d = TI(p.prev) - TI(p.tier);
@@ -880,7 +896,7 @@ function renderDraft(board){
       const d = document.createElement("div"); d.className = "ap"; d.style.setProperty("--tc", `var(--t-${p.tier})`);
       d.innerHTML = `<span class="r">${p.rank}</span>`;
       d.appendChild(headshot(p));
-      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${n}</div><div class="psub">${p.prank}</div></div>${compHS(n)}<span class="pill">${tlabel(p.tier)}</span>`);
+      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${n}</div><div class="psub">${p.prank}${colLogo(n)}</div></div>${compHS(n)}<span class="pill">${tlabel(p.tier)}</span>`);
       d.onclick = () => pick(n);
       av.appendChild(d);
     });
@@ -910,7 +926,7 @@ function renderDraft(board){
     if (name) {
       const p = byName[name]; cell.style.setProperty("--tc", `var(--t-${p.tier})`);
       cell.appendChild(headshot(p));
-      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r+1}.${String(s+1).padStart(2,"0")} · ${tlabel(p.tier)}</div><div class="cn">${name}</div></div>`);
+      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r+1}.${String(s+1).padStart(2,"0")} · ${tlabel(p.tier)}</div><div class="cn">${name}</div></div>${colLogo(name, "col-logo cl")}`);
       linkName(cell.querySelector(".cn"), name);
     } else {
       if (i === MD.picks.length) cell.classList.add("now");
@@ -1095,7 +1111,7 @@ function renderLive(board){
       if (p) d.style.setProperty("--tc", `var(--t-${p.tier})`);
       d.innerHTML = `<span class="r">${p ? p.rank : ""}</span>`;
       if (p) d.appendChild(headshot(p));
-      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${compHS(x)}${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
+      d.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}${colLogo(x)}</div></div>${compHS(x)}${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
       if (canPick) d.onclick = async () => {
         const c = liveTeamFor(L, picks.length);
         if (!(await confirmPick(x, draftTeamName(c)))) return;
@@ -1129,7 +1145,7 @@ function renderLive(board){
     if (name) {
       const p = byName[name]; if (p) { cell.style.setProperty("--tc", `var(--t-${p.tier})`); cell.appendChild(headshot(p)); }
       if (i === fresh) cell.classList.add("flash");
-      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}${p ? " · " + tlabel(p.tier) : ""}</div><div class="cn">${esc2(name)}</div></div>`);
+      cell.insertAdjacentHTML("beforeend", `<div><div class="pk">${r + 1}.${String(sl + 1).padStart(2, "0")}${p ? " · " + tlabel(p.tier) : ""}</div><div class="cn">${esc2(name)}</div></div>${colLogo(name, "col-logo cl")}`);
       if (p) linkName(cell.querySelector(".cn"), name);
     } else {
       if (i === picks.length) cell.classList.add("now");
