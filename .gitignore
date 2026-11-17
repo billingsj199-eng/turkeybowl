@@ -4,3 +4,5 @@ Claude memory notes/
 .firebase/
 firestore-debug.log
 *.log
+tools/graphics/
+tools/draft_graphics/out/

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Round Recap Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0d1220;--panel:#131a2a;--panel2:#182033;--line:#232c40;--ink:#e8ecf4;--muted:#8a94a8;--accent:#f5a524;
+    --t-QB:#e9b949;--t-S:#ef5a4c;--t-A:#f5a524;--t-B:#3fbf75;--t-C:#4b9ce8;--t-D:#a07ee0;--t-NA:#6c7689}
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a12;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .page-h{max-width:1100px;margin:0 auto;padding:18px 16px 4px}
+  .page-h h1{font:700 22px Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;margin:0}
+  .page-h p{color:var(--muted);font-size:13px;margin:6px 0 0}
+  .gallery{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;padding:16px}
+  .slot{width:min(540px,calc(100vw - 32px))}
+  .slot .cap{color:var(--muted);font:600 12px Inter;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px}
+  .fit{position:relative;width:100%;aspect-ratio:1080/1350;overflow:hidden;border-radius:10px;box-shadow:0 10px 40px #0008}
+  .art{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;overflow:hidden;background:var(--bg);font-family:Inter,sans-serif}
+  .osw{font-family:Oswald,sans-serif;text-transform:uppercase}
+
+  /* shared bits */
+  .brand{display:flex;align-items:center;gap:12px;font:600 26px Oswald;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+  .hs{border-radius:50%;overflow:hidden;background:#232c40;border:4px solid var(--tc,#6c7689);display:flex;align-items:center;justify-content:center;flex:none;color:var(--tc);font:700 30px Oswald}
+  .hs img{width:100%;height:100%;object-fit:cover}
+  .tier{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;padding:4px 12px;border-radius:7px;font:700 22px Oswald;letter-spacing:.06em;color:var(--tc);background:color-mix(in srgb,var(--tc) 22%,#111)}
+  .col{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;color:#c4cbd8;font:600 22px Inter}
+  .col img{width:34px;height:34px;object-fit:contain}
+  .col b{display:inline-flex;width:34px;height:34px;border-radius:50%;background:#232c40;align-items:center;justify-content:center;font-size:13px}
+  .grade{display:flex;align-items:center;justify-content:center;border-radius:50%;font:700 Oswald;color:#0d1220;background:var(--gc);flex:none}
+  .sample{position:absolute;padding:4px 10px;border-radius:6px;background:#fff2;color:#fff;font:700 16px Inter;letter-spacing:.12em}
+
+  /* ===== round recap ===== */
+  .rr{padding:54px 56px 0;background:
+      radial-gradient(900px 500px at 100% -10%, #f5a52433, transparent 60%),
+      repeating-linear-gradient(135deg, #ffffff05 0 2px, transparent 2px 22px), var(--bg)}
+  .rr-top{display:flex;justify-content:space-between;align-items:flex-end}
+  .rr-title{font:700 124px/0.86 Oswald;text-transform:uppercase;letter-spacing:.01em;margin-top:18px}
+  .rr-title span{display:block;font-size:52px;letter-spacing:.3em;color:transparent;-webkit-text-stroke:2px var(--accent);margin-top:12px}
+  .rr-range{text-align:right;color:var(--muted);font:600 24px Oswald;letter-spacing:.14em;text-transform:uppercase}
+  .rr-range b{display:block;color:var(--ink);font-size:44px;letter-spacing:.04em}
+  .rr-list{margin-top:26px;display:flex;flex-direction:column;gap:10px}
+  .rr-row{position:relative;display:flex;align-items:center;gap:20px;height:var(--rh);padding:0 24px 0 0;border-radius:14px;overflow:hidden;
+      background:linear-gradient(90deg, color-mix(in srgb,var(--team) 30%,#131a2a) 0, #131a2a 46%);border:1px solid #ffffff10}
+  .rr-pk{width:132px;align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--team);color:#0d1220}
+  .rr-pk b{font:700 46px/1 Oswald}
+  .rr-pk small{font:700 15px Inter;letter-spacing:.1em;opacity:.75;margin-top:4px}
+  .rr-team{width:150px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font:600 17px Inter;color:#c4cbd8;line-height:1.15}
+  .rr-team small{color:var(--muted);font-size:13px}
+  .rr-name{flex:1;min-width:0}
+  .rr-name .nm{font:700 42px/1 Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rr-name .nm i{font-style:normal;font-weight:500;color:#c4cbd8}
+  .rr-name .sub{display:flex;align-items:center;gap:14px;margin-top:10px}
+  .rr-row .sample{right:118px;top:10px;font-size:12px}
+  .rr-foot{position:absolute;left:56px;right:56px;bottom:36px}
+  .rr-awards{display:flex;gap:12px}
+  .rr-aw{flex:1;display:flex;align-items:center;gap:14px;padding:12px 18px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff12}
+  .rr-aw .k{color:var(--muted);font:700 14px Inter;letter-spacing:.12em;text-transform:uppercase}
+  .rr-aw .v{font:700 28px Oswald;text-transform:uppercase}
+  .rr-aw .e{font-size:34px}
+  .rr-bot{display:flex;justify-content:space-between;align-items:center;margin-top:20px;color:var(--muted);font:600 20px Inter}
+  .rr-bot .next b{color:var(--ink)} .rr-bot .url{color:var(--accent);font:600 20px Oswald;letter-spacing:.12em}
+
+  /* ===== individual pick ===== */
+  .pk{background:
+      radial-gradient(1000px 700px at 85% 22%, color-mix(in srgb,var(--team) 55%,transparent), transparent 62%),
+      linear-gradient(160deg, color-mix(in srgb,var(--team) 22%,#0d1220) 0, #0d1220 58%)}
+  .pk-wm{position:absolute;right:-30px;top:120px;font:700 420px/1 Oswald;color:#ffffff07;letter-spacing:-.02em}
+  .pk-top{position:absolute;left:56px;right:56px;top:50px;display:flex;justify-content:space-between;align-items:center}
+  .pk-slot{font:600 26px Oswald;letter-spacing:.14em;text-transform:uppercase;color:#c4cbd8}
+  .pk-slot b{color:var(--ink)}
+  .pk-in{position:absolute;left:56px;top:118px;display:flex;align-items:center;gap:18px}
+  .pk-in .k{font:700 20px Inter;letter-spacing:.3em;color:var(--accent)}
+  .pk-in .t{font:700 54px/1 Oswald;text-transform:uppercase}
+  .pk-in .t small{display:block;font:600 18px Inter;color:#c4cbd8;letter-spacing:.06em;text-transform:none;margin-top:6px}
+  .pk-photo{position:absolute;right:70px;top:250px}
+  .pk-photo .hs{width:400px;height:400px;border-width:10px;box-shadow:0 30px 80px #0009;font-size:110px}
+  .pk-photo .clogo{position:absolute;right:6px;bottom:10px;width:112px;height:112px;border-radius:50%;background:#0d1220;border:4px solid #ffffff22;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .pk-photo .clogo img{width:78px;height:78px;object-fit:contain}
+  .pk-photo .clogo b{font:700 28px Oswald;color:#c4cbd8}
+  .pk-name{position:absolute;left:56px;top:290px;width:520px}
+  .pk-name .f{font:500 46px/1 Oswald;text-transform:uppercase;color:#c4cbd8;letter-spacing:.04em}
+  .pk-name .l{font:700 112px/0.92 Oswald;text-transform:uppercase;margin-top:6px;word-break:break-word}
+  .pk-name .nick{font:600 30px Inter;color:var(--accent);margin-top:14px}
+  .pk-chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;align-items:center}
+  .pk-chips .bio{color:#c4cbd8;font:600 22px Inter}
+  .pk-bd{position:absolute;left:56px;right:56px;top:720px;padding:26px 28px;border-radius:18px;background:#111829;border:1px solid #ffffff14;box-shadow:0 20px 60px #0007}
+  .pk-bd h3{margin:0 0 16px;font:700 20px Inter;letter-spacing:.24em;color:var(--muted)}
+  .pk-tiles{display:flex;gap:14px;align-items:stretch}
+  .pk-tile{flex:1;padding:14px 16px;border-radius:12px;background:#ffffff08;border:1px solid #ffffff10}
+  .pk-tile .k{color:var(--muted);font:700 14px Inter;letter-spacing:.12em;text-transform:uppercase}
+  .pk-tile .v{font:700 44px/1.1 Oswald;margin-top:4px}
+  .pk-tile .v.pos{color:#5fd68f} .pk-tile .v.neg{color:#ef6b5f}
+  .pk-gr{display:flex;align-items:center;gap:20px;margin-top:18px}
+  .pk-gr .grade{width:96px;height:96px;font-size:50px}
+  .pk-gr .vd{font:600 28px/1.25 Inter}
+  .pk-notes{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .pk-notes span{padding:8px 14px;border-radius:999px;background:#ffffff0d;border:1px solid #ffffff14;font:600 19px Inter;color:#dfe4ee}
+  .pk-comp{display:flex;align-items:center;gap:14px;margin-top:18px;padding-top:16px;border-top:1px solid #ffffff12}
+  .pk-comp img{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#232c40}
+  .pk-comp .k{color:var(--muted);font:700 14px Inter;letter-spacing:.12em;text-transform:uppercase}
+  .pk-comp .v{font:700 28px Oswald;text-transform:uppercase}
+  .pk-comp .v small{font:500 18px Inter;color:#c4cbd8;text-transform:none;margin-left:6px}
+  .pk-foot{position:absolute;left:56px;right:56px;bottom:40px}
+  .pk-ros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font:600 18px Inter;color:#c4cbd8}
+  .pk-ros .k{color:var(--muted);font:700 14px Inter;letter-spacing:.12em;text-transform:uppercase;margin-right:4px}
+  .pk-ros span.r{padding:5px 12px;border-radius:8px;background:#ffffff0d}
+  .pk-ros span.r.new{background:color-mix(in srgb,var(--team) 40%,transparent);color:#fff}
+  .pk-bot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;color:var(--muted);font:600 20px Inter}
+  .pk-bot .next b{color:var(--ink)} .pk-bot .url{color:var(--accent);font:600 20px Oswald;letter-spacing:.12em}
+  .pk .sample{right:56px;top:104px}
+</style></head>
+<body>
+<div class="page-h"><h1>🦃 Draft graphics · mock</h1>
+  <p id="note"></p></div>
+<div class="gallery" id="g"></div>
+<script>
+const DATA = /*DATA*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const GC = {"A+":"#5fd68f","A":"#5fd68f","A-":"#8fe0a8","B+":"#e9b949","B":"#e9b949","B-":"#f2c96b","C+":"#f28c38","C":"#f28c38","D":"#ef6b5f","F":"#d9443a"};
+const ini = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 3);
+const hs = (src, name, size, tc) => `<div class="hs" style="width:${size}px;height:${size}px;--tc:${tc}">${src ? `<img src="${esc(src)}" alt="">` : esc(ini(name))}</div>`;
+const LOGO = id => /^n-/.test(id) ? `https://www.ncaa.com/sites/default/files/images/logos/schools/bgd/${id.slice(2)}.svg` : `https://a.espncdn.com/i/teamlogos/ncaa/500-dark/${id}.png`;
+const colTag = (c, withName = true) => !c ? "" : `<span class="col">${c.id ? `<img src="${LOGO(String(c.id))}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${esc(ini(c.name))}'}))">` : `<b>${esc(ini(c.name))}</b>`}${withName ? esc(c.name) : ""}</span>`;
+const teamBadge = (t, size) => t.logo && !/^data:/.test(t.logo)
+  ? `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color};background:${t.color};font-size:${size * .55}px">${esc(t.logo)}</div>`
+  : hs(t.logo || t.img, t.cap, size, t.color);
+const tierLbl = t => t === "NA" ? "Unranked" : t + " Tier";
+
+function recap(d){
+  const ps = d.picks, rh = ps.length > 6 ? 100 : 122;
+  const steal = ps.find(p => p.name === d.steal), reach = d.reach && ps.find(p => p.name === d.reach);
+  return `<div class="art rr">
+    <div class="rr-top"><div><div class="brand">🦃 Turkey Bowl ${d.season} Draft</div>
+      <div class="rr-title">Round ${d.round}<span>Recap</span></div></div>
+      <div class="rr-range">Picks<b>${ps[0].overall}–${ps[ps.length - 1].overall}</b>of ${d.rounds} rounds</div></div>
+    <div class="rr-list">${ps.map(p => `
+      <div class="rr-row" style="--team:${p.team.color};--rh:${rh}px">
+        <div class="rr-pk"><b>${p.label}</b><small>#${p.overall} OVR</small></div>
+        <div class="rr-team">${teamBadge(p.team, 54)}<div>${esc(p.team.name)}${p.team.viaTrade ? `<small><br>via ${esc(p.team.viaTrade)}</small>` : ""}</div></div>
+        ${hs(p.img, p.name, rh - 30, `var(--t-${p.tier})`)}
+        <div class="rr-name"><div class="nm"><i>${esc(p.first)}</i> ${esc(p.last)}</div>
+          <div class="sub"><span class="tier" style="--tc:var(--t-${p.tier})">${tierLbl(p.tier)}</span>${p.rank ? `<span class="col">FLEX #${p.rank}</span>` : ""}${colTag(p.college)}</div></div>
+        <div class="grade" style="--gc:${GC[p.grade]};width:84px;height:84px;font-size:40px">${p.grade}</div>
+        ${p.sample ? `<span class="sample">SAMPLE</span>` : ""}
+      </div>`).join("")}</div>
+    <div class="rr-foot">
+      <div class="rr-awards">
+        ${steal ? `<div class="rr-aw"><span class="e">💎</span><div><div class="k">Steal of the round</div><div class="v">${esc(steal.name)} <small style="color:var(--muted);font-size:20px">${steal.label}</small></div></div></div>` : ""}
+        ${reach ? `<div class="rr-aw"><span class="e">🎯</span><div><div class="k">Biggest reach</div><div class="v">${esc(reach.name)} <small style="color:var(--muted);font-size:20px">${reach.label}</small></div></div></div>` : ""}
+      </div>
+      <div class="rr-bot"><span class="next">${d.nextRound ? `Round ${d.round + 1} · <b>${esc(d.nextRound.team)}</b> on the clock` : "Draft complete"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+    </div></div>`;
+}
+
+function pick(p, d){
+  const v = p.value, vtxt = p.rank ? (v > 0 ? "+" + v : String(v)) : "—";
+  return `<div class="art pk" style="--team:${p.team.color}">
+    <div class="pk-wm">${p.label}</div>
+    <div class="pk-top"><div class="brand">🦃 Turkey Bowl ${d.season} Draft</div><div class="pk-slot">Round <b>${p.round}</b> · Pick <b>${p.label.split(".")[1].replace(/^0/, "")}</b> · <b>#${p.overall}</b> overall</div></div>
+    <div class="pk-in">${teamBadge(p.team, 74)}<div><div class="k">THE PICK IS IN</div><div class="t">${esc(p.team.name)} select${p.team.name.endsWith("s") ? "" : "s"}<small>Captain ${esc(p.team.cap)}${p.team.viaTrade ? ` · pick via ${esc(p.team.viaTrade)}` : ""}</small></div></div></div>
+    ${p.sample ? `<span class="sample">SAMPLE PICK</span>` : ""}
+    <div class="pk-photo">${hs(p.img, p.name, 400, `var(--t-${p.tier})`)}${p.college ? `<div class="clogo">${p.college.id ? `<img src="${LOGO(String(p.college.id))}" alt="">` : `<b>${esc(ini(p.college.name))}</b>`}</div>` : ""}</div>
+    <div class="pk-name"><div class="f">${esc(p.first)}</div><div class="l">${esc(p.last)}</div>
+      ${p.nick ? `<div class="nick">“${esc(p.nick)}”</div>` : ""}
+      <div class="pk-chips"><span class="tier" style="--tc:var(--t-${p.tier})">${tierLbl(p.tier)}</span>${p.rank ? `<span class="tier" style="--tc:#c4cbd8">FLEX #${p.rank}</span>` : ""}</div>
+      <div class="pk-chips">${colTag(p.college)}</div>
+      ${p.bio.length ? `<div class="pk-chips"><span class="bio">${p.bio.map(esc).join(" · ")}</span></div>` : ""}
+    </div>
+    <div class="pk-bd"><h3>PICK BREAKDOWN</h3>
+      <div class="pk-tiles">
+        <div class="pk-tile"><div class="k">Board rank</div><div class="v">${p.rank ? "#" + p.rank : "—"}</div></div>
+        <div class="pk-tile"><div class="k">Taken</div><div class="v">#${p.overall}</div></div>
+        <div class="pk-tile"><div class="k">Their tier</div><div class="v" style="color:var(--t-${p.tier})">${p.tier === "NA" ? "—" : p.tier}</div></div>
+        <div class="pk-tile"><div class="k">Best tier left</div><div class="v" style="color:var(--t-${p.bestLeft})">${p.bestLeft === "NA" ? "—" : p.bestLeft}</div></div>
+        <div class="pk-tile"><div class="k">Rank value</div><div class="v ${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${vtxt}</div></div>
+      </div>
+      <div class="pk-gr"><div class="grade" style="--gc:${GC[p.grade] || "#6c7689"}">${p.grade}</div><div class="vd">${esc(p.verdict)}</div></div>
+      ${(() => { const notes = [...(p.isNew ? [] : [p.move]), ...p.honors]; return notes.length ? `<div class="pk-notes">${notes.map(x => `<span>${esc(x)}</span>`).join("")}</div>` : ""; })()}
+      ${p.comp ? `<div class="pk-comp"><img src="${esc(p.comp.img)}" alt="" onerror="this.style.visibility='hidden'"><div><div class="k">Player comp</div><div class="v">${esc(p.comp.name)}<small>${esc(p.comp.team || "")}</small></div></div></div>` : ""}
+    </div>
+    <div class="pk-foot">
+      <div class="pk-ros"><span class="k">${esc(p.team.name)} so far</span><span class="r">C · ${esc(p.team.cap)}</span>${p.roster.map(x => `<span class="r ${x === p.name ? "new" : ""}">${esc(x)}</span>`).join("")}</div>
+      <div class="pk-bot"><span class="next">${p.next ? `On the clock: <b>${esc(p.next.team)}</b> · ${p.next.label}` : "That's the draft!"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+    </div></div>`;
+}
+
+const SINGLE = /*SINGLE*/null;
+if (SINGLE !== null) { document.body.style.background = "#0d1220"; document.body.innerHTML = SINGLE === 0 ? recap(DATA) : pick(DATA.picks[SINGLE - 1], DATA); document.querySelector(".art").style.position = "relative"; }
+else {
+const g = document.getElementById("g");
+const add = (cap, inner) => { const s = document.createElement("div"); s.className = "slot"; s.innerHTML = `<div class="cap">${cap}</div><div class="fit">${inner}</div>`; g.appendChild(s); };
+add(`Round ${DATA.round} recap · 1080×1350`, recap(DATA));
+DATA.picks.forEach(p => add(`Pick ${p.label} · ${esc(p.name)}${p.sample ? " (sample)" : ""}`, pick(p, DATA)));
+const fit = () => document.querySelectorAll(".fit").forEach(f => { f.firstElementChild.style.transform = `scale(${f.clientWidth / 1080})`; });
+addEventListener("resize", fit); fit();
+const smp = DATA.picks.filter(p => p.sample).map(p => p.label);
+document.getElementById("note").textContent = `Round ${DATA.round} with the real picks from the live draft${smp.length ? ` (${smp.join(", ")} not made yet, filled with the best available as a sample)` : ""}. One recap graphic for the round, then one breakdown card per pick. Sized 1080×1350 for Instagram / group chats.`;
+}
+</script>
+</body></html>
