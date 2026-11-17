@@ -88,7 +88,7 @@ const get = async p => { const r = await fetch(API + p); if (!r.ok && r.status !
     : t.v >= -1 ? `On the board: ${p.tier} tier, board #${p.rank} at pick #${o}.`
     : t.v >= -3 ? `A bit early (board #${p.rank}, taken #${o}), but the right tier.`
     : `Rank reach: board #${p.rank} went #${o}. Right tier, wrong spot.`;
-  const moveTxt = p => p.prev === "NA" ? "New for " + SEASON : TI(p.prev) > TI(p.tier) ? `Up from ${p.prev} tier in '${String(SEASON - 1).slice(2)}` : TI(p.prev) < TI(p.tier) ? `Down from ${p.prev} tier in '${String(SEASON - 1).slice(2)}` : `${p.tier} tier in '${String(SEASON - 1).slice(2)} too`;
+  const moveTxt = p => p.prev === "NA" ? "New for " + SEASON : p.prev === "QB" && p.tier !== "QB" ? `Captain (QB) in '${String(SEASON - 1).slice(2)}` : TI(p.prev) > TI(p.tier) ? `Up from ${p.prev} tier in '${String(SEASON - 1).slice(2)}` : TI(p.prev) < TI(p.tier) ? `Down from ${p.prev} tier in '${String(SEASON - 1).slice(2)}` : `${p.tier} tier in '${String(SEASON - 1).slice(2)} too`;
   const ht = h => h ? String(h).replace("-", "'") + '"' : null;
 
   const pickData = i => {
