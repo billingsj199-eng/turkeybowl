@@ -1107,7 +1107,7 @@ function renderLive(board){
     if (loOk) btn(b, "▶ Replay lottery", () => playLottery(LO.order));
     const go = btn(b, "🔴 Start the live draft", async () => {
       if (LIVE_SETUP.length < 2) return alert("You need at least 2 QBs (captains) to draft.");
-      if (!confirm(`Start the ${CURRENT_SEASON} live draft for everyone?\n\nOrder: ${LIVE_SETUP.join(", ")}\n\nThe order and player pool lock once it starts.`)) return;
+      if (!confirm(`Start the ${CURRENT_SEASON} live draft for everyone?\n\nOrder: ${LIVE_SETUP.join(", ")}\n\nThe order and player pool lock once it starts (editors can still add new players to the pool).`)) return;
       go.disabled = true;
       try { await TBC.liveStart(LIVE_SETUP, draftPool); } catch(err){ go.disabled = false; alert("Couldn't start: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
     }, "primary");
@@ -1163,6 +1163,25 @@ function renderLive(board){
       try { await TBC.liveReset(); LIVE_SEEN = null; } catch(err){ alert(err.message); }
     }, "lv-danger");
     left.appendChild(b);
+    // Ranked FLEX players on the board who aren't in the locked pool (added or re-tiered after the start): editors add them.
+    const missing = pool.filter(x => !(L.pool || []).includes(x));
+    if (missing.length && (!done || admin)) {
+      const box = document.createElement("div"); box.className = "lv-addpool";
+      box.innerHTML = `<h3>➕ Not in the draft pool (${missing.length})</h3><div class="psub" style="margin-bottom:6px">On the board after the draft started. Add them so they can be drafted (they go to the end of the pool${done ? " and reopen the draft" : ""}).</div>`;
+      missing.forEach(x => {
+        const p = byName[x], r = document.createElement("div"); r.className = "ap ro";
+        if (p) { r.style.setProperty("--tc", `var(--t-${p.tier})`); r.appendChild(headshot(p)); }
+        r.insertAdjacentHTML("beforeend", `<div style="flex:1"><div class="pname" style="font-size:14px">${esc2(x)}</div><div class="psub">${p ? p.prank : ""}</div></div>${p ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
+        btn(r, "Add to pool", async e => {
+          e.stopPropagation();
+          if (!confirm(`Add ${x} to the live draft pool? Everyone can draft them right away.`)) return;
+          e.target.disabled = true;
+          try { await TBC.liveAddToPool(x); } catch(err){ e.target.disabled = false; alert("Couldn't add: " + (err.code === "permission-denied" ? "you don't have edit access (only Jack once the draft is complete)." : err.message)); }
+        }, "primary");
+        box.appendChild(r);
+      });
+      left.appendChild(box);
+    }
   }
   if (!done) {
     const q = document.getElementById("q").value.trim().toLowerCase();

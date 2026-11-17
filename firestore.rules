@@ -100,6 +100,16 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['picks', 'status', 'moved', 'by', 'at'])
         && (request.resource.data.picks.size() == resource.data.picks.size() + 1
             || request.resource.data.picks.size() == resource.data.picks.size() - 1);
+      // An editor adds ONE player to the end of the pool (someone added to the board after the draft started).
+      // Picks don't change; earlier pool entries stay in place. Once the draft is done, only the admin can (it reopens it).
+      allow update: if isEditor() && validDraft(request.resource.data)
+        && (resource.data.status == 'live' || isAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pool', 'status', 'by', 'at'])
+        && request.resource.data.pool.size() == resource.data.pool.size() + 1
+        && (resource.data.pool.size() == 0 || request.resource.data.pool[0:resource.data.pool.size()] == resource.data.pool)
+        && shortText(request.resource.data.pool[resource.data.pool.size()], 60)
+        && !resource.data.pool.hasAny([request.resource.data.pool[resource.data.pool.size()]])
+        && request.resource.data.status == 'live';
       // A captain account may make ONE pick: the next one, only when their team is on the clock
       // (snake order, unless that pick was traded: draft.owners["<pick index>"]).
       allow update: if signedIn() && validDraft(request.resource.data)

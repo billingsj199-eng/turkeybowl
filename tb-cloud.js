@@ -143,6 +143,13 @@ TBC.livePick = async (name, expect) => runTransaction(db, async tx => {
   const picks = [...d.picks, name];
   tx.update(draftRef, {picks, status: picks.length >= d.pool.length ? "done" : "live", by: by(), at: serverTimestamp()});
 });
+// Add a player to the end of the live pool (added to the board after the draft started). Picks stay as they are.
+TBC.liveAddToPool = async name => runTransaction(db, async tx => {
+  const s = await tx.get(draftRef); if (!s.exists()) throw new Error("The draft isn't running.");
+  const d = s.data();
+  if (d.pool.includes(name)) throw new Error(name + " is already in the pool.");
+  tx.update(draftRef, {pool: [...d.pool, name], status: "live", by: by(), at: serverTimestamp()});
+});
 TBC.liveUndo = async expect => runTransaction(db, async tx => {
   const s = await tx.get(draftRef); if (!s.exists()) return;
   const d = s.data();
