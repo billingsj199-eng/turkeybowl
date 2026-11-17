@@ -108,7 +108,7 @@ service cloud.firestore {
         && request.resource.data.order == resource.data.order
         && request.resource.data.pool == resource.data.pool
         && request.resource.data.picks.size() == resource.data.picks.size() + 1
-        && request.resource.data.picks[0:resource.data.picks.size()] == resource.data.picks
+        && (resource.data.picks.size() == 0 || request.resource.data.picks[0:resource.data.picks.size()] == resource.data.picks)   // a [0:0] slice errors on an empty list, which blocked pick 1.01
         && resource.data.pool.hasAny([request.resource.data.picks[resource.data.picks.size()]])
         && !resource.data.picks.hasAny([request.resource.data.picks[resource.data.picks.size()]])
         && request.resource.data.status == (request.resource.data.picks.size() >= resource.data.pool.size() ? 'done' : 'live')

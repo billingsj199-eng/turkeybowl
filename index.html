@@ -1155,8 +1155,8 @@ function renderLive(board){
     const b = btns();
     btn(b, "↶ Undo last pick", async () => {
       if (!confirm(`Undo the pick of ${picks[picks.length - 1]}?`)) return;
-      try { await TBC.liveUndo(picks.length); } catch(err){ alert(err.message); }
-    }, "", !picks.length);
+      try { await TBC.liveUndo(picks.length); } catch(err){ alert(err.code === "permission-denied" ? "Only Jack (admin) can change the draft once it's complete." : err.message); }
+    }, "", !picks.length || (done && !admin));   // rules: once the draft is done only the admin can undo
     if (admin) btn(b, "Reset draft", async () => {
       if (!confirm("Delete the live draft completely (all picks) so it can be started over?")) return;
       if (prompt('Type RESET to confirm') !== "RESET") return;
