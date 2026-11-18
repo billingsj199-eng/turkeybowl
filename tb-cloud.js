@@ -14,7 +14,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction, query, where }
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction, query, where, orderBy, limitToLast, addDoc }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // The web config is public by design (it only identifies the project); the rules do the protecting.
@@ -283,6 +283,51 @@ TBC.saveEntry = async (picks, tiebreak) => {
 };
 TBC.deleteEntry = async () => { const u = TBC.user; if (u) await deleteDoc(doc(entriesCol, u.uid)); };
 TBC.setChallengeLock = async locked => setDoc(chRef, {locked, by: by(), at: serverTimestamp()});
+// ---- My Team: permanent account ↔ player links, this season's team members, private team chat ----
+// links/accounts {byUid: {uid: player}} stays for every season (Jack sets it). members/<season> {byUid: {uid: {player, team}}}
+// is worked out from the links + that season's draft and kept in sync automatically whenever Jack is signed in.
+const linksRef = doc(db, "links", "accounts"), membersRef = doc(db, "members", DRAFT_ID);
+TBC.links = {}; TBC.members = {}; TBC.chat = null; TBC.chatTeam = null;
+let linksUnsub = null, membersUnsub = null, chatUnsub = null, linksLoaded = false, membersLoaded = false;
+onAuthStateChanged(auth, u => {
+  [linksUnsub, membersUnsub, chatUnsub].forEach(f => f && f());
+  linksUnsub = membersUnsub = chatUnsub = null; linksLoaded = membersLoaded = false;
+  TBC.links = {}; TBC.members = {}; TBC.chat = null; TBC.chatTeam = null;
+  if (!u) { changed(); return; }
+  linksUnsub = onSnapshot(linksRef, d => { TBC.links = (d.exists() && d.data().byUid) || {}; linksLoaded = true; changed(); }, () => { linksLoaded = true; });
+  membersUnsub = onSnapshot(membersRef, d => { TBC.members = (d.exists() && d.data().byUid) || {}; membersLoaded = true; changed(); }, () => { membersLoaded = true; });
+});
+TBC.myPlayer = () => TBC.user ? (TBC.links[TBC.user.uid] || TBC.myCap() || null) : null;
+// the team whose private page you see: your captain account's team, or the team your linked player is on this season
+TBC.myTeam = () => { if (!TBC.user) return null; const c = TBC.myCap(); if (c) return c; const m = TBC.members[TBC.user.uid]; return (m && m.team) || null; };
+function watchChat(){
+  const t = TBC.myTeam(); if (t === TBC.chatTeam) return;
+  if (chatUnsub) chatUnsub(); chatUnsub = null; TBC.chat = null; TBC.chatTeam = t; if (!t) return;
+  chatUnsub = onSnapshot(query(collection(db, "teamspace", DRAFT_ID, "teams", t, "messages"), orderBy("at"), limitToLast(300)),
+    snap => { const a = []; snap.forEach(d => a.push({id: d.id, ...d.data()})); TBC.chat = a; changed(); },
+    err => { console.warn("Turkey Bowl cloud: team chat", err); TBC.chat = []; changed(); });
+}
+document.addEventListener("tbc-change", () => watchChat());
+TBC.sendChat = async text => {
+  const t = TBC.myTeam(), u = TBC.user; if (!t || !u) throw new Error("You're not on a team.");
+  await addDoc(collection(db, "teamspace", DRAFT_ID, "teams", t, "messages"), {uid: u.uid, name: (u.name || "Someone").slice(0, 60), text: text.slice(0, 500), at: serverTimestamp()});
+};
+TBC.deleteChat = async id => { const t = TBC.myTeam(); if (t) await deleteDoc(doc(db, "teamspace", DRAFT_ID, "teams", t, "messages", id)); };
+TBC.saveLinks = async byUid => setDoc(linksRef, {byUid, by: by(), at: serverTimestamp()});
+// Jack's browser keeps members/<season> matching links + this year's draft (players' teams follow trades).
+let syncing = false;
+const memberKey = o => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k] && o[k].player, o[k] && o[k].team]));
+async function syncMembers(){
+  if (!TBC.isAdmin() || syncing || !linksLoaded || !membersLoaded || !TBC.live || typeof window.mtPlayerTeam !== "function") return;
+  const want = {};
+  Object.entries(TBC.links).forEach(([uid, player]) => { const team = window.mtPlayerTeam(player); if (team) want[uid] = {player, team}; });
+  if (memberKey(want) === memberKey(TBC.members)) return;
+  syncing = true;
+  try { await setDoc(membersRef, {byUid: want, by: by(), at: serverTimestamp()}); } catch(e){ console.warn("Turkey Bowl cloud: members sync", e); }
+  finally { syncing = false; }
+}
+document.addEventListener("tbc-change", () => { syncMembers(); });
+
 // Rename a team (keyed by its captain). Empty name = back to "Team <captain's last name>".
 TBC.saveTeamName = async (capSlug, name) => {
   const names = {...TBC.teamNames};
@@ -672,6 +717,30 @@ async function openAdmin(){
     try { await TBC.assignCaptain(sel.dataset.cap, sel.value, sel.value ? people[sel.value].name : ""); } catch(err){ alert("Couldn't save: " + err.message); }
     openAdmin();
   });
+
+  // ---- player accounts (My Team): link each player to their Google account once; it sticks every season ----
+  const plBox = document.createElement("div");
+  body.appendChild(plBox);
+  const drawLinks = () => {
+    const names = (window.tbPlayers && window.tbPlayers()) || [], teamOf = n => (window.mtPlayerTeam && window.mtPlayerTeam(n)) || "";
+    const groups = {}; names.forEach(n => { const t = teamOf(n); (groups[t] = groups[t] || []).push(n); });
+    const order = Object.keys(groups).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+    const uidOf = n => Object.keys(TBC.links).find(u => TBC.links[u] === n) || "";
+    const opts = cur => `<option value="">— not linked —</option>${Object.entries(people).sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([u, v]) => `<option value="${esc(u)}" ${u === cur ? "selected" : ""}>${esc(v.name)} (${esc(v.email)})</option>`).join("")}`;
+    plBox.innerHTML = `<div class="sec-t" style="margin:18px 0 4px">Player accounts (My Team)</div>
+      <div class="ed-hint" style="margin:0 0 8px">Link each player to their Google account. It stays linked every season; each year they see the private My Team page of whatever team drafted them. Nobody, you included, can see another team's page.</div>
+      ${order.map(t => `<div class="ed-hint" style="margin:10px 0 4px;font-weight:700;color:var(--ink)">${t ? esc(window.draftTeamName ? window.draftTeamName(t) : t) : "Not on a team this season"}</div>` + groups[t].map(n => `<div class="adm-row"><div><b>${esc(n)}</b></div>
+        <select data-pl="${esc(n)}" style="max-width:60%;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px">${opts(uidOf(n))}</select></div>`).join("")).join("")}`;
+    plBox.querySelectorAll("select[data-pl]").forEach(sel => sel.onchange = async () => {
+      const player = sel.dataset.pl, uid = sel.value, byUid = {...TBC.links};
+      Object.keys(byUid).forEach(u => { if (byUid[u] === player) delete byUid[u]; });   // one account per player
+      if (uid) byUid[uid] = player;                                                      // and one player per account
+      sel.disabled = true;
+      try { await TBC.saveLinks(byUid); TBC.links = byUid; } catch(err){ alert("Couldn't save: " + err.message); }
+      drawLinks();
+    });
+  };
+  drawLinks();
   const byId = Object.fromEntries(rq.docs.map(d => [d.id, d.data()]));
   body.querySelectorAll("[data-ok]").forEach(b => b.onclick = async () => {
     const r = byId[b.dataset.ok];

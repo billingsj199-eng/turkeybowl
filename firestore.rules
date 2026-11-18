@@ -345,6 +345,45 @@ service cloud.firestore {
       }
     }
 
+    // Account ↔ player links, kept for every season: links/accounts {byUid: {uid: player name}, by, at}. Only Jack sets them.
+    // Each season the site turns them into members/{season} (player → that year's team from the draft).
+    match /links/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin() && id == 'accounts'
+        && request.resource.data.keys().hasOnly(['byUid', 'by', 'at'])
+        && request.resource.data.byUid is map && request.resource.data.byUid.size() <= 300
+        && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time;
+    }
+    // Team members for a season (My Team page): {byUid: {uid: {player, team (captain name)}}, by, at}. Only Jack assigns them.
+    // Signed-in people can read it (rosters are public anyway); it's what decides who sees each team's private space.
+    match /members/{season} {
+      allow read: if signedIn();
+      allow write: if isAdmin() && season.matches('^[0-9]{4}$')
+        && request.resource.data.keys().hasOnly(['byUid', 'by', 'at'])
+        && request.resource.data.byUid is map && request.resource.data.byUid.size() <= 120
+        && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time;
+    }
+    // On a team = its captain account, or an account Jack assigned to one of its players. Nobody else, the admin included.
+    function onTeam(season, cap) {
+      let m = /databases/$(database)/documents/members/$(season);
+      let c = /databases/$(database)/documents/captains/$(season);
+      return signedIn() && (
+        (exists(c) && get(c).data.byUid.get(request.auth.uid, '') == cap)
+        || (exists(m) && get(m).data.byUid.get(request.auth.uid, {}).get('team', '') == cap));
+    }
+    // A team's private space: teamspace/{season}/teams/{captain}/messages/{id} = team chat {uid, name, text, at}.
+    match /teamspace/{season}/teams/{cap}/messages/{mid} {
+      allow read: if onTeam(season, cap);
+      allow create: if onTeam(season, cap)
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'at'])
+        && request.resource.data.keys().hasAll(['uid', 'name', 'text', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && shortText(request.resource.data.name, 60)
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500
+        && request.resource.data.at == request.time;
+      allow delete: if onTeam(season, cap) && resource.data.uid == request.auth.uid;
+    }
+
     // Team names for a season, keyed by captain. Editors can rename teams at or after the draft.
     match /teams/{season} {
       allow read: if true;

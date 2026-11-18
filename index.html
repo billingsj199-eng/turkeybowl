@@ -249,7 +249,9 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     .nm-f{display:none} .nm-s{display:inline}
     .topnav .topnav-in{position:relative;padding:0 10px;gap:0}
     .topnav .brand-t{display:none} .topnav .brand{margin-right:6px}
-    .topnav .navlink{padding:16px 7px;font-size:11.5px;letter-spacing:.04em;white-space:nowrap}
+    .topnav .navlink{padding:16px 6px;font-size:11px;letter-spacing:.03em;white-space:nowrap}
+    .topnav .nl-l,.topnav .nl-e{display:none}   /* short nav labels on phones: Board · Bracket · My Team · Film · History */
+    @media (max-width:380px){ .topnav .navlink{padding:16px 4px;font-size:10.5px} }
     .ab-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--gold);background:#1b2336;color:var(--gold);font:700 13px Inter,sans-serif;cursor:pointer}
     .ab-menu{display:none;position:absolute;right:10px;top:50px;flex-direction:column;align-items:stretch;gap:6px;background:#151c2c;border:1px solid #2a3449;border-radius:10px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:30;min-width:190px}
     .authbox.open .ab-menu{display:flex}
@@ -416,13 +418,15 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
 <nav class="topnav">
   <div class="topnav-in">
     <span class="brand">🦃 <span class="brand-t">Turkey Bowl</span></span>
-    <a href="#board" data-page="board" class="navlink">Draft Board</a>
-    <a href="#bracket" data-page="bracket" class="navlink">🏆 Bracket</a>
-    <a href="#film" data-page="film" class="navlink">Film Room</a>
+    <a href="#board" data-page="board" class="navlink"><span class="nl-l">Draft </span>Board</a>
+    <a href="#bracket" data-page="bracket" class="navlink"><span class="nl-e">🏆 </span>Bracket</a>
+    <a href="#myteam" data-page="myteam" class="navlink"><span class="nl-e">🏈 </span>My Team</a>
+    <a href="#film" data-page="film" class="navlink">Film<span class="nl-l"> Room</span></a>
     <a href="#history" data-page="history" class="navlink">History</a>
   </div>
 </nav>
 <div id="pg-bracket" class="wrap" hidden></div>
+<div id="pg-myteam" class="wrap" hidden></div>
 <div id="pg-film" hidden></div>
 <div id="pg-history" hidden></div>
 <div class="wrap" id="pg-board">
@@ -1640,6 +1644,7 @@ document.getElementById("addPlayerBtn").onclick = () => window.TBC && TBC.openAd
 <script src="history.js"></script>
 <script src="bracket.js"></script>
 <script src="challenge.js"></script>
+<script src="myteam.js"></script>
 <script type="module" src="tb-cloud.js"></script>
 </body>
 </html>

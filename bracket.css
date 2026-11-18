@@ -205,3 +205,35 @@
 .ch-svg .pts{fill:var(--accent)}
 .ch-svg .m-ok .pts{fill:#5fd68f} .ch-svg .m-no .pts{fill:#ef6b5f}
 .ch-svg .champ.ok{stroke:#5fd68f;fill:#14261c} .ch-svg .champ.no{stroke:#ef6b5f;fill:#2a1a1d}
+
+/* ===== My Team page (myteam.js) ===== */
+#pg-myteam header{padding:18px 0 6px}
+#pg-myteam h1 span{color:var(--accent)}
+.mt-gate{margin-top:14px;max-width:560px}
+.mt-gate h3{margin-top:0}
+.mt-gate .btn{margin-top:10px}
+.mt-head{margin-top:10px}
+.mt-pane{margin-top:12px}
+.mt-pane h3{margin-top:0}
+.mt-empty{padding:28px 10px;text-align:center;color:var(--muted)}
+.mt-tbl-wrap{overflow-x:auto;scrollbar-color:#3a4560 transparent;scrollbar-width:thin}
+.mt-tbl{width:100%;border-collapse:collapse;min-width:640px}
+.mt-tbl th{text-align:center;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--line)}
+.mt-tbl th:first-child{text-align:left}
+.mt-tbl td{text-align:center;padding:7px 6px;border-bottom:1px solid #1d2539;font-weight:600}
+.mt-tbl td:first-child{text-align:left}
+.mt-pl{display:flex;align-items:center;gap:10px;min-width:0}
+.mt-pl .hs{flex:none}
+.mt-pl .psub{display:flex;align-items:center;gap:6px}
+.mt-chat{height:min(56vh,520px);overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:10px;background:#0f1525;border:1px solid var(--line)}
+.mt-day{align-self:center;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:6px 0 2px}
+.mt-msg{display:flex}
+.mt-msg.me{justify-content:flex-end}
+.mt-bub{max-width:78%;padding:7px 11px;border-radius:14px;background:#1b2336;border:1px solid #29334a}
+.mt-msg.me .mt-bub{background:#2a2210;border-color:#5a4620}
+.mt-who{font-size:11.5px;font-weight:800;color:var(--accent);margin-bottom:2px}
+.mt-txt{white-space:pre-wrap;word-wrap:break-word;line-height:1.35}
+.mt-time{font-size:10.5px;color:var(--muted);margin-top:3px;text-align:right}
+.mt-del{background:none;border:0;padding:0;color:#ef8b80;font:inherit;cursor:pointer}
+.mt-send{display:flex;gap:8px;margin-top:10px}
+.mt-send input{flex:1;min-width:0;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font:inherit}
