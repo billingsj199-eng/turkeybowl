@@ -53,7 +53,7 @@ function chScore(entry, S){
 }
 const chRound = gid => ({10: "Round 1", 20: "Round 2", 40: "Round 3", 80: "Losers Final"})[CH_POINTS[gid]];
 
-// "Thu, Nov 26, 10:00 AM" in the viewer's own time zone
+// "Sat, Nov 28, 10:00 AM" in the viewer's own time zone
 const chKoTxt = () => { const ko = TBC.challengeKickoff(); return ko ? new Date(ko).toLocaleString([], {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"}) : "Game 1 kickoff"; };
 function renderChallenge(root, S, B, ed){
   const locked = TBC.challengeLocked(), me = TBC.user, teams = S.slots, koTxt = chKoTxt();

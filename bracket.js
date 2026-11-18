@@ -69,9 +69,9 @@ const brTime = (B, n) => {
   const hh = Math.floor(t / 60) % 24, mm = t % 60;
   return `${(hh % 12) || 12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
 };
-// Game 1 kickoff: Thanksgiving + the start time, Eastern (UTC-5). Must match firestore.rules chKickoff.
+// Game 1 kickoff: game day (2026: Sat Nov 28) + the start time, Eastern (UTC-5). Must match firestore.rules chKickoff.
 // The Bracket Challenge locks (and everyone's picks show) at this moment.
-const BR_DAYS = {2026: [2026, 11, 26]};
+const BR_DAYS = {2026: [2026, 11, 28]};
 function brKickoff(B){
   const d = typeof CURRENT_SEASON !== "undefined" && BR_DAYS[CURRENT_SEASON], st = B && typeof B.start === "string" ? B.start : "10:00";
   if (!d || !/^\d\d:\d\d$/.test(st)) return null;
