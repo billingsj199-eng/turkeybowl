@@ -330,6 +330,16 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['locked', 'by', 'at'])
         && request.resource.data.locked is bool
         && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time;
+      // votes/{uid} = an anonymous copy of one bracket's picks (no name) so everyone can see pick percentages before kickoff.
+      // It has to match that person's saved bracket exactly (same commit), so nobody can stuff the numbers.
+      match /votes/{uid} {
+        allow read: if true;
+        allow create, update: if signedIn() && request.auth.uid == uid && !chLocked(season)
+          && request.resource.data.keys().hasOnly(['picks', 'at'])
+          && request.resource.data.picks == getAfter(/databases/$(database)/documents/challenge/$(season)/entries/$(uid)).data.picks
+          && request.resource.data.at == request.time;
+        allow delete: if (signedIn() && request.auth.uid == uid && !chLocked(season)) || isAdmin();
+      }
       match /entries/{uid} {
         allow get: if (signedIn() && request.auth.uid == uid) || chLocked(season);
         allow list: if chLocked(season);

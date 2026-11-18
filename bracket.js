@@ -332,12 +332,13 @@ function brFullBracket(){
 
 // ===== Matchup pop-up: tap a game → both teams' rosters side by side =====
 function brWireSvg(host){ host.querySelectorAll("svg.br-svg g.gm[data-g]").forEach(el => { el.onclick = () => brMatchup(el.dataset.g); }); }
-function brMatchup(gid){
-  const B = window.TBC && TBC.bracket, S = brState(B), x = S.out[gid], g = x.g, L = window.TBC && TBC.live;
+function brMatchup(gid, o){
+  const B = window.TBC && TBC.bracket, S = brState(B), real = S.out[gid], g = real.g, L = window.TBC && TBC.live;
+  const x = o && (o.A !== real.A || o.B !== real.B) ? {g, A: o.A || null, B: o.B || null, r: null, winner: null, loser: null, needed: true} : real;
   document.getElementById("brMuOv")?.remove();
   const ov = document.createElement("div"); ov.id = "brMuOv"; ov.className = "ov br-mu-ov";
   const head = x.r ? `Final · ${x.r.sa}-${x.r.sb}` : !x.needed ? "Not needed" : "~" + brTime(B, g.n);
-  ov.innerHTML = `<div class="br-mu"><div class="br-mu-h"><div><b>Game ${g.n}</b> · ${brEsc(g.round)} <span class="psub">${brEsc(head)}</span></div><button class="pc-close" aria-label="Close">✕</button></div><div class="br-mu-cols"></div><div class="br-mu-tiers"></div></div>`;
+  ov.innerHTML = `<div class="br-mu"><div class="br-mu-h"><div><b>Game ${g.n}</b> · ${brEsc(g.round)} <span class="psub">${brEsc(head)}${o && o.note ? " · " + brEsc(o.note) : ""}</span></div><button class="pc-close" aria-label="Close">✕</button></div><div class="br-mu-odds"></div><div class="br-mu-cols"></div><div class="br-mu-tiers"></div></div>`;
   const cols = ov.querySelector(".br-mu-cols"), W = c => Object.values(S.out).filter(y => y.winner === c).length, Lc = c => S.losses[c] || 0;
   const tierCount = c => { const t = {}; (L ? rosterOf(L, c) : []).forEach(r => { const p = byName[r.name]; if (p) t[p.tier] = (t[p.tier] || 0) + 1; }); return t; };
   const side = (c, src, k) => {
@@ -367,6 +368,13 @@ function brMatchup(gid){
     return col;
   };
   cols.append(side(x.A, g.a, 0), Object.assign(document.createElement("div"), {className: "br-mu-vs", textContent: x.r ? "FINAL" : "VS"}), side(x.B, g.b, 1));
+  if (x.A && x.B && typeof chOdds === "function") {   // what the Bracket Challenge thinks
+    const O = chOdds(gid), pa = O.pct(x.A), pb = O.pct(x.B);
+    ov.querySelector(".br-mu-odds").innerHTML = O.n
+      ? `<div class="lbl2">🎯 Bracket Challenge picks · ${O.n} bracket${O.n === 1 ? "" : "s"}</div><div class="br-mu-bar"><span style="width:${pa}%;--team:${teamColor(x.A) || "#4b9ce8"}"></span><span style="width:${pb}%;--team:${teamColor(x.B) || "#ef6b5f"}"></span><i style="width:${100 - pa - pb}%"></i></div>
+        <div class="br-mu-leg"><span style="--team:${teamColor(x.A) || "#4b9ce8"}">${brEsc(draftTeamName(x.A))} <b>${pa}%</b></span><span style="--team:${teamColor(x.B) || "#ef6b5f"}">${brEsc(draftTeamName(x.B))} <b>${pb}%</b></span>${pa + pb < 100 ? `<span class="oth">other teams <b>${100 - pa - pb}%</b></span>` : ""}</div>`
+      : `<div class="psub">🎯 No Bracket Challenge picks yet for this game.</div>`;
+  }
   if (x.A && x.B) {   // quick tier-by-tier comparison
     const ta = tierCount(x.A), tb = tierCount(x.B);
     ov.querySelector(".br-mu-tiers").innerHTML = `<div class="lbl2">Tier by tier</div><div class="br-mu-tgrid">${["S", "A", "B", "C", "D"].map(t => `<span style="--tc:var(--t-${t})"><b>${ta[t] || 0}</b><i>${t}</i><b>${tb[t] || 0}</b></span>`).join("")}</div>`;

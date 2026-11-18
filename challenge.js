@@ -13,6 +13,18 @@ const CH_CHAMP = 160, CH_MAX = Object.values(CH_POINTS).reduce((a, b) => a + b, 
 let CH_DRAFT = null;      // {picks, tiebreak} being edited (null = take the saved entry)
 let CH_VIEW = null;       // uid of the bracket being looked at on the leaderboard
 
+// Pick percentages from everyone's brackets (anonymous copies, TBC.votes): of the brackets that pick game gid,
+// what share have each team winning it. chChampOdds = share picking each team to win it all.
+function chOdds(gid){
+  const vs = ((window.TBC && TBC.votes) || []).filter(v => v.picks && v.picks[gid]), n = vs.length, c = {};
+  vs.forEach(v => { c[v.picks[gid]] = (c[v.picks[gid]] || 0) + 1; });
+  return {n, pct: t => n ? Math.round(100 * (c[t] || 0) / n) : 0};
+}
+function chChampOdds(slots){
+  const vs = (window.TBC && TBC.votes) || [], c = {}; let n = 0;
+  vs.forEach(v => { const ch = chPickState(v.picks, slots).champion; if (ch) { c[ch] = (c[ch] || 0) + 1; n++; } });
+  return {n, list: Object.entries(c).sort((a, b) => b[1] - a[1]).map(([t, k]) => [t, Math.round(100 * k / n)])};
+}
 // Run picks through the bracket like results. Picks that no longer fit (an earlier pick changed) are dropped.
 function chPickState(picks, slots){
   const base = {slots, results: {}}, clean = {};
@@ -51,6 +63,8 @@ function renderChallenge(root, S, B, ed){
       <div class="psub">Pick every game before kickoff. Points double each round, like ESPN's Tournament Challenge.</div>
       <div class="ch-pts"><span><b>10</b>Round 1<small>G1 · G2</small></span><span><b>20</b>Round 2<small>G3–G6</small></span><span><b>40</b>Round 3<small>G7 · G8</small></span><span><b>80</b>Losers Final<small>G9</small></span><span class="ch-champ-pts"><b>160</b>Champion<small>G10/G11</small></span></div>
       <div class="psub">Perfect bracket = <b>${CH_MAX}</b> points. A pick counts when your team wins that game. Tiebreaker: total points in Game 10.</div>
+      ${(() => { const co = chChampOdds(teams); const nv = ((window.TBC && TBC.votes) || []).length;
+        return `<div class="ch-odds"><span class="lbl2">${nv} bracket${nv === 1 ? "" : "s"} entered${co.n ? " · picked to win it all" : ""}</span>${co.list.map(([t, p]) => `<span class="ch-oc" style="--team:${teamColor(t) || "#3a4560"}">${esc2(draftTeamName(t))} <b>${p}%</b></span>`).join("")}</div>`; })()}
       <div class="ch-lock ${locked ? "on" : ""}">${locked ? "🔒 Brackets are locked. Good luck!" : `🟢 Open: make or change your picks until Game 1 kicks off (${koTxt}). Everyone's brackets show up then.`}</div></div>`;
   if (ed) {
     const lb = document.createElement("div"); lb.className = "row-btns";
@@ -123,7 +137,7 @@ function chSvg(picks, slots, mode, S){
   ["g4", "g3"].forEach(id => { const b = box(id), y = b.y + BRH * 0.25;
     out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/><text x="${b.x - 13}" y="${y - 5}" class="bye" text-anchor="middle">BYE</text>`); });
   BR_GAMES.forEach(g => {
-    const x = P.out[g.id], b = box(g.id), pts = CH_POINTS[g.id], m = mark(g.id);
+    const x = P.out[g.id], b = box(g.id), pts = CH_POINTS[g.id], m = mark(g.id), O = chOdds(g.id);
     const right = !x.needed ? "NOT NEEDED" : g.side === "F" ? (mode === "pick" ? "CHAMPION" : "") : m === "ok" ? "+" + pts : m === "no" ? "✗ 0" : pts + " PTS";
     out.push(`<g class="gm${!x.needed ? " skip" : ""}${m ? " m-" + m : ""}${mode === "pick" && x.needed && x.A && x.B && !x.winner ? " nx" : ""}">
       <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.ifNeeded ? " · IF NEEDED" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt pts" text-anchor="end">${right}</text>
@@ -136,8 +150,10 @@ function chSvg(picks, slots, mode, S){
       if (c) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="5" height="${BRH / 2 - 2}" rx="2" fill="${e(teamColor(c) || "#6c7689")}"/>`);
       out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(c ? draftTeamName(c) : brSrc(side ? g.b : g.a))}</text>`);
       if (picked && m) out.push(`<text x="${b.x + BRW - 10}" y="${ty + 19}" class="mk ${m}" text-anchor="end">${m === "ok" ? "✓" : "✗"}</text>`);
+      if (c && O.n) out.push(`<text x="${b.x + BRW - (picked && m ? 28 : 9)}" y="${ty + 18.5}" class="pp${O.pct(c) >= 50 ? " hi" : ""}" text-anchor="end">${O.pct(c)}%</text>`);
       if (mode === "pick" && c && x.needed) out.push(`<rect x="${b.x}" y="${ty}" width="${BRW}" height="${BRH / 2}" class="hit" data-g="${g.id}" data-t="${e(c)}"><title>Pick ${e(draftTeamName(c))}</title></rect>`);
     });
+    if (x.needed && (x.A || x.B)) out.push(`<g class="vsb" data-mu="${g.id}"><title>Matchup: both rosters</title><circle cx="${b.x}" cy="${b.y + BRH / 2}" r="10"/><text x="${b.x}" y="${b.y + BRH / 2 + 3.5}" text-anchor="middle">vs</text></g>`);
     out.push(`</g>`);
   });
   const cb = {x: BRX[4], y: 520}, ch = ps.champion, cm = mode === "review" && ch ? (S.champion ? (S.champion === ch ? "ok" : "no") : (S.losses[ch] || 0) >= 2 ? "no" : "") : "";
@@ -147,6 +163,14 @@ function chSvg(picks, slots, mode, S){
   return `<div class="br-pic-in"><svg class="br-svg ch-svg" viewBox="0 0 1000 600" role="img" aria-label="Bracket picks">${out.join("")}</svg></div><div class="swipe-hint">← Swipe sideways for Games 7-11 and your champion →</div>`;
 }
 let CH_LIST = false;   // list view instead of the bracket (phones)
+// "vs" on a game → the matchup pop-up for the two teams in THIS bracket (they can differ from the real bracket)
+function chWireVs(host, picks, slots, note){
+  host.querySelectorAll(".ch-svg .vsb").forEach(el => el.addEventListener("click", e => {
+    e.stopPropagation();
+    const x = chPickState(picks, slots).st.out[el.dataset.mu];
+    brMatchup(el.dataset.mu, {A: x.A, B: x.B, note});
+  }));
+}
 const chToggle = () => `<div class="ch-tg"><button type="button" class="btn${CH_LIST ? "" : " on"}" data-l="0">Bracket view</button><button type="button" class="btn${CH_LIST ? " on" : ""}" data-l="1">List view</button></div>`;
 function chWireToggle(host){ host.querySelectorAll(".ch-tg button").forEach(b => b.onclick = () => { CH_LIST = b.dataset.l === "1"; renderBracket(true); }); }
 
@@ -162,22 +186,26 @@ function chPicker(S){
   BR_GAMES.forEach(g => {
     const x = ps.st.out[g.id]; if (!x.needed) return;
     const card = document.createElement("div"); card.className = "ch-g" + (ps.clean[g.id] ? " done" : "");
+    const O = chOdds(g.id);
     card.innerHTML = `<div class="ch-gh"><b>G${g.n}</b><span>${esc2(g.round)}</span><em>${CH_POINTS[g.id] ? CH_POINTS[g.id] + " pts" : g.side === "F" ? "picks your champion" : ""}</em></div>`;
     const row = document.createElement("div"); row.className = "ch-opts";
     [x.A, x.B].forEach((c, k) => {
       const b = document.createElement("button"); b.type = "button";
       if (!c) { b.className = "ch-opt tbd"; b.disabled = true; b.textContent = brSrc(k ? g.b : g.a); row.appendChild(b); return; }
       b.className = "ch-opt" + (ps.clean[g.id] === c ? " pick" : ps.clean[g.id] ? " not" : "");
-      b.appendChild(brTeamChip(c));
+      b.appendChild(brTeamChip(c)); if (O.n) b.insertAdjacentHTML("beforeend", `<span class="ch-pp">${O.pct(c)}%</span>`);
       b.onclick = () => { CH_DRAFT.picks[g.id] = c; renderBracket(true); };
       row.appendChild(b);
     });
-    card.appendChild(row); list.appendChild(card);
+    card.appendChild(row);
+    if (x.A || x.B) { const mb = document.createElement("button"); mb.type = "button"; mb.className = "btn br-mu-btn"; mb.textContent = "👥 Matchup · rosters"; mb.onclick = () => brMatchup(g.id, {A: x.A, B: x.B, note: "In your bracket"}); card.appendChild(mb); }
+    list.appendChild(card);
   });
   if (CH_LIST) box.appendChild(list);
   else {
     box.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-bottom:6px">Tap the team you think wins each game. Your picks move along the lines; losers drop to the losers bracket.</div>` + chSvg(CH_DRAFT.picks, S.slots, "pick", S));
     box.querySelectorAll(".ch-svg .hit").forEach(h => h.addEventListener("click", () => { CH_DRAFT.picks[h.dataset.g] = h.dataset.t; renderBracket(true); }));
+    chWireVs(box, CH_DRAFT.picks, S.slots, "In your bracket");
   }
   chWireToggle(box);
   const foot = document.createElement("div"); foot.className = "ch-foot";
@@ -205,7 +233,7 @@ function chReadOnly(entry, S){
   const sc = chScore(entry, S), ps = chPickState(entry.picks, S.slots), box = document.createElement("div"); box.className = "ch-ro";
   box.insertAdjacentHTML("beforeend", chToggle());
   box.insertAdjacentHTML("beforeend", `<div class="ch-ro-h"><b>${sc.pts}</b> pts · ${sc.correct} right · ${sc.wrong} wrong · max ${sc.max}${sc.perfect && sc.decided ? " · 🔥 perfect so far" : ""}<span class="psub">Tiebreaker ${entry.tiebreak}</span></div>`);
-  if (!CH_LIST) { box.insertAdjacentHTML("beforeend", chSvg(entry.picks, S.slots, "review", S)); chWireToggle(box); return box; }
+  if (!CH_LIST) { box.insertAdjacentHTML("beforeend", chSvg(entry.picks, S.slots, "review", S)); chWireToggle(box); chWireVs(box, entry.picks, S.slots, (entry.name || "Their") + "'s bracket"); return box; }
   BR_GAMES.forEach(g => {
     const p = ps.clean[g.id]; if (!p || g.side === "F") return;
     const real = S.out[g.id].winner, st = real ? (real === p ? "ok" : "no") : (S.losses[p] || 0) >= 2 ? "no" : "";

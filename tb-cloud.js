@@ -277,11 +277,29 @@ onAuthStateChanged(auth, u => {
   TBC.myEntry = null;
   if (u) myEntryUnsub = onSnapshot(doc(entriesCol, u.uid), d => { TBC.myEntry = d.exists() ? d.data() : null; changed(); }, () => {});
 });
+// votes/{uid}: an anonymous copy of each bracket's picks (no name), public, so everyone sees pick percentages before kickoff.
+// Saved in the same commit as the bracket; the rules make sure it matches.
+const votesCol = collection(db, "challenge", DRAFT_ID, "votes");
+TBC.votes = [];
+onSnapshot(votesCol, snap => { const a = []; snap.forEach(d => a.push({uid: d.id, picks: d.data().picks || {}})); TBC.votes = a; healVote(); changed(); },
+  err => console.warn("Turkey Bowl cloud: couldn't load bracket challenge picks", err));
 TBC.saveEntry = async (picks, tiebreak) => {
   const u = TBC.user; if (!u) throw new Error("Sign in first.");
-  await setDoc(doc(entriesCol, u.uid), {name: (u.name || "Someone").slice(0, 60), picks, tiebreak, at: serverTimestamp()});
+  const b = writeBatch(db);
+  b.set(doc(entriesCol, u.uid), {name: (u.name || "Someone").slice(0, 60), picks, tiebreak, at: serverTimestamp()});
+  b.set(doc(votesCol, u.uid), {picks, at: serverTimestamp()});
+  await b.commit();
 };
-TBC.deleteEntry = async () => { const u = TBC.user; if (u) await deleteDoc(doc(entriesCol, u.uid)); };
+TBC.deleteEntry = async () => { const u = TBC.user; if (!u) return; const b = writeBatch(db); b.delete(doc(entriesCol, u.uid)); b.delete(doc(votesCol, u.uid)); await b.commit(); };
+// A bracket saved before pick percentages existed has no copy yet: add it (once, quietly) while picks are still open.
+let healing = false;
+async function healVote(){
+  const u = TBC.user, e = TBC.myEntry;
+  if (!u || !e || healing || TBC.challengeLocked() || TBC.votes.some(v => v.uid === u.uid)) return;
+  healing = true;
+  try { await setDoc(doc(votesCol, u.uid), {picks: e.picks || {}, at: serverTimestamp()}); } catch(err){ console.warn("Turkey Bowl cloud: pick copy", err); }
+}
+document.addEventListener("tbc-change", () => healVote());
 TBC.setChallengeLock = async locked => setDoc(chRef, {locked, by: by(), at: serverTimestamp()});
 // ---- My Team: permanent account ↔ player links, this season's team members, private team chat ----
 // links/accounts {byUid: {uid: player}} stays for every season (Jack sets it). members/<season> {byUid: {uid: {player, team}}}

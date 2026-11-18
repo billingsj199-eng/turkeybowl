@@ -246,3 +246,24 @@
 /* phones: wide things (bracket, stats) scroll sideways inside their box; say so */
 .swipe-hint{display:none;text-align:center;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px}
 @media (max-width:760px){ .swipe-hint{display:block} }
+
+/* challenge: pick percentages + matchup buttons */
+.ch-svg .pp{font:700 12px Inter,sans-serif;fill:#6c7689}
+.ch-svg .pp.hi{fill:#c4cbd8}
+.ch-svg .vsb{cursor:pointer}
+.ch-svg .vsb circle{fill:#0f1525;stroke:var(--accent);stroke-width:1.5}
+.ch-svg .vsb text{font:800 10px Inter,sans-serif;fill:var(--accent)}
+.ch-svg .vsb:hover circle{fill:#2a2210}
+.ch-pp{margin-left:auto;padding-left:8px;font-weight:700;font-size:12px;color:var(--muted)}
+.ch-odds{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.ch-oc{display:inline-flex;gap:5px;align-items:center;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--team) 22%,#151c2c);border:1px solid color-mix(in srgb,var(--team) 50%,transparent);font-size:12.5px;font-weight:600}
+.br-mu-odds{margin-bottom:12px}
+.br-mu-bar{display:flex;height:30px;border-radius:8px;overflow:hidden;margin-top:6px;background:#151c2c;border:1px solid #2a3449}
+.br-mu-bar span,.br-mu-bar i{display:flex;align-items:center;justify-content:center;font:700 12px Inter,sans-serif;white-space:nowrap;overflow:hidden;font-style:normal}
+.br-mu-bar span{background:color-mix(in srgb,var(--team) 55%,#151c2c);color:#fff}
+.br-mu-bar i{color:var(--muted)}
+.br-mu-bar{height:12px}
+.br-mu-leg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:13px;font-weight:600;color:#c4cbd8}
+.br-mu-leg span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:color-mix(in srgb,var(--team) 70%,#151c2c);vertical-align:-1px}
+.br-mu-leg .oth::before{background:#2a3449}
+.br-mu-leg b{color:#fff}
