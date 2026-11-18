@@ -1,0 +1,79 @@
+/* ===== Bracket page (bracket.js) ===== */
+#pg-bracket header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 0 6px}
+#pg-bracket h1 span{color:var(--accent)}
+.br-h{font:700 20px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase;margin:26px 0 10px}
+.br-top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;margin-top:14px}
+@media (max-width:760px){.br-top{grid-template-columns:minmax(0,1fr)}}
+.br-top .panel h3{margin-top:0}
+
+/* team chip: badge + name */
+.br-tm{display:flex;align-items:center;gap:8px;min-width:0}
+.br-tm .hs{width:28px;height:28px;font-size:11px;border-width:2px;flex:none}
+.br-tm .hs.tlogo{font-size:15px}
+.br-tn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.br-tm.tbd .br-tn{color:var(--muted);font-weight:500;font-style:italic}
+
+/* lottery panel */
+.br-byes{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:6px 0 10px}
+.br-byes .br-tm{background:#2a2210;border:1px solid #5a4620;border-radius:999px;padding:4px 12px 4px 4px}
+.br-r1{display:grid;gap:8px}
+.br-r1 > div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#151c2c;border:1px solid #2a3449;border-radius:8px;padding:8px 10px}
+.br-r1 .lbl2{width:58px;flex:none}
+.br-vs{color:var(--muted);font-size:12px;font-weight:700}
+
+/* team status */
+.br-strow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.br-strow:last-child{border-bottom:0}
+.br-strow .br-tm{flex:1}
+.br-strow.out{opacity:.55}
+.br-rec{font:700 15px Oswald,sans-serif;width:34px;text-align:right}
+.br-tag{font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.br-tag.wb{background:#123222;color:#5fd68f} .br-tag.lb{background:#3a2a10;color:#f2b35a}
+.br-tag.out{background:#2a1a1d;color:#ef6b5f} .br-tag.ch{background:#3a2e0e;color:var(--accent)}
+
+/* schedule settings */
+.br-set{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;color:#c4cbd8;font-size:14px}
+.br-set input{background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 8px;font:inherit}
+.br-set input[type=number]{width:70px}
+
+/* a game card (schedule + bracket) */
+.br-sched{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.br-game{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.br-game.next{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.br-game.skip{opacity:.5}
+.br-gh{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.br-gh b{color:var(--ink);font:700 15px Oswald,sans-serif;letter-spacing:.04em}
+.br-time{margin-left:auto;color:#c4cbd8;font-weight:700}
+.br-game.next .br-time{color:var(--accent)}
+.br-game.next .br-gh::after{content:"UP NEXT";order:-1;font-size:10px;font-weight:800;color:#0d1220;background:var(--accent);padding:2px 6px;border-radius:4px}
+.br-line{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px}
+.br-line .br-tm{flex:1}
+.br-line.win{background:#14261c}
+.br-line.win .br-tn,.br-line.win .br-sc{color:#fff;font-weight:800}
+.br-line.lose{opacity:.55}
+.br-sc{font:700 18px Oswald,sans-serif;min-width:26px;text-align:right}
+.br-hint{margin-top:6px;font-size:11.5px;color:var(--muted)}
+.br-warn{margin-top:6px;font-size:12px;color:#f2b35a}
+.br-skipmsg{font-size:13px;color:var(--muted);padding:6px 0}
+.br-enter{margin-top:8px;width:100%}
+.br-ed{margin-top:8px;display:grid;gap:6px}
+.br-ed label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600}
+.br-ed input{width:80px;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 8px;font:700 16px Oswald,sans-serif;text-align:center}
+
+/* bracket tree */
+.br-tree{display:grid;gap:14px}
+.br-sec{background:#101626;border:1px solid var(--line);border-radius:12px;padding:12px;overflow-x:auto;scrollbar-color:#3a4560 transparent;scrollbar-width:thin}
+.br-sec::-webkit-scrollbar{height:8px} .br-sec::-webkit-scrollbar-track{background:transparent} .br-sec::-webkit-scrollbar-thumb{background:#3a4560;border-radius:4px}
+.br-sech{font:700 14px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.br-cols{display:flex;gap:14px;min-width:min-content}
+.br-col{display:flex;flex-direction:column;justify-content:space-around;gap:10px;width:250px;flex:none}
+.br-colh{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.br-col.if .br-colh::after{content:" · if necessary"}
+
+/* champion banner */
+.br-champ{position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;margin-top:14px;padding:16px 18px;border-radius:14px;
+  background:linear-gradient(120deg,color-mix(in srgb,var(--team) 35%,#1a1408),#141a28);border:1px solid var(--accent)}
+.br-champ .hs{width:64px;height:64px;font-size:22px;flex:none}
+.br-champ-n{font:700 30px Oswald,sans-serif;text-transform:uppercase}
+.br-tree .br-game.next .br-gh::after{display:none}   /* bracket cards are narrow: the orange border says "next" */
+.br-tree .br-gh > span:not(.br-time){display:none}   /* the section + column headers already name the round */

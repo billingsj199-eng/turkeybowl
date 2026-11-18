@@ -410,16 +410,19 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .adm-row small{display:block;color:var(--muted);font-size:12px}
 </style>
 <link rel="stylesheet" href="film.css">
+<link rel="stylesheet" href="bracket.css">
 </head>
 <body>
 <nav class="topnav">
   <div class="topnav-in">
     <span class="brand">🦃 <span class="brand-t">Turkey Bowl</span></span>
     <a href="#board" data-page="board" class="navlink">Draft Board</a>
+    <a href="#bracket" data-page="bracket" class="navlink">🏆 Bracket</a>
     <a href="#film" data-page="film" class="navlink">Film Room</a>
     <a href="#history" data-page="history" class="navlink">History</a>
   </div>
 </nav>
+<div id="pg-bracket" class="wrap" hidden></div>
 <div id="pg-film" hidden></div>
 <div id="pg-history" hidden></div>
 <div class="wrap" id="pg-board">
@@ -1635,6 +1638,7 @@ document.getElementById("addPlayerBtn").onclick = () => window.TBC && TBC.openAd
 </script>
 <script src="film.js"></script>
 <script src="history.js"></script>
+<script src="bracket.js"></script>
 <script type="module" src="tb-cloud.js"></script>
 </body>
 </html>

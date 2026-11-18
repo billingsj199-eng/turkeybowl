@@ -200,6 +200,32 @@ TBC.acceptTrade = async id => runTransaction(db, async tx => {
   tx.update(tRef, {status: "accepted", by: by(), at: serverTimestamp()});
 });
 TBC.liveReset = () => deleteDoc(draftRef);
+// ---- tournament bracket: bracket/<season> (see bracket.js for the games) ----
+const bracketRef = doc(db, "bracket", DRAFT_ID);
+onSnapshot(bracketRef, d => { TBC.bracket = d.exists() ? d.data() : null; TBC.bracketReady = true; changed(); },
+  err => { console.warn("Turkey Bowl cloud: couldn't load the bracket", err); TBC.bracketReady = true; changed(); });
+const brBase = d => ({slots: (d && d.slots) || [], lotteryId: (d && d.lotteryId) || "", start: d && typeof d.start === "string" ? d.start : "10:00",
+  minutes: (d && d.minutes) || 45, results: (d && d.results) || {}});
+// Schedule lottery: shuffle the 6 teams into slots (1-2 = byes, 3v6 and 4v5 play first). Not once a game has a result.
+TBC.bracketLottery = async teams => runTransaction(db, async tx => {
+  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null;
+  if (d && Object.keys(d.results || {}).length) throw new Error("Games have already been played, so the lottery is locked.");
+  const o = [...teams], r = new Uint32Array(o.length); crypto.getRandomValues(r);
+  for (let i = o.length - 1; i > 0; i--) { const j = r[i] % (i + 1); [o[i], o[j]] = [o[j], o[i]]; }
+  tx.set(bracketRef, {...brBase(d), slots: o, lotteryId: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), by: by(), at: serverTimestamp()});
+});
+TBC.bracketTimes = async (start, minutes) => runTransaction(db, async tx => {
+  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null;
+  tx.set(bracketRef, {...brBase(d), start, minutes, by: by(), at: serverTimestamp()});
+});
+// res = {a, b, sa, sb} or null to clear. guard(freshDoc, results) returns a reason to refuse ("" = ok), checked on the latest data.
+TBC.bracketResult = async (gid, res, guard) => runTransaction(db, async tx => {
+  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null;
+  const results = {...((d && d.results) || {})};
+  if (res) results[gid] = res; else delete results[gid];
+  const why = guard ? guard(d, results) : ""; if (why) throw new Error(why);
+  tx.set(bracketRef, {...brBase(d), results, by: by(), at: serverTimestamp()});
+});
 // Draft lottery: shuffle the captains (fair Fisher-Yates using the browser's crypto random), save it,
 // and every open Live Draft page plays the reveal. Not allowed once the draft has started (rules).
 TBC.runLottery = async captains => {

@@ -288,6 +288,25 @@ service cloud.firestore {
         && request.resource.data.at == request.time;
     }
 
+    // Tournament bracket for a season (double elimination, 6 teams): {slots: [6 captains from the schedule lottery,
+    // slots 1-2 get byes], lotteryId, start "HH:MM" (game 1), minutes (per game), results: {g1..g11: {a, b, sa, sb}}, by, at}.
+    // Anyone can watch; editors enter scores and run the lottery; the lottery can't change once a game has a result.
+    match /bracket/{season} {
+      allow read: if true;
+      allow create, update: if isEditor() && season.matches('^[0-9]{4}$')
+        && request.resource.data.keys().hasOnly(['slots', 'lotteryId', 'start', 'minutes', 'results', 'by', 'at'])
+        && request.resource.data.keys().hasAll(['slots', 'lotteryId', 'start', 'minutes', 'results', 'by', 'at'])
+        && request.resource.data.slots is list && (request.resource.data.slots.size() == 0 || request.resource.data.slots.size() == 6)
+        && shortText(request.resource.data.lotteryId, 40)
+        && request.resource.data.start is string && request.resource.data.start.matches('^(([01][0-9]|2[0-3]):[0-5][0-9])?$')
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 10 && request.resource.data.minutes <= 240
+        && request.resource.data.results is map
+        && request.resource.data.results.keys().hasOnly(['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11'])
+        && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time
+        && (resource == null || request.resource.data.slots == resource.data.slots || resource.data.results.size() == 0);
+      allow delete: if isAdmin();
+    }
+
     // Team names for a season, keyed by captain. Editors can rename teams at or after the draft.
     match /teams/{season} {
       allow read: if true;

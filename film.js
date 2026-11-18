@@ -110,13 +110,15 @@ function filmGamesFor(name){
 const FS = {season:null, team:"", player:"", type:"", hl:false, game:"", idx:0, autoplay:true};
 function route(){
   const parts = location.hash.replace(/^#/, "").split("/");
-  const page = ["film", "history"].includes(parts[0]) ? parts[0] : "board";
+  const page = ["film", "history", "bracket"].includes(parts[0]) ? parts[0] : "board";
   document.getElementById("pg-film").hidden = page !== "film";
   document.getElementById("pg-history").hidden = page !== "history";
+  document.getElementById("pg-bracket").hidden = page !== "bracket";
   document.getElementById("pg-board").hidden = page !== "board";
   document.querySelectorAll(".navlink").forEach(a => a.classList.toggle("on", a.dataset.page === page));
   stopVideo();
   if (page === "history") { if (typeof renderHistory === "function") renderHistory(); window.scrollTo(0, 0); return; }
+  if (page === "bracket") { if (typeof renderBracket === "function") renderBracket(); window.scrollTo(0, 0); return; }
   if (page !== "film") return;
   FS.season = FS.season || seasons()[0] || new Date().getFullYear();
   if (parts[1]) {
