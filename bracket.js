@@ -8,15 +8,18 @@
 // Teams = the live draft's captains (draft/<season>.order), named and colored like the rest of the site.
 
 // a/b: {slot: i} = team in that lottery slot, {w: "gX"} = winner of game X, {l: "gX"} = loser of game X.
+// Flip the two halves for a season (Jack 11-18, 2026): the 2nd drawn first-round game (draw spots 5-6) is Game 1 on top and
+// feeds bye 1's game (Game 3); the 1st drawn game (spots 3-4) is Game 2 and feeds bye 2 (Game 4). Same matchups either way.
+const BR_FLIP = !!(typeof CURRENT_SEASON !== "undefined" && {2026: true}[CURRENT_SEASON]);
 const BR_GAMES = [
-  {id: "g1",  n: 1,  round: "Winners R1",    side: "W", a: {slot: 2}, b: {slot: 3}},
-  {id: "g2",  n: 2,  round: "Winners R1",    side: "W", a: {slot: 4}, b: {slot: 5}},
+  {id: "g1",  n: 1,  round: "Winners R1",    side: "W", a: {slot: BR_FLIP ? 4 : 2}, b: {slot: BR_FLIP ? 5 : 3}},
+  {id: "g2",  n: 2,  round: "Winners R1",    side: "W", a: {slot: BR_FLIP ? 2 : 4}, b: {slot: BR_FLIP ? 3 : 5}},
   // Pairings never change (Jack 11-18): bye 2 (Danny, top) plays the G1 winner, bye 1 (Luke, bottom) the G2 winner.
   // Only the order was tuned for rest: each round-1 winner gets one game off (G1 winner plays G3, G2 winner G4),
   // and the Winners Final comes before Losers R2 so nobody waits more than 3 games in the winners bracket.
   // Losers R1 is crossed (G3 loser v G2 loser, G4 loser v G1 loser) so nobody gets an instant rematch.
-  {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: 1}, b: {w: "g1"}},
-  {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: 0}, b: {w: "g2"}},
+  {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: BR_FLIP ? 0 : 1}, b: {w: "g1"}},
+  {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: BR_FLIP ? 1 : 0}, b: {w: "g2"}},
   {id: "g5",  n: 5,  round: "Losers R1",     side: "L", a: {l: "g3"}, b: {l: "g2"}},
   {id: "g6",  n: 6,  round: "Losers R1",     side: "L", a: {l: "g4"}, b: {l: "g1"}},
   {id: "g7",  n: 7,  round: "Winners Final", side: "W", a: {w: "g3"}, b: {w: "g4"}},
@@ -71,7 +74,10 @@ const brEsc = s => esc2(s);
 let BR_EDIT = null;            // game id whose score editor is open
 let BR_LOTTO_SEEN;             // {id, n}: lottery draw already shown (undefined = not loaded yet: don't auto-play old ones)
 // what each draw is, in order (slots[k])
-const BR_DRAWS = ["Bye #1", "Bye #2", "Game 1 · first team", "Game 1 · opponent", "Game 2 · first team", "Game 2 · opponent"];
+// what each draw spot is (slots[k]), worked out from the games: byes, then each first-round game's two teams
+const brSlotGame = k => BR_GAMES.find(g => !g.ifNeeded && g.n <= 2 && (g.a.slot === k || g.b.slot === k));
+const BR_DRAWS = [0, 1, 2, 3, 4, 5].map(k => k < 2 ? "Bye #" + (k + 1) : `Game ${brSlotGame(k).n} · ${brSlotGame(k).a.slot === k ? "first team" : "opponent"}`);
+const BR_R1 = [1, 2].map(n => { const g = BR_GAMES.find(x => x.n === n); return [g.a.slot, g.b.slot]; });   // [[slot, slot] for Game 1, Game 2]
 let BR_CHAMP_SEEN;             // champion already celebrated
 
 function brTeamChip(c, cls = ""){
@@ -181,7 +187,7 @@ function renderBracket(force){
     const chip = i => dr[i] ? brTeamChip(dr[i]) : Object.assign(document.createElement("span"), {className: "br-q", textContent: "?"});
     const by = lot.querySelector(".br-byes"); [0, 1].forEach(i => by.appendChild(chip(i)));
     const r1 = lot.querySelectorAll(".br-r1 > div");
-    [[2, 3], [4, 5]].forEach(([p, q], k) => { r1[k].append(chip(p), Object.assign(document.createElement("span"), {className: "br-vs", textContent: "vs"}), chip(q)); });
+    BR_R1.forEach(([p, q], k) => { r1[k].append(chip(p), Object.assign(document.createElement("span"), {className: "br-vs", textContent: "vs"}), chip(q)); });
     if (nd < 6 && S.realN) lot.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">🔴 Draw in progress · ${nd - S.fixedN} of ${6 - S.fixedN} picked · next: ${BR_DRAWS[nd]}</div>`);
   }
   const lb = document.createElement("div"); lb.className = "row-btns";
@@ -324,7 +330,7 @@ function brDrawOverlay(drawn, open){
   if (!ov) {
     if (!open) return null;
     ov = document.createElement("div"); ov.id = "brDrawOv"; ov.className = "lotto-ov";
-    const rows = [["Bye", [0]], ["Bye", [1]], ["Game 1", [2, 3]], ["Game 2", [4, 5]]];
+    const rows = [["Bye", [0]], ["Bye", [1]], ["Game 1", BR_R1[0]], ["Game 2", BR_R1[1]]];
     ov.innerHTML = `<div class="lotto">
         <div class="lotto-h">🦃 ${CURRENT_SEASON} Schedule Lottery</div>
         <div class="lotto-sub" id="bdSub"></div>
@@ -348,7 +354,7 @@ function brDrawState(ov, n){
   nb.hidden = !ed || n >= 6; nb.textContent = `🎰 Draw next: ${BR_DRAWS[n] || ""}`;
   const cl = ov.querySelector("#bdClose"); cl.textContent = n >= 6 ? "Done" : "Close"; cl.classList.toggle("primary", n >= 6);
 }
-const BR_SUBS = ["The first <b>bye</b> goes to…", "The second <b>bye</b> goes to…", "<b>Game 1</b> · first team…", "<b>Game 1</b> · their opponent…", "<b>Game 2</b> · first team…", "<b>Game 2</b> · their opponent…"];
+const BR_SUBS = BR_DRAWS.map((t, k) => k < 2 ? `The ${k ? "second" : "first"} <b>bye</b> goes to…` : t.replace(/^(Game \d) · (.*)$/, (m, g, w) => `<b>${g}</b> · ${w === "opponent" ? "their opponent" : w}…`));
 // Spin through the teams still left and land on pick k.
 async function brRevealPick(drawn, k){
   const fx = brFixed();

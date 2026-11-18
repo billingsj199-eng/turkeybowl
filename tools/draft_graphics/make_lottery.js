@@ -26,7 +26,9 @@ const PNG = path.join(TB, "tools", "graphics", "lottery");
     // each bye team's first game comes from bracket.js (bye 2 = Danny plays G3 on top, bye 1 = Luke plays G4); listed in game order
     byes: [0, 1].map(i => { const g = BR_GAMES.find(x => x.a.slot === i || x.b.slot === i); return S.drawn[i] ? { ...team(S.drawn[i]), game: g.n, time: brTime(B, g.n) } : { game: g.n }; })
       .sort((p, q) => p.game - q.game).map(b => b.cap ? b : null),
-    r1: [[2, 3, 1], [4, 5, 2]].map(([a, b, n]) => ({ n, time: brTime(B, n), a: S.drawn[a] ? team(S.drawn[a]) : null, b: S.drawn[b] ? team(S.drawn[b]) : null, next: n === 1 ? 3 : 4 })),   // G1 winner plays G3 (Danny), G2 winner G4 (Luke)
+    // Game 1 / Game 2 teams + where each winner goes, all from bracket.js (so a flipped bracket stays right)
+    r1: [1, 2].map(n => { const g = BR_GAMES.find(x => x.n === n), nx = BR_GAMES.find(x => x.b.w === g.id || x.a.w === g.id);
+      return { n, time: brTime(B, n), a: S.drawn[g.a.slot] ? team(S.drawn[g.a.slot]) : null, b: S.drawn[g.b.slot] ? team(S.drawn[g.b.slot]) : null, next: nx.n }; }),
     games: BR_GAMES.map(g => { const x = S.out[g.id]; return { n: g.n, round: g.round, side: g.side, ifNeeded: !!g.ifNeeded, time: brTime(B, g.n), a: side(x.A, g.a), b: side(x.B, g.b) }; }),
   };
   const name = DATA.complete ? "schedule-lottery" : "schedule-lottery-preview";
