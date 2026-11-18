@@ -3,8 +3,9 @@
 // Reads the LIVE draft + board from Firestore (public, read-only) and the board/players from index.html.
 //
 //   node tools/draft_graphics/make_round.js <round>        (run from E:\TurkeyBowl, needs Node 18+ and Chrome or Edge)
+//   node tools/draft_graphics/make_round.js 6-7            several rounds in one set (one recap with every pick, then each pick)
 //
-// Output: tools/graphics/round-<n>/01-round-<n>-recap.png, 02-pick-<n>.01.png ...  (+ out/preview.html to eyeball all slides)
+// Output: tools/graphics/round-<n>/01-round-<n>-recap.png, 02-pick-<n>.01.png ...  (rounds-6-7/ for a range; + out/preview.html)
 // Picks not made yet are filled with the best available and tagged SAMPLE (file names end in -sample).
 //
 // Grades (tiers first, then rank):
@@ -13,9 +14,10 @@
 //   - rank: 1 spot early is free, then -0.75 per spot (up to 8); each spot past board rank +0.4 (up to 8)
 //   A+ >= 2.5 > A >= 0.6 > A- >= -0.5 > B+ >= -1.25 > B >= -2 > B- >= -3 > C+ >= -4.5 > C >= -6 > D >= -8 > F
 const fs = require("fs"), path = require("path"), { spawnSync } = require("child_process");
-const ROUND = +(process.argv[2] || 0);
-if (!ROUND) { console.error("usage: node tools/draft_graphics/make_round.js <round number>"); process.exit(1); }
-const HERE = __dirname, TB = path.resolve(HERE, "../.."), OUT = path.join(HERE, "out"), PNG = path.join(TB, "tools", "graphics", "round-" + ROUND);
+const [ROUND, ROUND_END] = (m => m ? [+m[1], +(m[2] || m[1])] : [0, 0])(String(process.argv[2] || "").match(/^(\d+)(?:-(\d+))?$/));
+if (!ROUND || ROUND_END < ROUND) { console.error("usage: node tools/draft_graphics/make_round.js <round>   or   <first>-<last>  (e.g. 6-7)"); process.exit(1); }
+const TAG = ROUND_END > ROUND ? `rounds-${ROUND}-${ROUND_END}` : `round-${ROUND}`;
+const HERE = __dirname, TB = path.resolve(HERE, "../.."), OUT = path.join(HERE, "out"), PNG = path.join(TB, "tools", "graphics", TAG);
 const API = "https://firestore.googleapis.com/v1/projects/gallturkeybowl/databases/(default)/documents/";
 
 const c = v => v.stringValue ?? (v.integerValue != null ? +v.integerValue : undefined) ?? v.booleanValue ?? (v.mapValue ? Object.fromEntries(Object.entries(v.mapValue.fields || {}).map(([k, x]) => [k, c(x)])) : v.arrayValue ? (v.arrayValue.values || []).map(c) : v.nullValue === null ? null : v.timestampValue);
@@ -58,9 +60,9 @@ const get = async p => { const r = await fetch(API + p); if (!r.ok && r.status !
   const img = name => { const s = slug(name); if (photos[s]) return photos[s]; for (const e of ["jpg", "png", "jpeg", "webp"]) if (fs.existsSync(path.join(TB, "images", `${s}.${e}`))) return `../../../images/${s}.${e}`; return ""; };
 
   const rounds = Math.ceil(L.pool.length / n);
-  if (ROUND > rounds) throw new Error(`There are only ${rounds} rounds.`);
+  if (ROUND_END > rounds) throw new Error(`There are only ${rounds} rounds.`);
   const picks = [...L.picks], sample = new Set();
-  const first = (ROUND - 1) * n, last = Math.min(ROUND * n, L.pool.length) - 1;
+  const first = (ROUND - 1) * n, last = Math.min(ROUND_END * n, L.pool.length) - 1;
   for (let i = picks.length; i <= last; i++) { const nxt = L.pool.filter(x => !picks.includes(x)).sort((a, b) => (byName[a]?.rank ?? 1e6) - (byName[b]?.rank ?? 1e6))[0]; picks.push(nxt); sample.add(i); }
 
   const H = FD.history || {};
@@ -109,7 +111,7 @@ const get = async p => { const r = await fetch(API + p); if (!r.ok && r.status !
   const round = []; for (let i = first; i <= last; i++) round.push(pickData(i));
   const steal = round.reduce((a, b) => b.score > a.score ? b : a), reach = round.reduce((a, b) => b.score < a.score ? b : a);
   const nextRound = last + 1 < L.pool.length ? { label: label(last + 1), team: teamName(owner(last + 1)), color: teamColor(owner(last + 1)) } : null;
-  const DATA = { season: SEASON, round: ROUND, rounds, picks: round, steal: steal.name, reach: reach.score < -0.5 ? reach.name : null, nextRound };
+  const DATA = { season: SEASON, round: ROUND, roundEnd: ROUND_END, rounds, picks: round, steal: steal.name, reach: reach.score < -0.5 ? reach.name : null, nextRound };
 
   // ---- write pages, then screenshot each slide at 1080x1350 ----
   const tpl = fs.readFileSync(path.join(HERE, "template.html"), "utf8").replace("/*DATA*/null", () => JSON.stringify(DATA));
@@ -118,7 +120,7 @@ const get = async p => { const r = await fetch(API + p); if (!r.ok && r.status !
   fs.readdirSync(PNG).filter(f => f.endsWith(".png")).forEach(f => fs.unlinkSync(path.join(PNG, f)));
   const browser = ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe"].find(f => fs.existsSync(f));
   if (!browser) throw new Error("Chrome or Edge not found. Open out/preview.html to see the slides.");
-  const names = [`01-round-${ROUND}-recap`, ...round.map((p, k) => `${String(k + 2).padStart(2, "0")}-pick-${p.label}${p.sample ? "-sample" : ""}`)];
+  const names = [`01-${TAG}-recap`, ...round.map((p, k) => `${String(k + 2).padStart(2, "0")}-pick-${p.label}${p.sample ? "-sample" : ""}`)];
   names.forEach((nm, k) => {
     const page = path.join(OUT, `slide_${k}.html`);
     fs.writeFileSync(page, tpl.replace("/*SINGLE*/null", String(k)));
@@ -126,6 +128,6 @@ const get = async p => { const r = await fetch(API + p); if (!r.ok && r.status !
       "--virtual-time-budget=8000", `--user-data-dir=${path.join(OUT, ".profile")}`, `--screenshot=${path.join(PNG, nm + ".png")}`, "file:///" + page.replace(/\\/g, "/")], { encoding: "utf8", timeout: 90000 });
     if (!fs.existsSync(path.join(PNG, nm + ".png"))) throw new Error("Couldn't render " + nm + ": " + (r.stderr || r.error || "").toString().slice(-300));
   });
-  console.log(`Round ${ROUND}: ${names.length} images in ${path.relative(TB, PNG)}`);
+  console.log(`${TAG}: ${names.length} images in ${path.relative(TB, PNG)}`);
   round.forEach(p => console.log(`  ${p.label} ${p.team.name}: ${p.name}  ${p.grade}${p.sample ? "  (SAMPLE: not picked yet)" : ""}`));
 })().catch(e => { console.error("Error:", e.message); process.exit(1); });

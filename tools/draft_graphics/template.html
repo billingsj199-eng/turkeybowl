@@ -53,6 +53,15 @@
   .rr-name .sub{display:flex;align-items:center;gap:10px;margin-top:10px}
   .rr-name .sub .col{font-size:20px}
   .rr-row .sample{right:118px;top:10px;font-size:12px}
+  /* compact rows when a recap covers more than one round (up to ~11 picks) */
+  .rr.cmp .rr-list{gap:8px}
+  .rr.cmp .rr-row{gap:16px;border-radius:12px}
+  .rr.cmp .rr-pk{width:112px} .rr.cmp .rr-pk b{font-size:32px} .rr.cmp .rr-pk small{font-size:12px;margin-top:2px}
+  .rr.cmp .rr-team{width:132px;gap:3px;font-size:14px}
+  .rr.cmp .rr-name .nm{font-size:30px}
+  .rr.cmp .rr-name .sub{margin-top:5px;gap:8px}
+  .rr.cmp .tier{font-size:16px;padding:2px 8px}
+  .rr.cmp .rr-name .sub .col{font-size:16px} .rr.cmp .col img{width:24px;height:24px} .rr.cmp .col b{width:24px;height:24px;font-size:10px}
   .rr-foot{position:absolute;left:56px;right:56px;bottom:36px}
   .rr-awards{display:flex;gap:12px}
   .rr-aw{flex:1;display:flex;align-items:center;gap:14px;padding:12px 18px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff12}
@@ -110,6 +119,7 @@
   .pk-bot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;color:var(--muted);font:600 20px Inter}
   .pk-bot .next b{color:var(--ink)} .pk-bot .url{color:var(--accent);font:600 20px Oswald;letter-spacing:.12em}
   .pk .sample{right:56px;top:104px}
+  .pk.long .pk-bd{top:690px}   /* 8-name roster rows wrap to two lines: give them room */
 </style></head>
 <body>
 <div class="page-h"><h1>🦃 Draft graphics · mock</h1>
@@ -133,34 +143,36 @@ const teamBadge = (t, size) => t.logo && !/^data:/.test(t.logo)
 const tierLbl = t => t === "NA" ? "Unranked" : t + " Tier";
 
 function recap(d){
-  const ps = d.picks, rh = ps.length > 6 ? 100 : 122;
+  const ps = d.picks, multi = d.roundEnd > d.round, cmp = ps.length > 6;
+  const rh = cmp ? Math.min(100, Math.floor((850 - 8 * (ps.length - 1)) / ps.length)) : 122;
+  const which = multi ? `rounds ${d.round}–${d.roundEnd}` : "the round";
   const steal = ps.find(p => p.name === d.steal), reach = d.reach && ps.find(p => p.name === d.reach);
-  return `<div class="art rr">
+  return `<div class="art rr${cmp ? " cmp" : ""}">
     <div class="rr-top"><div><div class="brand">🦃 Turkey Bowl ${d.season} Draft</div>
-      <div class="rr-title">Round ${d.round}<span>Recap</span></div></div>
+      <div class="rr-title">${multi ? `Rounds ${d.round}–${d.roundEnd}` : `Round ${d.round}`}<span>Recap</span></div></div>
       <div class="rr-range">Picks<b>${ps[0].overall}–${ps[ps.length - 1].overall}</b>of ${d.rounds} rounds</div></div>
     <div class="rr-list">${ps.map(p => `
       <div class="rr-row" style="--team:${p.team.color};--rh:${rh}px">
         <div class="rr-pk"><b>${p.label}</b><small>#${p.overall} OVR</small></div>
-        <div class="rr-team">${teamBadge(p.team, 54)}<div>${esc(p.team.name)}${p.team.viaTrade ? `<small><br>via ${esc(p.team.viaTrade)}</small>` : ""}</div></div>
-        ${hs(p.img, p.name, rh - 30, `var(--t-${p.tier})`)}
+        <div class="rr-team">${teamBadge(p.team, cmp ? 34 : 54)}<div>${esc(p.team.name)}${p.team.viaTrade ? `<small><br>via ${esc(p.team.viaTrade)}</small>` : ""}</div></div>
+        ${hs(p.img, p.name, rh - (cmp ? 16 : 30), `var(--t-${p.tier})`)}
         <div class="rr-name"><div class="nm"><i>${esc(p.first)}</i> ${esc(p.last)}</div>
           <div class="sub"><span class="tier" style="--tc:var(--t-${p.tier})">${tierLbl(p.tier)}</span>${p.rank ? `<span class="col">FLEX #${p.rank}</span>` : ""}${colTag(p.college)}</div></div>
-        <div class="grade" style="--gc:${GC[p.grade]};width:84px;height:84px;font-size:40px">${p.grade}</div>
+        <div class="grade" style="--gc:${GC[p.grade] || "#6c7689"};width:${cmp ? 58 : 84}px;height:${cmp ? 58 : 84}px;font-size:${cmp ? 28 : 40}px">${p.grade}</div>
         ${p.sample ? `<span class="sample">SAMPLE</span>` : ""}
       </div>`).join("")}</div>
     <div class="rr-foot">
       <div class="rr-awards">
-        ${steal ? `<div class="rr-aw"><span class="e">💎</span><div><div class="k">Steal of the round</div><div class="v">${esc(steal.name)} <small style="color:var(--muted);font-size:20px">${steal.label}</small></div></div></div>` : ""}
+        ${steal ? `<div class="rr-aw"><span class="e">💎</span><div><div class="k">Steal of ${which}</div><div class="v">${esc(steal.name)} <small style="color:var(--muted);font-size:20px">${steal.label}</small></div></div></div>` : ""}
         ${reach ? `<div class="rr-aw"><span class="e">🎯</span><div><div class="k">Biggest reach</div><div class="v">${esc(reach.name)} <small style="color:var(--muted);font-size:20px">${reach.label}</small></div></div></div>` : ""}
       </div>
-      <div class="rr-bot"><span class="next">${d.nextRound ? `Round ${d.round + 1} · <b>${esc(d.nextRound.team)}</b> on the clock` : "Draft complete"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+      <div class="rr-bot"><span class="next">${d.nextRound ? `Round ${d.roundEnd + 1} · <b>${esc(d.nextRound.team)}</b> on the clock` : "Draft complete"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
     </div></div>`;
 }
 
 function pick(p, d){
   const v = p.value, vtxt = p.rank ? (v > 0 ? "+" + v : String(v)) : "—";
-  return `<div class="art pk" style="--team:${p.team.color}">
+  return `<div class="art pk${p.roster.length >= 6 ? " long" : ""}" style="--team:${p.team.color}">
     <div class="pk-wm">${p.label}</div>
     <div class="pk-top"><div class="brand">🦃 Turkey Bowl ${d.season} Draft</div><div class="pk-slot">Round <b>${p.round}</b> · Pick <b>${p.label.split(".")[1].replace(/^0/, "")}</b> · <b>#${p.overall}</b> overall</div></div>
     <div class="pk-in">${teamBadge(p.team, 74)}<div><div class="k">THE PICK IS IN</div><div class="t">${esc(p.team.name)} select${p.team.name.endsWith("s") ? "" : "s"}<small>Captain ${esc(p.team.cap)}${p.team.viaTrade ? ` · pick via ${esc(p.team.viaTrade)}` : ""}</small></div></div></div>
