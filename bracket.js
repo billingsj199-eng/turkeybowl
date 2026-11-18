@@ -11,11 +11,12 @@
 const BR_GAMES = [
   {id: "g1",  n: 1,  round: "Winners R1",    side: "W", a: {slot: 2}, b: {slot: 3}},
   {id: "g2",  n: 2,  round: "Winners R1",    side: "W", a: {slot: 4}, b: {slot: 5}},
-  // Order chosen for rest (Jack 11-18): each round-1 winner gets one game off before round 2 (G1 winner plays G3, G2 winner G4),
+  // Pairings never change (Jack 11-18): bye 2 (Danny, top) plays the G1 winner, bye 1 (Luke, bottom) the G2 winner.
+  // Only the order was tuned for rest: each round-1 winner gets one game off (G1 winner plays G3, G2 winner G4),
   // and the Winners Final comes before Losers R2 so nobody waits more than 3 games in the winners bracket.
   // Losers R1 is crossed (G3 loser v G2 loser, G4 loser v G1 loser) so nobody gets an instant rematch.
-  {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: 0}, b: {w: "g1"}},
-  {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: 1}, b: {w: "g2"}},
+  {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: 1}, b: {w: "g1"}},
+  {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: 0}, b: {w: "g2"}},
   {id: "g5",  n: 5,  round: "Losers R1",     side: "L", a: {l: "g3"}, b: {l: "g2"}},
   {id: "g6",  n: 6,  round: "Losers R1",     side: "L", a: {l: "g4"}, b: {l: "g1"}},
   {id: "g7",  n: 7,  round: "Winners Final", side: "W", a: {w: "g3"}, b: {w: "g4"}},
