@@ -252,6 +252,37 @@ TBC.runLottery = async captains => {
   await setDoc(doc(db, "lottery", DRAFT_ID), {order: o, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), by: by(), at: serverTimestamp()});
   return o;
 };
+// ---- Bracket Challenge: challenge/<season> {locked}, challenge/<season>/entries/{uid} {name, picks, tiebreak} ----
+// Your own entry is always readable; everyone's entries only once the challenge locks (no copying before kickoff).
+const chRef = doc(db, "challenge", DRAFT_ID), entriesCol = collection(db, "challenge", DRAFT_ID, "entries");
+TBC.challenge = null; TBC.myEntry = null; TBC.entries = null;   // entries: null = not visible yet (not locked)
+onSnapshot(chRef, d => { TBC.challenge = d.exists() ? d.data() : null; watchEntries(); changed(); },
+  err => console.warn("Turkey Bowl cloud: couldn't load the bracket challenge", err));
+// Locked = Game 1 kickoff has passed (bracket.js brKickoff), an editor locked it, or a score is in. Same as firestore.rules chLocked.
+TBC.challengeKickoff = () => (typeof window.brKickoff === "function" ? window.brKickoff(TBC.bracket) : null);
+TBC.challengeLocked = () => { const k = TBC.challengeKickoff();
+  return !!((k != null && Date.now() >= k) || (TBC.challenge && TBC.challenge.locked) || (TBC.bracket && Object.keys(TBC.bracket.results || {}).length)); };
+// flip every open page to "locked" right at kickoff, no reload needed
+let chWasLocked = null;
+setInterval(() => { const l = TBC.challengeLocked(); if (chWasLocked !== null && l !== chWasLocked) changed(); chWasLocked = l; }, 10000);
+let entriesUnsub = null, myEntryUnsub = null;
+function watchEntries(){
+  if (!TBC.challengeLocked() || entriesUnsub) return;
+  entriesUnsub = onSnapshot(entriesCol, snap => { const a = []; snap.forEach(d => a.push({uid: d.id, ...d.data()})); TBC.entries = a; changed(); },
+    err => { entriesUnsub = null; TBC.entries = null; });   // not locked yet on the server: try again on the next change
+}
+document.addEventListener("tbc-change", () => watchEntries());
+onAuthStateChanged(auth, u => {
+  if (myEntryUnsub) { myEntryUnsub(); myEntryUnsub = null; }
+  TBC.myEntry = null;
+  if (u) myEntryUnsub = onSnapshot(doc(entriesCol, u.uid), d => { TBC.myEntry = d.exists() ? d.data() : null; changed(); }, () => {});
+});
+TBC.saveEntry = async (picks, tiebreak) => {
+  const u = TBC.user; if (!u) throw new Error("Sign in first.");
+  await setDoc(doc(entriesCol, u.uid), {name: (u.name || "Someone").slice(0, 60), picks, tiebreak, at: serverTimestamp()});
+};
+TBC.deleteEntry = async () => { const u = TBC.user; if (u) await deleteDoc(doc(entriesCol, u.uid)); };
+TBC.setChallengeLock = async locked => setDoc(chRef, {locked, by: by(), at: serverTimestamp()});
 // Rename a team (keyed by its captain). Empty name = back to "Team <captain's last name>".
 TBC.saveTeamName = async (capSlug, name) => {
   const names = {...TBC.teamNames};

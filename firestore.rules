@@ -307,6 +307,44 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Bracket Challenge for a season. challenge/{season} {locked} (editors lock at kickoff); entries/{uid} = one signed-in
+    // person's picks {name, picks: {g1..g11: captain}, tiebreak (total points in Game 10), at}. You can only write your own entry,
+    // and only until the challenge locks (Game 1 kickoff, an editor locks it, or the first score is entered). Nobody can see anyone else's
+    // picks until then (no copying); after that everyone can see every bracket.
+    // Game 1 kickoff for a season: Thanksgiving + the bracket's start time ("HH:MM", Eastern = UTC-5 in late November).
+    // Picks lock and everyone's brackets become visible at that moment (server clock).
+    function chKickoff(season) {
+      let days = {'2026': [2026, 11, 26]};
+      let b = /databases/$(database)/documents/bracket/$(season);
+      return season in days && exists(b) && get(b).data.start.matches('^[0-9]{2}:[0-9]{2}$')
+        && request.time >= timestamp.date(days[season][0], days[season][1], days[season][2])
+             + duration.value(int(get(b).data.start.split(':')[0]) * 60 + int(get(b).data.start.split(':')[1]) + 300, 'm');
+    }
+    function chLocked(season) {
+      return chKickoff(season) || (exists(/databases/$(database)/documents/challenge/$(season)) && get(/databases/$(database)/documents/challenge/$(season)).data.get('locked', false) == true)
+        || (exists(/databases/$(database)/documents/bracket/$(season)) && get(/databases/$(database)/documents/bracket/$(season)).data.results.size() > 0);
+    }
+    match /challenge/{season} {
+      allow read: if true;
+      allow create, update: if isEditor() && season.matches('^[0-9]{4}$')
+        && request.resource.data.keys().hasOnly(['locked', 'by', 'at'])
+        && request.resource.data.locked is bool
+        && shortText(request.resource.data.by, 60) && request.resource.data.at == request.time;
+      match /entries/{uid} {
+        allow get: if (signedIn() && request.auth.uid == uid) || chLocked(season);
+        allow list: if chLocked(season);
+        allow create, update: if signedIn() && request.auth.uid == uid && !chLocked(season)
+          && request.resource.data.keys().hasOnly(['name', 'picks', 'tiebreak', 'at'])
+          && request.resource.data.keys().hasAll(['name', 'picks', 'tiebreak', 'at'])
+          && shortText(request.resource.data.name, 60)
+          && request.resource.data.picks is map && request.resource.data.picks.size() <= 11
+          && request.resource.data.picks.keys().hasOnly(['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11'])
+          && request.resource.data.tiebreak is int && request.resource.data.tiebreak >= 0 && request.resource.data.tiebreak <= 300
+          && request.resource.data.at == request.time;
+        allow delete: if (signedIn() && request.auth.uid == uid && !chLocked(season)) || isAdmin();
+      }
+    }
+
     // Team names for a season, keyed by captain. Editors can rename teams at or after the draft.
     match /teams/{season} {
       allow read: if true;

@@ -69,6 +69,15 @@ const brTime = (B, n) => {
   const hh = Math.floor(t / 60) % 24, mm = t % 60;
   return `${(hh % 12) || 12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
 };
+// Game 1 kickoff: Thanksgiving + the start time, Eastern (UTC-5). Must match firestore.rules chKickoff.
+// The Bracket Challenge locks (and everyone's picks show) at this moment.
+const BR_DAYS = {2026: [2026, 11, 26]};
+function brKickoff(B){
+  const d = typeof CURRENT_SEASON !== "undefined" && BR_DAYS[CURRENT_SEASON], st = B && typeof B.start === "string" ? B.start : "10:00";
+  if (!d || !/^\d\d:\d\d$/.test(st)) return null;
+  const [h, m] = st.split(":").map(Number);
+  return Date.UTC(d[0], d[1] - 1, d[2]) + (h * 60 + m + 300) * 60000;
+}
 const brTeams = () => (window.TBC && TBC.live && Array.isArray(TBC.live.order) && TBC.live.order.length ? TBC.live.order : captains).slice();
 const brEsc = s => esc2(s);
 let BR_EDIT = null;            // game id whose score editor is open
@@ -105,6 +114,7 @@ function brGameCard(x, S, B, ed){
   card.append(brLine(x, "a"), brLine(x, "b"));
   const hint = g.side === "F" ? (g.ifNeeded ? "Winner takes the title" : "If the losers-bracket team wins, Game 11 decides it") : `W → ${brNext(g.id, "w")} · L → ${brNext(g.id, "l")}`;
   card.insertAdjacentHTML("beforeend", `<div class="br-hint">${brEsc(hint)}</div>`);
+  const mu = document.createElement("button"); mu.type = "button"; mu.className = "btn br-mu-btn"; mu.textContent = "👥 Matchup · rosters"; mu.onclick = () => brMatchup(g.id); card.appendChild(mu);
   if (x.stale) card.insertAdjacentHTML("beforeend", `<div class="br-warn">⚠ A saved score doesn't match these teams any more. Re-enter it.</div>`);
   if (ed && x.A && x.B) {
     if (BR_EDIT === g.id) card.appendChild(brScoreEditor(x, B));
@@ -149,6 +159,7 @@ function brScoreEditor(x, B){
   return d;
 }
 
+let BR_VIEW = /challenge/.test(location.hash) ? "challenge" : "bracket";   // which tab of the Bracket page
 let BR_PENDING = false;      // an update came in while someone was typing: redraw when they leave the box
 function renderBracket(force){
   const root = document.getElementById("pg-bracket"); if (!root || root.hidden) return;
@@ -160,6 +171,16 @@ function renderBracket(force){
     <div class="summary"><span class="hl">DOUBLE ELIMINATION</span> &nbsp; ${teams.length} teams · one field, back to back · two losses and you're out</div>`;
   if (!window.TBC || !TBC.bracketReady) { root.insertAdjacentHTML("beforeend", `<div class="empty">Loading the bracket…</div>`); return; }
   if (teams.length !== 6) { root.insertAdjacentHTML("beforeend", `<div class="empty">The bracket is set up for 6 teams (there are ${teams.length} captains right now).</div>`); return; }
+
+  // ---- tabs: the bracket / the Bracket Challenge (challenge.js) ----
+  const tabs = document.createElement("div"); tabs.className = "br-tabs";
+  [["bracket", "🏆 Bracket"], ["challenge", "🎯 Bracket Challenge"]].forEach(([v, t]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn view" + (BR_VIEW === v ? " on" : ""); b.textContent = t;
+    b.onclick = () => { BR_VIEW = v; renderBracket(true); };
+    tabs.appendChild(b);
+  });
+  root.appendChild(tabs);
+  if (BR_VIEW === "challenge" && typeof renderChallenge === "function") { renderChallenge(root, S, B, ed); return; }
 
   // champion
   if (S.champion) {
@@ -175,6 +196,7 @@ function renderBracket(force){
   const pic = document.createElement("div"); pic.className = "br-pic";
   pic.innerHTML = `<div class="br-pic-h"><span class="lbl2">The bracket</span><button class="btn" type="button">⤢ Full screen</button></div><div class="br-pic-in">${brSvg(S, B)}</div>`;
   pic.querySelector("button").onclick = () => brFullBracket();
+  brWireSvg(pic);
   root.appendChild(pic);
 
   const wrap = document.createElement("div"); wrap.className = "br-top";
@@ -279,7 +301,7 @@ function brSvg(S, B){
   BR_GAMES.forEach(g => {
     const x = S.out[g.id], b = box(g.id), nx = S.next && S.next.g.id === g.id;
     const tm = x.r ? "FINAL" : g.ifNeeded && !x.needed ? "NOT NEEDED" : "~" + brTime(B, g.n);
-    out.push(`<g class="gm${nx ? " nx" : ""}${!x.needed ? " skip" : ""}">
+    out.push(`<g class="gm${nx ? " nx" : ""}${!x.needed ? " skip" : ""}" data-g="${g.id}">
       <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.ifNeeded ? " · IF NEEDED" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt" text-anchor="end">${tm}</text>
       <rect x="${b.x}" y="${b.y}" width="${BRW}" height="${BRH}" rx="8" class="bx"/>
       <line x1="${b.x}" y1="${b.y + BRH / 2}" x2="${b.x + BRW}" y2="${b.y + BRH / 2}" class="mid"/>`);
@@ -302,9 +324,55 @@ function brFullBracket(){
   const ov = document.createElement("div"); ov.className = "ov br-full";
   ov.innerHTML = `<div class="br-full-in"><div class="br-pic-h"><span class="lbl2">${CURRENT_SEASON} Turkey Bowl bracket · turn your phone sideways for a bigger view</span><button class="btn" type="button">✕ Close</button></div>${brSvg(brState(window.TBC && TBC.bracket), window.TBC && TBC.bracket)}</div>`;
   const close = () => { ov.remove(); document.removeEventListener("tbc-change", redraw); };
-  const redraw = () => { const s = ov.querySelector("svg"); if (s) s.outerHTML = brSvg(brState(TBC.bracket), TBC.bracket); };
+  const redraw = () => { const s = ov.querySelector("svg"); if (s) { s.outerHTML = brSvg(brState(TBC.bracket), TBC.bracket); brWireSvg(ov); } };
   ov.querySelector("button").onclick = close; ov.addEventListener("click", e => { if (e.target === ov) close(); });
   document.addEventListener("tbc-change", redraw);
+  document.body.appendChild(ov); brWireSvg(ov);
+}
+
+// ===== Matchup pop-up: tap a game → both teams' rosters side by side =====
+function brWireSvg(host){ host.querySelectorAll("svg.br-svg g.gm[data-g]").forEach(el => { el.onclick = () => brMatchup(el.dataset.g); }); }
+function brMatchup(gid){
+  const B = window.TBC && TBC.bracket, S = brState(B), x = S.out[gid], g = x.g, L = window.TBC && TBC.live;
+  document.getElementById("brMuOv")?.remove();
+  const ov = document.createElement("div"); ov.id = "brMuOv"; ov.className = "ov br-mu-ov";
+  const head = x.r ? `Final · ${x.r.sa}-${x.r.sb}` : !x.needed ? "Not needed" : "~" + brTime(B, g.n);
+  ov.innerHTML = `<div class="br-mu"><div class="br-mu-h"><div><b>Game ${g.n}</b> · ${brEsc(g.round)} <span class="psub">${brEsc(head)}</span></div><button class="pc-close" aria-label="Close">✕</button></div><div class="br-mu-cols"></div><div class="br-mu-tiers"></div></div>`;
+  const cols = ov.querySelector(".br-mu-cols"), W = c => Object.values(S.out).filter(y => y.winner === c).length, Lc = c => S.losses[c] || 0;
+  const tierCount = c => { const t = {}; (L ? rosterOf(L, c) : []).forEach(r => { const p = byName[r.name]; if (p) t[p.tier] = (t[p.tier] || 0) + 1; }); return t; };
+  const side = (c, src, k) => {
+    const col = document.createElement("div"); col.className = "br-mu-col" + (x.winner && x.winner === c ? " win" : x.loser && x.loser === c ? " lose" : "");
+    if (!c) {
+      // not decided yet: say who it could be
+      const from = src.w || src.l, fx = from && S.out[from];
+      const could = fx && fx.A && fx.B ? `${brEsc(draftTeamName(fx.A))} or ${brEsc(draftTeamName(fx.B))}` : "";
+      col.innerHTML = `<div class="br-mu-tbd"><b>${brEsc(brSrc(src))}</b>${could ? `<div class="psub">${could}</div>` : ""}</div>`;
+      return col;
+    }
+    if (teamColor(c)) col.style.setProperty("--team", teamColor(c));
+    const top = document.createElement("div"); top.className = "br-mu-team"; top.appendChild(teamBadge(c));
+    top.insertAdjacentHTML("beforeend", `<div><div class="br-mu-tn">${brEsc(draftTeamName(c))}</div><div class="psub">Captain ${brEsc(c)} · ${W(c)}-${Lc(c)} today</div></div>${x.r ? `<span class="br-mu-sc">${k ? x.r.sb : x.r.sa}</span>` : ""}`);
+    col.appendChild(top);
+    const list = document.createElement("div"); list.className = "br-mu-list";
+    const row = (name, sub) => {
+      const p = byName[name], r = document.createElement("button"); r.type = "button"; r.className = "br-mu-p";
+      if (p) { r.style.setProperty("--tc", `var(--t-${p.tier})`); r.appendChild(headshot(p)); }
+      r.insertAdjacentHTML("beforeend", `<span class="br-mu-pn">${brEsc(name)}<small>${sub}</small></span>${colLogo(name)}${p && p.tier !== "QB" ? `<span class="pill">${tlabel(p.tier)}</span>` : ""}`);
+      if (p) r.onclick = () => { ov.remove(); openCard(name); };
+      list.appendChild(r);
+    };
+    row(c, "Captain · QB");
+    (L ? rosterOf(L, c) : []).forEach(r => row(r.name, `${byName[r.name] ? byName[r.name].prank + " · " : ""}Pick ${pickLabel(L, r.i)}`));
+    col.appendChild(list);
+    return col;
+  };
+  cols.append(side(x.A, g.a, 0), Object.assign(document.createElement("div"), {className: "br-mu-vs", textContent: x.r ? "FINAL" : "VS"}), side(x.B, g.b, 1));
+  if (x.A && x.B) {   // quick tier-by-tier comparison
+    const ta = tierCount(x.A), tb = tierCount(x.B);
+    ov.querySelector(".br-mu-tiers").innerHTML = `<div class="lbl2">Tier by tier</div><div class="br-mu-tgrid">${["S", "A", "B", "C", "D"].map(t => `<span style="--tc:var(--t-${t})"><b>${ta[t] || 0}</b><i>${t}</i><b>${tb[t] || 0}</b></span>`).join("")}</div>`;
+  }
+  const close = () => ov.remove();
+  ov.querySelector(".pc-close").onclick = close; ov.addEventListener("click", e => { if (e.target === ov) close(); });
   document.body.appendChild(ov);
 }
 
