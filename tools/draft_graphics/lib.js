@@ -105,11 +105,12 @@ async function load(fillTo = null) {
 }
 
 // Write the pages, then screenshot each slide (1080x1350) into pngDir. names[k] = file name of slide k (no .png).
-function render(templateFile, DATA, names, pngDir) {
+// clear: delete the folder's old PNGs first (round carousels); false keeps them (bracket updates through the day).
+function render(templateFile, DATA, names, pngDir, { clear = true } = {}) {
   const tpl = fs.readFileSync(path.join(HERE, templateFile), "utf8").replace("/*DATA*/null", () => JSON.stringify(DATA));
   fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(pngDir, { recursive: true });
   fs.writeFileSync(path.join(OUT, "preview.html"), tpl);
-  fs.readdirSync(pngDir).filter(f => f.endsWith(".png")).forEach(f => fs.unlinkSync(path.join(pngDir, f)));
+  if (clear) fs.readdirSync(pngDir).filter(f => f.endsWith(".png")).forEach(f => fs.unlinkSync(path.join(pngDir, f)));
   const browser = ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe"].find(f => fs.existsSync(f));
   if (!browser) throw new Error("Chrome or Edge not found. Open out/preview.html to see the slides.");
   names.forEach((nm, k) => {
