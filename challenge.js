@@ -144,7 +144,7 @@ function chSvg(picks, slots, mode, S){
   out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="62" rx="10" class="champ${ch ? " won" : ""}${cm ? " " + cm : ""}"/>
     <text x="${cb.x + BRW / 2}" y="${cb.y + 22}" class="cl" text-anchor="middle">🏆 ${mode === "pick" ? "YOUR CHAMPION" : "CHAMPION PICK"}${cm === "ok" ? " · +" + CH_CHAMP : cm === "no" ? " · ✗" : " · " + CH_CHAMP}</text>
     <text x="${cb.x + BRW / 2}" y="${cb.y + 47}" class="cn${ch ? "" : " tbd"}" text-anchor="middle">${e(ch ? draftTeamName(ch) : "Pick through G10")}</text>`);
-  return `<div class="br-pic-in"><svg class="br-svg ch-svg" viewBox="0 0 1000 600" role="img" aria-label="Bracket picks">${out.join("")}</svg></div>`;
+  return `<div class="br-pic-in"><svg class="br-svg ch-svg" viewBox="0 0 1000 600" role="img" aria-label="Bracket picks">${out.join("")}</svg></div><div class="swipe-hint">← Swipe sideways for Games 7-11 and your champion →</div>`;
 }
 let CH_LIST = false;   // list view instead of the bracket (phones)
 const chToggle = () => `<div class="ch-tg"><button type="button" class="btn${CH_LIST ? "" : " on"}" data-l="0">Bracket view</button><button type="button" class="btn${CH_LIST ? " on" : ""}" data-l="1">List view</button></div>`;

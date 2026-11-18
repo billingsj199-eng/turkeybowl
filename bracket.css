@@ -193,7 +193,7 @@
 .ch-wrap{grid-template-columns:minmax(0,1fr) !important}
 .ch-mh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .ch-tg{display:flex;gap:6px;margin-bottom:8px}
-.ch-tg .btn{padding:5px 10px;font-size:12px}
+.ch-tg .btn{padding:8px 12px;font-size:13px}
 .ch-svg .hit{fill:transparent;cursor:pointer}
 .ch-svg .hit:hover{fill:#ffffff14}
 .ch-svg .pk{fill:#2a2210;stroke:var(--accent);stroke-width:1.5}
@@ -237,3 +237,12 @@
 .mt-del{background:none;border:0;padding:0;color:#ef8b80;font:inherit;cursor:pointer}
 .mt-send{display:flex;gap:8px;margin-top:10px}
 .mt-send input{flex:1;min-width:0;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font:inherit}
+
+/* phones: iPhone Safari zooms in when you tap a text box smaller than 16px, so every box is 16px on small screens */
+@media (max-width:760px){
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea{font-size:16px !important}
+}
+
+/* phones: wide things (bracket, stats) scroll sideways inside their box; say so */
+.swipe-hint{display:none;text-align:center;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px}
+@media (max-width:760px){ .swipe-hint{display:block} }

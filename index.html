@@ -242,16 +242,16 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .ab-admin,.ab-editor{background:#2a2210;color:#f1d39a}
   .ab-menu{display:flex;align-items:center;gap:8px}
   .ab-toggle{display:none}
-  @media (max-width:700px){ .ab-name,.ab-chip{display:none} }
-  /* phones: account buttons fold into one menu button; nav links tighten; long names shorten */
-  .nm-s{display:none}
-  @media (max-width:600px){
-    .nm-f{display:none} .nm-s{display:inline}
+  /* nav: full labels on wide screens; short labels (Board · Bracket · My Team · Film · History) below 1100px;
+     brand text + your name hide below 900px; account buttons fold into one round menu button below 760px */
+  .topnav .navlink{white-space:nowrap}
+  @media (max-width:1100px){
+    .topnav .nl-l,.topnav .nl-e{display:none}
+    .topnav .navlink{padding:16px 9px}
+  }
+  @media (max-width:900px){ .topnav .brand-t,.ab-name,.ab-chip{display:none} .topnav .brand{margin-right:8px} }
+  @media (max-width:760px){
     .topnav .topnav-in{position:relative;padding:0 10px;gap:0}
-    .topnav .brand-t{display:none} .topnav .brand{margin-right:6px}
-    .topnav .navlink{padding:16px 6px;font-size:11px;letter-spacing:.03em;white-space:nowrap}
-    .topnav .nl-l,.topnav .nl-e{display:none}   /* short nav labels on phones: Board · Bracket · My Team · Film · History */
-    @media (max-width:380px){ .topnav .navlink{padding:16px 4px;font-size:10.5px} }
     .ab-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--gold);background:#1b2336;color:var(--gold);font:700 13px Inter,sans-serif;cursor:pointer}
     .ab-menu{display:none;position:absolute;right:10px;top:50px;flex-direction:column;align-items:stretch;gap:6px;background:#151c2c;border:1px solid #2a3449;border-radius:10px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:30;min-width:190px}
     .authbox.open .ab-menu{display:flex}
@@ -259,6 +259,14 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     .ab-menu .obtn{width:100%;justify-content:center}
     #abIn{padding:6px 10px}
   }
+  /* phones: nav links tighten; long names shorten */
+  .nm-s{display:none}
+  @media (max-width:600px){
+    .nm-f{display:none} .nm-s{display:inline}
+    .topnav .brand{margin-right:6px}
+    .topnav .navlink{padding:16px 6px;font-size:11px;letter-spacing:.03em}
+  }
+  @media (max-width:380px){ .topnav .navlink{padding:16px 4px;font-size:10.5px} }
   .adminpc{max-width:560px}
   /* live draft */
   .live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4b3f;box-shadow:0 0 0 0 rgba(239,75,63,.7);animation:lvpulse 1.4s infinite}

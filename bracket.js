@@ -194,7 +194,7 @@ function renderBracket(force){
 
   // ---- the bracket graphic (top of the page) ----
   const pic = document.createElement("div"); pic.className = "br-pic";
-  pic.innerHTML = `<div class="br-pic-h"><span class="lbl2">The bracket</span><button class="btn" type="button">⤢ Full screen</button></div><div class="br-pic-in">${brSvg(S, B)}</div>`;
+  pic.innerHTML = `<div class="br-pic-h"><span class="lbl2">The bracket</span><button class="btn" type="button">⤢ Full screen</button></div><div class="br-pic-in">${brSvg(S, B)}</div><div class="swipe-hint">← Swipe sideways for the rest of the bracket · or tap Full screen →</div>`;
   pic.querySelector("button").onclick = () => brFullBracket();
   brWireSvg(pic);
   root.appendChild(pic);

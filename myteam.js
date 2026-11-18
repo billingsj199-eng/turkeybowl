@@ -81,6 +81,7 @@ function mtRoster(pane, cap, L){
     tb.appendChild(tr);
   });
   t.appendChild(tb); wrap.appendChild(t); pane.appendChild(wrap);
+  pane.insertAdjacentHTML("beforeend", `<div class="swipe-hint">← Swipe sideways for all the stats →</div>`);
   pane.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">${CURRENT_SEASON} stats fill in as games are logged in the Film Room. Tap a player for their full card.</div>`);
 }
 
