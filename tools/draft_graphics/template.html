@@ -119,8 +119,12 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const GC = {"A+":"#5fd68f","A":"#5fd68f","A-":"#8fe0a8","B+":"#e9b949","B":"#e9b949","B-":"#f2c96b","C+":"#f28c38","C":"#f28c38","D":"#ef6b5f","F":"#d9443a"};
 const ini = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 3);
 const hs = (src, name, size, tc) => `<div class="hs" style="width:${size}px;height:${size}px;--tc:${tc}">${src ? `<img src="${esc(src)}" alt="">` : esc(ini(name))}</div>`;
-const LOGO = id => /^n-/.test(id) ? `https://www.ncaa.com/sites/default/files/images/logos/schools/bgd/${id.slice(2)}.svg` : `https://a.espncdn.com/i/teamlogos/ncaa/500-dark/${id}.png`;
-const colTag = (c, withName = true) => !c ? "" : `<span class="col">${c.id ? `<img src="${LOGO(String(c.id))}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${esc(ini(c.name))}'}))">` : `<b>${esc(ini(c.name))}</b>`}${withName ? esc(c.name) : ""}</span>`;
+// College logo: dark-background version, then the regular one (same as the site), then the school's initials.
+const LOGOS = id => /^n-/.test(id) ? ["bgd", "bgl"].map(v => `https://www.ncaa.com/sites/default/files/images/logos/schools/${v}/${id.slice(2)}.svg`)
+  : ["500-dark", "500"].map(v => `https://a.espncdn.com/i/teamlogos/ncaa/${v}/${id}.png`);
+const logoImg = c => { const [a, b] = LOGOS(String(c.id)), i = esc(ini(c.name));
+  return `<img src="${a}" alt="" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${b}'}else this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${i}'}))">`; };
+const colTag = (c, withName = true) => !c ? "" : `<span class="col">${c.id ? logoImg(c) : `<b>${esc(ini(c.name))}</b>`}${withName ? esc(c.name) : ""}</span>`;
 const teamBadge = (t, size) => t.logo && !/^data:/.test(t.logo)
   ? `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color};background:${t.color};font-size:${size * .55}px">${esc(t.logo)}</div>`
   : hs(t.logo || t.img, t.cap, size, t.color);
@@ -159,7 +163,7 @@ function pick(p, d){
     <div class="pk-top"><div class="brand">🦃 Turkey Bowl ${d.season} Draft</div><div class="pk-slot">Round <b>${p.round}</b> · Pick <b>${p.label.split(".")[1].replace(/^0/, "")}</b> · <b>#${p.overall}</b> overall</div></div>
     <div class="pk-in">${teamBadge(p.team, 74)}<div><div class="k">THE PICK IS IN</div><div class="t">${esc(p.team.name)} select${p.team.name.endsWith("s") ? "" : "s"}<small>Captain ${esc(p.team.cap)}${p.team.viaTrade ? ` · pick via ${esc(p.team.viaTrade)}` : ""}</small></div></div></div>
     ${p.sample ? `<span class="sample">SAMPLE PICK</span>` : ""}
-    <div class="pk-photo">${hs(p.img, p.name, 400, `var(--t-${p.tier})`)}${p.college ? `<div class="clogo">${p.college.id ? `<img src="${LOGO(String(p.college.id))}" alt="">` : `<b>${esc(ini(p.college.name))}</b>`}</div>` : ""}</div>
+    <div class="pk-photo">${hs(p.img, p.name, 400, `var(--t-${p.tier})`)}${p.college ? `<div class="clogo">${p.college.id ? logoImg(p.college) : `<b>${esc(ini(p.college.name))}</b>`}</div>` : ""}</div>
     <div class="pk-name"><div class="f">${esc(p.first)}</div><div class="l">${esc(p.last)}</div>
       ${p.nick ? `<div class="nick">“${esc(p.nick)}”</div>` : ""}
       <div class="pk-chips"><span class="tier" style="--tc:var(--t-${p.tier})">${tierLbl(p.tier)}</span>${p.rank ? `<span class="tier" style="--tc:#c4cbd8">FLEX #${p.rank}</span>` : ""}</div>
