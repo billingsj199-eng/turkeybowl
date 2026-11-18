@@ -106,6 +106,50 @@ function renderChallenge(root, S, B, ed){
   root.appendChild(wrap);
 }
 
+// ===== Picks drawn on the bracket (same layout as the Bracket page graphic, bracket.js BR_POS / BR_LINES) =====
+// mode "pick": tap a team to pick it (rows carry data-g / data-t). mode "review": each pick marked ✓ / ✗ against S (real results).
+function chSvg(picks, slots, mode, S){
+  const ps = chPickState(picks, slots), P = ps.st, e = esc2, out = [];
+  const box = id => { const [c, y] = BR_POS[id]; return {x: BRX[c], y}; };
+  const mark = gid => { if (mode !== "review") return ""; const mine = ps.clean[gid], real = S.out[gid].winner;
+    return !mine ? "" : real ? (real === mine ? "ok" : "no") : (S.losses[mine] || 0) >= 2 ? "no" : ""; };
+  BR_LINES.forEach(([f, t, row]) => {
+    const a = box(f), b = box(t), x1 = a.x + BRW, y1 = a.y + BRH / 2, x2 = b.x, y2 = b.y + (row ? BRH * 0.75 : BRH * 0.25), xm = x2 - 24;
+    out.push(`<path d="M${x1} ${y1} H${xm} V${y2} H${x2}" class="ln${P.out[f].winner ? " lit" : ""}"/>`);
+  });
+  out.push(`<path d="M${box("g10").x + BRW / 2} ${box("g10").y + BRH + 4} V${box("g11").y - 18}" class="ln dash"/>`);
+  out.push(`<text x="16" y="30" class="sec">WINNERS BRACKET</text><text x="16" y="364" class="sec">LOSERS BRACKET</text><text x="${BRX[4]}" y="${BR_POS.g10[1] - 34}" class="sec">CHAMPIONSHIP</text>`);
+  out.push(`<text x="16" y="400" class="note">${mode === "pick" ? "Tap a team to pick it." : "✓ right · ✗ wrong"}</text><text x="16" y="418" class="note">${mode === "pick" ? "Losers drop down here." : "Grey = not played yet."}</text>`);
+  ["g4", "g3"].forEach(id => { const b = box(id), y = b.y + BRH * 0.25;
+    out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/><text x="${b.x - 13}" y="${y - 5}" class="bye" text-anchor="middle">BYE</text>`); });
+  BR_GAMES.forEach(g => {
+    const x = P.out[g.id], b = box(g.id), pts = CH_POINTS[g.id], m = mark(g.id);
+    const right = !x.needed ? "NOT NEEDED" : g.side === "F" ? (mode === "pick" ? "CHAMPION" : "") : m === "ok" ? "+" + pts : m === "no" ? "✗ 0" : pts + " PTS";
+    out.push(`<g class="gm${!x.needed ? " skip" : ""}${m ? " m-" + m : ""}${mode === "pick" && x.needed && x.A && x.B && !x.winner ? " nx" : ""}">
+      <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.ifNeeded ? " · IF NEEDED" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt pts" text-anchor="end">${right}</text>
+      <rect x="${b.x}" y="${b.y}" width="${BRW}" height="${BRH}" rx="8" class="bx"/>
+      <line x1="${b.x}" y1="${b.y + BRH / 2}" x2="${b.x + BRW}" y2="${b.y + BRH / 2}" class="mid"/>`);
+    [0, 1].forEach(side => {
+      const c = side ? x.B : x.A, ty = b.y + side * BRH / 2, picked = c && x.winner === c;
+      const cls = !c ? "tbd" : picked ? "win" : x.winner ? "dim" : "tm";
+      if (picked) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="${BRW - 2}" height="${BRH / 2 - 2}" rx="6" class="pk${m ? " " + m : ""}"/>`);
+      if (c) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="5" height="${BRH / 2 - 2}" rx="2" fill="${e(teamColor(c) || "#6c7689")}"/>`);
+      out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(c ? draftTeamName(c) : brSrc(side ? g.b : g.a))}</text>`);
+      if (picked && m) out.push(`<text x="${b.x + BRW - 10}" y="${ty + 19}" class="mk ${m}" text-anchor="end">${m === "ok" ? "✓" : "✗"}</text>`);
+      if (mode === "pick" && c && x.needed) out.push(`<rect x="${b.x}" y="${ty}" width="${BRW}" height="${BRH / 2}" class="hit" data-g="${g.id}" data-t="${e(c)}"><title>Pick ${e(draftTeamName(c))}</title></rect>`);
+    });
+    out.push(`</g>`);
+  });
+  const cb = {x: BRX[4], y: 520}, ch = ps.champion, cm = mode === "review" && ch ? (S.champion ? (S.champion === ch ? "ok" : "no") : (S.losses[ch] || 0) >= 2 ? "no" : "") : "";
+  out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="62" rx="10" class="champ${ch ? " won" : ""}${cm ? " " + cm : ""}"/>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 22}" class="cl" text-anchor="middle">🏆 ${mode === "pick" ? "YOUR CHAMPION" : "CHAMPION PICK"}${cm === "ok" ? " · +" + CH_CHAMP : cm === "no" ? " · ✗" : " · " + CH_CHAMP}</text>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 47}" class="cn${ch ? "" : " tbd"}" text-anchor="middle">${e(ch ? draftTeamName(ch) : "Pick through G10")}</text>`);
+  return `<div class="br-pic-in"><svg class="br-svg ch-svg" viewBox="0 0 1000 600" role="img" aria-label="Bracket picks">${out.join("")}</svg></div>`;
+}
+let CH_LIST = false;   // list view instead of the bracket (phones)
+const chToggle = () => `<div class="ch-tg"><button type="button" class="btn${CH_LIST ? "" : " on"}" data-l="0">Bracket view</button><button type="button" class="btn${CH_LIST ? " on" : ""}" data-l="1">List view</button></div>`;
+function chWireToggle(host){ host.querySelectorAll(".ch-tg button").forEach(b => b.onclick = () => { CH_LIST = b.dataset.l === "1"; renderBracket(true); }); }
+
 // The pick-em: every game in order; tap the team you think wins. Later games fill in from your picks.
 function chPicker(S){
   const box = document.createElement("div");
@@ -113,7 +157,7 @@ function chPicker(S){
   const ps = chPickState(CH_DRAFT.picks, S.slots);
   const saved = TBC.myEntry, same = saved && JSON.stringify(chPickState(saved.picks, S.slots).clean) === JSON.stringify(ps.clean) && String(saved.tiebreak) === CH_DRAFT.tiebreak;
   const nPicked = Object.keys(ps.clean).length, nNeeded = BR_GAMES.filter(g => ps.st.out[g.id].needed).length;
-  box.innerHTML = `<h3>My bracket <small class="psub">${nPicked} of ${nNeeded} picked</small></h3>`;
+  box.innerHTML = `<div class="ch-mh"><h3>My bracket <small class="psub">${nPicked} of ${nNeeded} picked · one bracket per Google account</small></h3>${chToggle()}</div>`;
   const list = document.createElement("div"); list.className = "ch-games";
   BR_GAMES.forEach(g => {
     const x = ps.st.out[g.id]; if (!x.needed) return;
@@ -130,7 +174,12 @@ function chPicker(S){
     });
     card.appendChild(row); list.appendChild(card);
   });
-  box.appendChild(list);
+  if (CH_LIST) box.appendChild(list);
+  else {
+    box.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-bottom:6px">Tap the team you think wins each game. Your picks move along the lines; losers drop to the losers bracket.</div>` + chSvg(CH_DRAFT.picks, S.slots, "pick", S));
+    box.querySelectorAll(".ch-svg .hit").forEach(h => h.addEventListener("click", () => { CH_DRAFT.picks[h.dataset.g] = h.dataset.t; renderBracket(true); }));
+  }
+  chWireToggle(box);
   const foot = document.createElement("div"); foot.className = "ch-foot";
   foot.innerHTML = `<div class="ch-champ-row"><span class="lbl2">Your champion</span><span id="chChamp"></span></div>
     <label class="ch-tb">Tiebreaker: total points in Game 10 <input type="number" inputmode="numeric" min="0" max="300" id="chTb" value="${esc2(CH_DRAFT.tiebreak)}" placeholder="e.g. 42"></label>
@@ -154,7 +203,9 @@ function chPicker(S){
 // Someone's bracket, read-only, marked against the real results.
 function chReadOnly(entry, S){
   const sc = chScore(entry, S), ps = chPickState(entry.picks, S.slots), box = document.createElement("div"); box.className = "ch-ro";
+  box.insertAdjacentHTML("beforeend", chToggle());
   box.insertAdjacentHTML("beforeend", `<div class="ch-ro-h"><b>${sc.pts}</b> pts · ${sc.correct} right · ${sc.wrong} wrong · max ${sc.max}${sc.perfect && sc.decided ? " · 🔥 perfect so far" : ""}<span class="psub">Tiebreaker ${entry.tiebreak}</span></div>`);
+  if (!CH_LIST) { box.insertAdjacentHTML("beforeend", chSvg(entry.picks, S.slots, "review", S)); chWireToggle(box); return box; }
   BR_GAMES.forEach(g => {
     const p = ps.clean[g.id]; if (!p || g.side === "F") return;
     const real = S.out[g.id].winner, st = real ? (real === p ? "ok" : "no") : (S.losses[p] || 0) >= 2 ? "no" : "";
@@ -168,5 +219,6 @@ function chReadOnly(entry, S){
   if (ps.champion) r.appendChild(brTeamChip(ps.champion));
   r.insertAdjacentHTML("beforeend", `<span class="ch-ro-p">${st === "ok" ? "+" + CH_CHAMP : st === "no" ? "✗" : CH_CHAMP}</span>`);
   box.appendChild(r);
+  chWireToggle(box);
   return box;
 }

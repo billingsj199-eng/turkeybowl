@@ -188,3 +188,20 @@
 .br-mu-tgrid span{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:8px;background:color-mix(in srgb,var(--tc) 14%,#131a2a);border:1px solid color-mix(in srgb,var(--tc) 35%,transparent)}
 .br-mu-tgrid b{font:700 18px Oswald,sans-serif} .br-mu-tgrid i{font:700 14px Oswald,sans-serif;font-style:normal;color:var(--tc)}
 @media (max-width:600px){.br-mu-cols{grid-template-columns:minmax(0,1fr)} .br-mu-vs{writing-mode:horizontal-tb;text-align:center}}
+
+/* challenge: picks on the bracket */
+.ch-wrap{grid-template-columns:minmax(0,1fr) !important}
+.ch-mh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ch-tg{display:flex;gap:6px;margin-bottom:8px}
+.ch-tg .btn{padding:5px 10px;font-size:12px}
+.ch-svg .hit{fill:transparent;cursor:pointer}
+.ch-svg .hit:hover{fill:#ffffff14}
+.ch-svg .pk{fill:#2a2210;stroke:var(--accent);stroke-width:1.5}
+.ch-svg .pk.ok{fill:#14261c;stroke:#5fd68f}
+.ch-svg .pk.no{fill:#2a1a1d;stroke:#ef6b5f}
+.ch-svg .dim{font-size:13.5px;font-weight:600;fill:#5c667a}
+.ch-svg .mk{font:800 16px Inter,sans-serif}
+.ch-svg .mk.ok{fill:#5fd68f} .ch-svg .mk.no{fill:#ef6b5f}
+.ch-svg .pts{fill:var(--accent)}
+.ch-svg .m-ok .pts{fill:#5fd68f} .ch-svg .m-no .pts{fill:#ef6b5f}
+.ch-svg .champ.ok{stroke:#5fd68f;fill:#14261c} .ch-svg .champ.no{stroke:#ef6b5f;fill:#2a1a1d}
