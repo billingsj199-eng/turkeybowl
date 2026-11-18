@@ -60,20 +60,45 @@
 .br-ed label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600}
 .br-ed input{width:80px;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 8px;font:700 16px Oswald,sans-serif;text-align:center}
 
-/* bracket tree */
-.br-tree{display:grid;gap:14px}
-.br-sec{background:#101626;border:1px solid var(--line);border-radius:12px;padding:12px;overflow-x:auto;scrollbar-color:#3a4560 transparent;scrollbar-width:thin}
-.br-sec::-webkit-scrollbar{height:8px} .br-sec::-webkit-scrollbar-track{background:transparent} .br-sec::-webkit-scrollbar-thumb{background:#3a4560;border-radius:4px}
-.br-sech{font:700 14px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
-.br-cols{display:flex;gap:14px;min-width:min-content}
-.br-col{display:flex;flex-direction:column;justify-content:space-around;gap:10px;width:250px;flex:none}
-.br-colh{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
-.br-col.if .br-colh::after{content:" · if necessary"}
 
 /* champion banner */
 .br-champ{position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;margin-top:14px;padding:16px 18px;border-radius:14px;
   background:linear-gradient(120deg,color-mix(in srgb,var(--team) 35%,#1a1408),#141a28);border:1px solid var(--accent)}
 .br-champ .hs{width:64px;height:64px;font-size:22px;flex:none}
 .br-champ-n{font:700 30px Oswald,sans-serif;text-transform:uppercase}
-.br-tree .br-game.next .br-gh::after{display:none}   /* bracket cards are narrow: the orange border says "next" */
-.br-tree .br-gh > span:not(.br-time){display:none}   /* the section + column headers already name the round */
+
+
+/* the bracket graphic (SVG) at the top of the page */
+.br-pic{margin-top:14px;background:#0f1525;border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.br-pic-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.br-pic-in{overflow-x:auto;scrollbar-color:#3a4560 transparent;scrollbar-width:thin}
+.br-pic-in::-webkit-scrollbar{height:8px} .br-pic-in::-webkit-scrollbar-thumb{background:#3a4560;border-radius:4px}
+.br-svg{display:block;width:100%;min-width:720px;height:auto}
+.br-svg text{font-family:Inter,system-ui,sans-serif}
+.br-svg .ln{fill:none;stroke:#2f3a52;stroke-width:2}
+.br-svg .ln.lit{stroke:#8a94a8}
+.br-svg .ln.dash{stroke-dasharray:4 5}
+.br-svg .sec{font:700 15px Oswald,sans-serif;letter-spacing:.12em;fill:var(--accent)}
+.br-svg .note{font-size:11px;fill:#6c7689}
+.br-svg .bye{font-size:9.5px;font-weight:700;letter-spacing:.04em;fill:#f1d39a}
+.br-svg .gl{font-size:11px;font-weight:700;letter-spacing:.05em;fill:#8a94a8}
+.br-svg .bx{fill:#151c2c;stroke:#2a3449;stroke-width:1.5}
+.br-svg .nx .bx{stroke:var(--accent);stroke-width:2.5}
+.br-svg .nx .gt{fill:var(--accent)}
+.br-svg .skip{opacity:.45}
+.br-svg .mid{stroke:#2a3449}
+.br-svg .tm{font-size:13.5px;font-weight:600;fill:#e8ecf4}
+.br-svg .win{font-size:13.5px;font-weight:800;fill:#fff}
+.br-svg .lose{font-size:13.5px;font-weight:600;fill:#5c667a;text-decoration:line-through}
+.br-svg .sc.lose{text-decoration:none}
+.br-svg .tbd{font-size:12.5px;font-style:italic;fill:#6c7689}
+.br-svg .sc{font:700 15px Oswald,sans-serif}
+.br-svg .champ{fill:#1a1608;stroke:#5a4620;stroke-width:1.5}
+.br-svg .champ.won{fill:#2a2210;stroke:var(--accent);stroke-width:2.5}
+.br-svg .cl{font-size:11px;font-weight:800;letter-spacing:.12em;fill:var(--accent)}
+.br-svg .cn{font:700 18px Oswald,sans-serif;fill:#fff;text-transform:uppercase}
+.br-svg .cn.tbd{font:600 15px Inter,sans-serif;fill:#6c7689}
+.br-full{display:flex;align-items:center;justify-content:center;padding:10px;z-index:70}
+.br-full-in{width:min(1200px,100%);max-height:100%;overflow:auto;background:#0f1525;border:1px solid var(--line);border-radius:14px;padding:12px}
+.br-full .br-svg{min-width:0}
+.br-q{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;border:2px dashed #3a4560;color:var(--muted);font-weight:800}

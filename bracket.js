@@ -1,6 +1,7 @@
 // ===================== BRACKET (Turkey Bowl tournament, double elimination, 6 teams) =====================
-// Stored in the cloud as bracket/<season> (tb-cloud.js): {slots: [6 captains], lotteryId, start "HH:MM", minutes, results}.
-// The schedule lottery shuffles the 6 teams into slots: slots 1-2 get byes, slot 3 v 6 and slot 4 v 5 play first.
+// Stored in the cloud as bracket/<season> (tb-cloud.js): {slots: [captains in draw order], lotteryId, start "HH:MM", minutes, results}.
+// The schedule lottery is drawn one by one (an editor taps "Draw next"; everyone watches each pick land):
+//   slots[0], slots[1] = byes, slots[2] v slots[3] = Game 1, slots[4] v slots[5] = Game 2. Games use the slots once all 6 are drawn.
 // One field, back to back: game N starts about start + (N-1) * minutes.
 // Editors (and Jack) enter scores; the bracket fills itself in. A result can only be changed or cleared while no later
 // game that depends on it has a result (clear the later game first).
@@ -8,8 +9,8 @@
 
 // a/b: {slot: i} = team in that lottery slot, {w: "gX"} = winner of game X, {l: "gX"} = loser of game X.
 const BR_GAMES = [
-  {id: "g1",  n: 1,  round: "Winners R1",    side: "W", a: {slot: 2}, b: {slot: 5}},
-  {id: "g2",  n: 2,  round: "Winners R1",    side: "W", a: {slot: 3}, b: {slot: 4}},
+  {id: "g1",  n: 1,  round: "Winners R1",    side: "W", a: {slot: 2}, b: {slot: 3}},
+  {id: "g2",  n: 2,  round: "Winners R1",    side: "W", a: {slot: 4}, b: {slot: 5}},
   {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: 0}, b: {w: "g2"}},
   {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: 1}, b: {w: "g1"}},
   {id: "g5",  n: 5,  round: "Losers R1",     side: "L", a: {l: "g3"}, b: {l: "g1"}},
@@ -26,7 +27,7 @@ const brNext = (gid, wl) => { const g = BR_GAMES.find(x => !x.ifNeeded && [x.a, 
 
 // Everything about the bracket from the saved doc: teams in each game, winners, who's alive, the champion.
 function brState(B){
-  const slots = (B && B.slots) || [], res = (B && B.results) || {}, out = {};
+  const drawn = (B && Array.isArray(B.slots)) ? B.slots : [], slots = drawn.length === 6 ? drawn : [], res = (B && B.results) || {}, out = {};
   const who = s => s.slot != null ? (slots[s.slot] || null) : s.w ? (out[s.w] && out[s.w].winner) : (out[s.l] && out[s.l].loser);
   BR_GAMES.forEach(g => {
     const A = who(g.a), Bt = who(g.b), r = res[g.id];
@@ -41,7 +42,7 @@ function brState(B){
   const champion = f.winner && !f2.needed ? f.winner : f2.winner || null;
   const losses = {}; Object.values(out).forEach(x => { if (x.loser) losses[x.loser] = (losses[x.loser] || 0) + 1; });
   const next = slots.length ? BR_GAMES.find(g => out[g.id].needed && !out[g.id].r && !champion) || null : null;
-  return {slots, out, champion, losses, next: next && out[next.id]};
+  return {slots, drawn, out, champion, losses, next: next && out[next.id]};
 }
 // games whose teams come from this game's result
 const brDependents = gid => BR_GAMES.filter(x => [x.a, x.b].some(s => s.w === gid || s.l === gid) || (gid === "g10" && x.id === "g11"));
@@ -49,14 +50,16 @@ const brDependents = gid => BR_GAMES.filter(x => [x.a, x.b].some(s => s.w === gi
 const brTime = (B, n) => {
   const start = B && typeof B.start === "string" ? B.start : "10:00";   // Game 1 at 10 AM until someone changes it
   if (!start) return "";
-  const [h, m] = start.split(":").map(Number), t = h * 60 + m + (n - 1) * ((B && B.minutes) || 20);
+  const [h, m] = start.split(":").map(Number), t = h * 60 + m + (n - 1) * ((B && B.minutes) || 30);
   const hh = Math.floor(t / 60) % 24, mm = t % 60;
   return `${(hh % 12) || 12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
 };
 const brTeams = () => (window.TBC && TBC.live && Array.isArray(TBC.live.order) && TBC.live.order.length ? TBC.live.order : captains).slice();
 const brEsc = s => esc2(s);
 let BR_EDIT = null;            // game id whose score editor is open
-let BR_LOTTO_SEEN;             // lottery id already known (undefined = not loaded yet: don't auto-play old ones)
+let BR_LOTTO_SEEN;             // {id, n}: lottery draw already shown (undefined = not loaded yet: don't auto-play old ones)
+// what each draw is, in order (slots[k])
+const BR_DRAWS = ["Bye #1", "Bye #2", "Game 1 · first team", "Game 1 · opponent", "Game 2 · first team", "Game 2 · opponent"];
 let BR_CHAMP_SEEN;             // champion already celebrated
 
 function brTeamChip(c, cls = ""){
@@ -150,32 +153,44 @@ function renderBracket(force){
   }
   BR_CHAMP_SEEN = S.champion || null;
 
+  // ---- the bracket graphic (top of the page) ----
+  const pic = document.createElement("div"); pic.className = "br-pic";
+  pic.innerHTML = `<div class="br-pic-h"><span class="lbl2">The bracket</span><button class="btn" type="button">⤢ Full screen</button></div><div class="br-pic-in">${brSvg(S, B)}</div>`;
+  pic.querySelector("button").onclick = () => brFullBracket();
+  root.appendChild(pic);
+
   const wrap = document.createElement("div"); wrap.className = "br-top";
-  // ---- lottery / byes ----
+  // ---- lottery: drawn one by one ----
   const lot = document.createElement("div"); lot.className = "panel br-lot";
-  if (!S.slots.length) {
-    lot.innerHTML = `<h3>🎰 Schedule lottery</h3><div class="psub">Picks the 2 teams with byes and every first-round matchup. ${ed ? "Everyone on this page watches it happen." : "Stay on this page to watch it live."}</div>`;
-  } else {
-    lot.innerHTML = `<h3>🎰 Schedule lottery</h3>
-      <div class="br-byes"><span class="lbl2">Byes</span></div>
-      <div class="br-r1"><div><span class="lbl2">Game 1</span></div><div><span class="lbl2">Game 2</span></div></div>`;
-    const by = lot.querySelector(".br-byes"); [0, 1].forEach(i => by.appendChild(brTeamChip(S.slots[i])));
+  const dr = S.drawn, nd = dr.length, played = Object.keys((B && B.results) || {}).length;
+  lot.innerHTML = `<h3>🎰 Schedule lottery</h3>${!nd ? `<div class="psub">Draws the 2 teams with byes and both first-round games, one pick at a time. ${ed ? "Everyone on this page watches each pick land." : "Stay on this page to watch it live."}</div>` : ""}`;
+  if (nd) {
+    lot.insertAdjacentHTML("beforeend", `<div class="br-byes"><span class="lbl2">Byes</span></div><div class="br-r1"><div><span class="lbl2">Game 1</span></div><div><span class="lbl2">Game 2</span></div></div>`);
+    const chip = i => dr[i] ? brTeamChip(dr[i]) : Object.assign(document.createElement("span"), {className: "br-q", textContent: "?"});
+    const by = lot.querySelector(".br-byes"); [0, 1].forEach(i => by.appendChild(chip(i)));
     const r1 = lot.querySelectorAll(".br-r1 > div");
-    [[2, 5], [3, 4]].forEach(([p, q], k) => { r1[k].append(brTeamChip(S.slots[p]), Object.assign(document.createElement("span"), {className: "br-vs", textContent: "vs"}), brTeamChip(S.slots[q])); });
+    [[2, 3], [4, 5]].forEach(([p, q], k) => { r1[k].append(chip(p), Object.assign(document.createElement("span"), {className: "br-vs", textContent: "vs"}), chip(q)); });
+    if (nd < 6) lot.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">🔴 Draw in progress · ${nd} of 6 picked · next: ${BR_DRAWS[nd]}</div>`);
   }
   const lb = document.createElement("div"); lb.className = "row-btns";
-  const played = Object.keys((B && B.results) || {}).length;
-  if (ed) {
-    const run = document.createElement("button"); run.className = "btn primary"; run.textContent = S.slots.length ? "🎰 Re-run lottery" : "🎰 Run schedule lottery";
-    run.disabled = played > 0; if (played) run.title = "Locked: games have been played";
-    run.onclick = async () => {
-      if (!confirm(`Run the ${CURRENT_SEASON} schedule lottery now?\n\nIt picks the 2 bye teams and the first-round games, and everyone on the Bracket page watches.${S.slots.length ? "\n\nThis replaces the last result." : ""}`)) return;
-      run.disabled = true;
-      try { await TBC.bracketLottery(teams); } catch(err){ run.disabled = false; alert("Couldn't run the lottery: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
-    };
-    lb.appendChild(run);
+  if (ed && nd < 6) {
+    const nx = document.createElement("button"); nx.className = "btn primary"; nx.textContent = `🎰 Draw next: ${BR_DRAWS[nd]}`;
+    nx.onclick = () => brDrawNext(nx);
+    lb.appendChild(nx);
+    if (nd) { const rest = document.createElement("button"); rest.className = "btn"; rest.textContent = "⏩ Draw the rest"; rest.onclick = () => brDrawRest(rest); lb.appendChild(rest); }
   }
-  if (S.slots.length) { const rp = document.createElement("button"); rp.className = "btn"; rp.textContent = "▶ Replay lottery"; rp.onclick = () => playSchedLottery(S.slots); lb.appendChild(rp); }
+  if (ed && nd) {
+    const so = document.createElement("button"); so.className = "btn lv-danger"; so.textContent = "↺ Start over";
+    so.disabled = played > 0; if (played) so.title = "Locked: games have been played";
+    so.onclick = async () => {
+      if (!confirm("Start the schedule lottery over? Every pick so far is wiped.")) return;
+      so.disabled = true;
+      try { await TBC.bracketLotteryReset(); } catch(err){ so.disabled = false; alert("Couldn't start over: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
+    };
+    lb.appendChild(so);
+  }
+  if (nd && nd < 6) { const w = document.createElement("button"); w.className = "btn"; w.textContent = "👀 Watch the draw"; w.onclick = () => brDrawOverlay(dr, true); lb.appendChild(w); }
+  if (nd === 6) { const rp = document.createElement("button"); rp.className = "btn"; rp.textContent = "▶ Replay lottery"; rp.onclick = () => brReplay(dr); lb.appendChild(rp); }
   if (lb.children.length) lot.appendChild(lb);
   wrap.appendChild(lot);
 
@@ -196,7 +211,7 @@ function renderBracket(force){
   // ---- schedule settings (editors) ----
   if (ed) {
     const s = document.createElement("div"); s.className = "br-set";
-    s.innerHTML = `<span class="lbl">Times</span> Game 1 at <input type="time" id="brStart" value="${(B && typeof B.start === "string") ? B.start : "10:00"}"> · <input type="number" id="brMin" min="10" max="240" value="${(B && B.minutes) || 20}"> min per game <button class="btn" id="brSetSave">Save times</button> <span class="psub" id="brSetMsg"></span>`;
+    s.innerHTML = `<span class="lbl">Times</span> Game 1 at <input type="time" id="brStart" value="${(B && typeof B.start === "string") ? B.start : "10:00"}"> · <input type="number" id="brMin" min="10" max="240" value="${(B && B.minutes) || 30}"> min per game <button class="btn" id="brSetSave">Save times</button> <span class="psub" id="brSetMsg"></span>`;
     s.querySelector("#brSetSave").onclick = async () => {
       const st = s.querySelector("#brStart").value, mn = +s.querySelector("#brMin").value;
       if (st && !/^([01]\d|2[0-3]):[0-5]\d$/.test(st)) return s.querySelector("#brSetMsg").textContent = "Pick a start time.";
@@ -213,63 +228,150 @@ function renderBracket(force){
   const sch = document.createElement("div"); sch.className = "br-sched";
   BR_GAMES.forEach(g => sch.appendChild(brGameCard(S.out[g.id], S, B, ed)));
   root.appendChild(sch);
-
-  // ---- bracket view ----
-  root.insertAdjacentHTML("beforeend", `<h2 class="br-h">Bracket</h2>`);
-  const cols = (title, ids, cls = "") => `<div class="br-col ${cls}"><div class="br-colh">${title}</div>${ids.map(id => `<div class="br-slot" data-g="${id}"></div>`).join("")}</div>`;
-  const bw = document.createElement("div"); bw.className = "br-tree";
-  bw.innerHTML = `<div class="br-sec"><div class="br-sech">Winners bracket</div><div class="br-cols">${cols("Round 1", ["g1", "g2"])}${cols("Round 2", ["g4", "g3"])}${cols("Final", ["g8"])}</div></div>
-    <div class="br-sec"><div class="br-sech">Losers bracket</div><div class="br-cols">${cols("Round 1", ["g5", "g6"])}${cols("Round 2", ["g7"])}${cols("Final", ["g9"])}</div></div>
-    <div class="br-sec"><div class="br-sech">Championship</div><div class="br-cols">${cols("Game 10", ["g10"])}${cols("Game 11", ["g11"], "if")}</div></div>`;
-  bw.querySelectorAll(".br-slot").forEach(sl => sl.appendChild(brGameCard(S.out[sl.dataset.g], S, B, false)));
-  root.appendChild(bw);
 }
 
-// ===== Schedule lottery reveal: byes first, then the first-round games. Played for everyone on the Bracket page. =====
-async function playSchedLottery(slots){
-  if (!slots || slots.length !== 6 || document.getElementById("lottoOv")) return;
-  const ov = document.createElement("div"); ov.id = "lottoOv"; ov.className = "lotto-ov";
-  const rows = [["Bye", [0]], ["Bye", [1]], ["Game 1", [2, 5]], ["Game 2", [3, 4]]];
-  ov.innerHTML = `<div class="lotto">
-      <div class="lotto-h">🦃 ${CURRENT_SEASON} Schedule Lottery</div>
-      <div class="lotto-sub" id="loSub">Shuffling the teams…</div>
-      <div class="lotto-reel" id="loReel"></div>
-      <div class="lotto-name" id="loName">&nbsp;</div>
-      <ol class="lotto-list" id="loList">${rows.map(([t, ix], k) => `<li data-k="${k}"><span class="lo-k" style="width:62px">${t}</span>${ix.map(i => `<span class="lo-v" data-s="${i}">?</span>`).join(`<small>vs</small>`)}</li>`).join("")}</ol>
-      <div class="lotto-btns"><button class="btn" id="loSkip">Skip to results</button></div></div>`;
-  document.body.appendChild(ov); document.body.style.overflow = "hidden";
-  let skip = false, closed = false;
-  const close = () => { closed = true; ov.remove(); document.body.style.overflow = ""; };
-  ov.querySelector("#loSkip").onclick = () => { if (skip) close(); else skip = true; };
-  const reel = ov.querySelector("#loReel"), faces = {};
-  slots.forEach(c => { const f = document.createElement("div"); f.className = "lo-face"; f.appendChild(teamBadge(c)); reel.appendChild(f); faces[c] = f; });
-  const show = c => { Object.values(faces).forEach(f => f.classList.remove("on")); faces[c].classList.add("on"); ov.querySelector("#loName").textContent = draftTeamName(c) + " · " + c; };
-  const fill = i => { const v = ov.querySelector(`.lo-v[data-s="${i}"]`); v.innerHTML = brEsc(draftTeamName(slots[i])); v.closest("li").classList.add("set"); };
-  const order = [0, 1, 2, 5, 3, 4], left = [...slots];
-  const subs = {0: "The first <b>bye</b> goes to…", 1: "The second <b>bye</b> goes to…", 2: "<b>Game 1</b> · first team…", 5: "<b>Game 1</b> · their opponent…", 3: "<b>Game 2</b> · first team…", 4: "<b>Game 2</b> · their opponent…"};
-  await sleep(skip ? 0 : 900);
-  for (const i of order) {
-    if (closed) return;
-    const c = slots[i];
-    if (skip) { fill(i); continue; }
-    ov.querySelector("#loSub").innerHTML = subs[i];
-    reel.classList.remove("landed");
-    if (left.length > 1) { let d = 55, last = null; while (d < 420 && !skip) { let x; do { x = left[Math.floor(Math.random() * left.length)]; } while (x === last && left.length > 1); show(x); last = x; await sleep(d); d *= 1.12; } }
-    if (skip) { fill(i); continue; }
-    show(c); reel.classList.add("landed"); fill(i); left.splice(left.indexOf(c), 1);
-    if (i < 2) confetti(ov);
-    await sleep(1100);
+// ===== The bracket graphic: a classic bracket with lines (SVG), filled in live =====
+// Winners bracket on top (R1 → R2 → Final), losers bracket below (R1 → R2 → Final), both into the Championship.
+const BRX = [16, 216, 416, 616, 816], BRW = 168, BRH = 56;
+const BR_POS = {g1: [0, 70], g2: [0, 190], g4: [1, 70], g3: [1, 190], g8: [2, 130],
+  g5: [1, 400], g6: [1, 520], g7: [2, 460], g9: [3, 460], g10: [4, 295], g11: [4, 415]};
+// lines: [from, to, which row of "to" (0 top / 1 bottom)]
+const BR_LINES = [["g1", "g4", 1], ["g2", "g3", 1], ["g4", "g8", 1], ["g3", "g8", 0], ["g8", "g10", 0],
+  ["g5", "g7", 0], ["g6", "g7", 1], ["g7", "g9", 1], ["g9", "g10", 1]];
+function brSvg(S, B){
+  const e = brEsc, out = [];
+  const box = id => { const [c, y] = BR_POS[id]; return {x: BRX[c], y}; };
+  const nm = (x, side) => { const c = side ? x.B : x.A; return c ? draftTeamName(c) : brSrc(side ? x.g.b : x.g.a); };
+  // lines first (under the boxes)
+  BR_LINES.forEach(([f, t, row]) => {
+    const a = box(f), b = box(t), x1 = a.x + BRW, y1 = a.y + BRH / 2, x2 = b.x, y2 = b.y + (row ? BRH * 0.75 : BRH * 0.25), xm = x2 - 24;
+    const lit = !!S.out[f].winner;
+    out.push(`<path d="M${x1} ${y1} H${xm} V${y2} H${x2}" class="ln${lit ? " lit" : ""}"/>`);
+  });
+  out.push(`<path d="M${box("g10").x + BRW / 2} ${box("g10").y + BRH + 4} V${box("g11").y - 18}" class="ln dash"/>`);
+  // section labels
+  out.push(`<text x="16" y="30" class="sec">WINNERS BRACKET</text><text x="16" y="364" class="sec">LOSERS BRACKET</text><text x="${BRX[4]}" y="${BR_POS.g10[1] - 34}" class="sec">CHAMPIONSHIP</text>`);
+  out.push(`<text x="16" y="400" class="note">Lose once and you drop here.</text><text x="16" y="418" class="note">Lose twice and you're out.</text>`);
+  // byes: a short "BYE" arrow straight into the top line of round-2 games G3 / G4
+  ["g4", "g3"].forEach(id => {
+    const b = box(id), y = b.y + BRH * 0.25;
+    out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/><text x="${b.x - 13}" y="${y - 5}" class="bye" text-anchor="middle">BYE</text>`);
+  });
+  // the games
+  BR_GAMES.forEach(g => {
+    const x = S.out[g.id], b = box(g.id), nx = S.next && S.next.g.id === g.id;
+    const tm = x.r ? "FINAL" : g.ifNeeded && !x.needed ? "NOT NEEDED" : "~" + brTime(B, g.n);
+    out.push(`<g class="gm${nx ? " nx" : ""}${!x.needed ? " skip" : ""}">
+      <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.ifNeeded ? " · IF NEEDED" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt" text-anchor="end">${tm}</text>
+      <rect x="${b.x}" y="${b.y}" width="${BRW}" height="${BRH}" rx="8" class="bx"/>
+      <line x1="${b.x}" y1="${b.y + BRH / 2}" x2="${b.x + BRW}" y2="${b.y + BRH / 2}" class="mid"/>`);
+    [0, 1].forEach(side => {
+      const c = side ? x.B : x.A, ty = b.y + side * BRH / 2, cls = !c ? "tbd" : x.winner === c ? "win" : x.loser === c ? "lose" : "tm";
+      if (c) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="5" height="${BRH / 2 - 2}" rx="2" fill="${e(teamColor(c) || "#6c7689")}"/>`);
+      out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(nm(x, side))}</text>`);
+      if (x.r) out.push(`<text x="${b.x + BRW - 10}" y="${ty + 19}" class="sc ${cls}" text-anchor="end">${side ? x.r.sb : x.r.sa}</text>`);
+    });
+    out.push(`</g>`);
+  });
+  // champion
+  const cb = {x: BRX[4], y: 520};
+  out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="62" rx="10" class="champ${S.champion ? " won" : ""}"/>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 22}" class="cl" text-anchor="middle">🏆 CHAMPION</text>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 47}" class="cn${S.champion ? "" : " tbd"}" text-anchor="middle">${e(S.champion ? draftTeamName(S.champion) : "TBD")}</text>`);
+  return `<svg class="br-svg" viewBox="0 0 1000 600" role="img" aria-label="${CURRENT_SEASON} Turkey Bowl bracket">${out.join("")}</svg>`;
+}
+function brFullBracket(){
+  const ov = document.createElement("div"); ov.className = "ov br-full";
+  ov.innerHTML = `<div class="br-full-in"><div class="br-pic-h"><span class="lbl2">${CURRENT_SEASON} Turkey Bowl bracket · turn your phone sideways for a bigger view</span><button class="btn" type="button">✕ Close</button></div>${brSvg(brState(window.TBC && TBC.bracket), window.TBC && TBC.bracket)}</div>`;
+  const close = () => { ov.remove(); document.removeEventListener("tbc-change", redraw); };
+  const redraw = () => { const s = ov.querySelector("svg"); if (s) s.outerHTML = brSvg(brState(TBC.bracket), TBC.bracket); };
+  ov.querySelector("button").onclick = close; ov.addEventListener("click", e => { if (e.target === ov) close(); });
+  document.addEventListener("tbc-change", redraw);
+  document.body.appendChild(ov);
+}
+
+// ===== Schedule lottery, drawn one by one =====
+// An editor taps "Draw next"; the pick saves right away and every open Bracket page (the editor's too) spins and lands on it.
+// The reveal screen stays up between draws ("Waiting for the next draw…"); editors can draw the next pick from it.
+let BR_ANIM = Promise.resolve();   // reveals play one after another, never on top of each other
+async function brDrawNext(btn){
+  if (btn) btn.disabled = true;
+  try { await TBC.bracketDraw(brTeams()); }
+  catch(err){ alert("Couldn't draw: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
+  finally { if (btn) btn.disabled = false; }
+}
+async function brDrawRest(btn){
+  if (!confirm("Draw all the remaining picks at once?")) return;
+  if (btn) btn.disabled = true;
+  try { await TBC.bracketLottery(brTeams()); }
+  catch(err){ if (btn) btn.disabled = false; alert("Couldn't draw: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
+}
+// The reveal screen. Opens (or reuses) the overlay and shows the picks drawn so far (no spin).
+function brDrawOverlay(drawn, open){
+  let ov = document.getElementById("brDrawOv");
+  if (!ov) {
+    if (!open) return null;
+    ov = document.createElement("div"); ov.id = "brDrawOv"; ov.className = "lotto-ov";
+    const rows = [["Bye", [0]], ["Bye", [1]], ["Game 1", [2, 3]], ["Game 2", [4, 5]]];
+    ov.innerHTML = `<div class="lotto">
+        <div class="lotto-h">🦃 ${CURRENT_SEASON} Schedule Lottery</div>
+        <div class="lotto-sub" id="bdSub"></div>
+        <div class="lotto-reel" id="bdReel"></div>
+        <div class="lotto-name" id="bdName">&nbsp;</div>
+        <ol class="lotto-list">${rows.map(([t, ix]) => `<li><span class="lo-k" style="width:62px">${t}</span>${ix.map(i => `<span class="lo-v" data-s="${i}">?</span>`).join(`<small>vs</small>`)}</li>`).join("")}</ol>
+        <div class="lotto-btns"><button class="btn primary" id="bdNext" hidden></button> <button class="btn" id="bdClose">Close</button></div></div>`;
+    document.body.appendChild(ov); document.body.style.overflow = "hidden";
+    ov.querySelector("#bdClose").onclick = () => { ov.remove(); document.body.style.overflow = ""; };
+    ov.querySelector("#bdNext").onclick = e => brDrawNext(e.target);
+    const reel = ov.querySelector("#bdReel");
+    brTeams().forEach(c => { const f = document.createElement("div"); f.className = "lo-face"; f.dataset.c = c; f.appendChild(teamBadge(c)); reel.appendChild(f); });
   }
-  if (closed) return;
-  ov.querySelector("#loSub").innerHTML = `The ${CURRENT_SEASON} schedule is set`;
-  const b = ov.querySelector("#loSkip"); b.textContent = "Done"; b.classList.add("primary"); b.onclick = close;
+  ov.querySelectorAll(".lo-v").forEach(v => { const i = +v.dataset.s; if (drawn[i]) { v.innerHTML = brEsc(draftTeamName(drawn[i])); v.closest("li").classList.add("set"); } else { v.textContent = "?"; } });
+  brDrawState(ov, drawn.length);
+  return ov;
 }
+function brDrawState(ov, n){
+  const ed = !!(window.TBC && TBC.canEdit()), nb = ov.querySelector("#bdNext");
+  ov.querySelector("#bdSub").innerHTML = n >= 6 ? `The ${CURRENT_SEASON} schedule is set` : n ? `Waiting for the next draw… <small style="color:var(--muted)">(${BR_DRAWS[n]})</small>` : `Waiting for the first draw…`;
+  nb.hidden = !ed || n >= 6; nb.textContent = `🎰 Draw next: ${BR_DRAWS[n] || ""}`;
+  const cl = ov.querySelector("#bdClose"); cl.textContent = n >= 6 ? "Done" : "Close"; cl.classList.toggle("primary", n >= 6);
+}
+const BR_SUBS = ["The first <b>bye</b> goes to…", "The second <b>bye</b> goes to…", "<b>Game 1</b> · first team…", "<b>Game 1</b> · their opponent…", "<b>Game 2</b> · first team…", "<b>Game 2</b> · their opponent…"];
+// Spin through the teams still left and land on pick k.
+async function brRevealPick(drawn, k){
+  const ov = brDrawOverlay(drawn.slice(0, k), true), reel = ov.querySelector("#bdReel"), nb = ov.querySelector("#bdNext");
+  const faces = [...reel.querySelectorAll(".lo-face")], show = c => { faces.forEach(f => f.classList.toggle("on", f.dataset.c === c)); ov.querySelector("#bdName").textContent = draftTeamName(c) + " · " + c; };
+  const left = brTeams().filter(c => !drawn.slice(0, k).includes(c));
+  nb.hidden = true;
+  ov.querySelector("#bdSub").innerHTML = BR_SUBS[k];
+  reel.classList.remove("landed");
+  if (left.length > 1) { let d = 55, last = null; while (d < 430 && document.body.contains(ov)) { let x; do { x = left[Math.floor(Math.random() * left.length)]; } while (x === last); show(x); last = x; await sleep(d); d *= 1.12; } }
+  if (!document.body.contains(ov)) return;
+  show(drawn[k]); reel.classList.add("landed");
+  const v = ov.querySelector(`.lo-v[data-s="${k}"]`); v.innerHTML = brEsc(draftTeamName(drawn[k])); v.closest("li").classList.add("set");
+  if (k < 2 || k === 5) confetti(ov);
+  await sleep(1300);
+  if (document.body.contains(ov)) brDrawState(ov, k + 1);
+}
+// Replay the finished lottery from the start, automatically.
+function brReplay(drawn){
+  document.getElementById("brDrawOv")?.remove();
+  brDrawOverlay([], true).querySelector("#bdNext").hidden = true;
+  for (let k = 0; k < drawn.length; k++) BR_ANIM = BR_ANIM.then(() => brRevealPick(drawn, k)).then(() => sleep(300));
+}
+// Called on every cloud update: play the picks that just came in.
 function maybePlaySchedLottery(){
   const B = window.TBC && TBC.bracket;
   if (!window.TBC || !TBC.bracketReady) return;
-  const id = B && B.lotteryId ? B.lotteryId : null;
-  if (BR_LOTTO_SEEN === undefined) { BR_LOTTO_SEEN = id; return; }
-  if (id && id !== BR_LOTTO_SEEN) { BR_LOTTO_SEEN = id; const pg = document.getElementById("pg-bracket"); if (pg && !pg.hidden && !document.hidden) playSchedLottery(B.slots); }
+  const id = B && B.lotteryId ? B.lotteryId : null, drawn = (B && Array.isArray(B.slots)) ? B.slots.slice() : [], n = drawn.length;
+  const seen = BR_LOTTO_SEEN; BR_LOTTO_SEEN = {id, n};
+  if (seen === undefined) return;                                       // page just loaded: don't replay old picks
+  const pg = document.getElementById("pg-bracket"), watching = pg && !pg.hidden && !document.hidden;
+  if (!n) { const ov = document.getElementById("brDrawOv"); if (ov && seen.n) { ov.remove(); document.body.style.overflow = ""; } return; }   // started over
+  const from = id === seen.id ? seen.n : 0;
+  if (n <= from || !watching) { const ov = document.getElementById("brDrawOv"); if (ov) brDrawOverlay(drawn, false); return; }
+  if (from === 0) { document.getElementById("brDrawOv")?.remove(); brDrawOverlay([], true); }
+  for (let k = from; k < n; k++) BR_ANIM = BR_ANIM.then(() => brRevealPick(drawn, k));
 }
 document.addEventListener("tbc-change", () => { maybePlaySchedLottery(); renderBracket(); });
 document.addEventListener("focusout", e => { const pg = document.getElementById("pg-bracket"); if (BR_PENDING && pg && pg.contains(e.target)) setTimeout(() => { if (!pg.contains(document.activeElement) || document.activeElement.tagName !== "INPUT") renderBracket(); }, 0); });

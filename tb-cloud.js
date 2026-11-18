@@ -205,14 +205,29 @@ const bracketRef = doc(db, "bracket", DRAFT_ID);
 onSnapshot(bracketRef, d => { TBC.bracket = d.exists() ? d.data() : null; TBC.bracketReady = true; changed(); },
   err => { console.warn("Turkey Bowl cloud: couldn't load the bracket", err); TBC.bracketReady = true; changed(); });
 const brBase = d => ({slots: (d && d.slots) || [], lotteryId: (d && d.lotteryId) || "", start: d && typeof d.start === "string" ? d.start : "10:00",
-  minutes: (d && d.minutes) || 20, results: (d && d.results) || {}});
-// Schedule lottery: shuffle the 6 teams into slots (1-2 = byes, 3v6 and 4v5 play first). Not once a game has a result.
-TBC.bracketLottery = async teams => runTransaction(db, async tx => {
-  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null;
-  if (d && Object.keys(d.results || {}).length) throw new Error("Games have already been played, so the lottery is locked.");
-  const o = [...teams], r = new Uint32Array(o.length); crypto.getRandomValues(r);
-  for (let i = o.length - 1; i > 0; i--) { const j = r[i] % (i + 1); [o[i], o[j]] = [o[j], o[i]]; }
-  tx.set(bracketRef, {...brBase(d), slots: o, lotteryId: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), by: by(), at: serverTimestamp()});
+  minutes: (d && d.minutes) || 30, results: (d && d.results) || {}});
+// Schedule lottery, drawn one by one into slots in draw order: [bye 1, bye 2, game 1 team, game 1 opponent, game 2 team, game 2 opponent].
+// Locked once a game has a result. A new draw (first pick) gets a new lotteryId so every open page knows to show it from the start.
+const lotLocked = d => { if (d && Object.keys(d.results || {}).length) throw new Error("Games have already been played, so the lottery is locked."); };
+const newLotId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const randInt = n => { const r = new Uint32Array(1); crypto.getRandomValues(r); return r[0] % n; };
+TBC.bracketDraw = async teams => runTransaction(db, async tx => {     // the next single pick
+  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null; lotLocked(d);
+  const slots = [...((d && d.slots) || [])];
+  if (slots.length >= 6) throw new Error("The lottery is already complete. Start over to redo it.");
+  const left = teams.filter(t => !slots.includes(t)); slots.push(left[randInt(left.length)]);
+  tx.set(bracketRef, {...brBase(d), slots, lotteryId: slots.length === 1 || !(d && d.lotteryId) ? newLotId() : d.lotteryId, by: by(), at: serverTimestamp()});
+});
+TBC.bracketLottery = async teams => runTransaction(db, async tx => {  // draw every pick that's left at once
+  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null; lotLocked(d);
+  const slots = [...((d && d.slots) || [])].slice(0, 6), fresh = !slots.length;
+  const left = teams.filter(t => !slots.includes(t));
+  while (left.length) slots.push(left.splice(randInt(left.length), 1)[0]);
+  tx.set(bracketRef, {...brBase(d), slots, lotteryId: fresh || !(d && d.lotteryId) ? newLotId() : d.lotteryId, by: by(), at: serverTimestamp()});
+});
+TBC.bracketLotteryReset = async () => runTransaction(db, async tx => {
+  const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null; lotLocked(d);
+  tx.set(bracketRef, {...brBase(d), slots: [], lotteryId: "", by: by(), at: serverTimestamp()});
 });
 TBC.bracketTimes = async (start, minutes) => runTransaction(db, async tx => {
   const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null;
