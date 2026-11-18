@@ -278,6 +278,17 @@ const BR_POS = {g1: [0, 70], g2: [0, 190], g3: [1, 70], g4: [1, 190], g7: [2, 13
 // lines: [from, to, which row of "to" (0 top / 1 bottom)]
 const BR_LINES = [["g1", "g3", 1], ["g2", "g4", 1], ["g3", "g7", 0], ["g4", "g7", 1], ["g7", "g10", 0],
   ["g5", "g8", 0], ["g6", "g8", 1], ["g8", "g9", 1], ["g9", "g10", 1]];
+// Text never gets near other text: names are measured and shortened with "…" (brFit), G11's "if needed" sits under its box,
+// and the champion box has room for its three lines. viewBox is 1000 x 610.
+const BR_MEASURE = (() => { try { return typeof document !== "undefined" && document.createElement ? document.createElement("canvas").getContext("2d") : null; } catch(e){ return null; } })();
+function brFit(text, maxPx, font = "800 13.5px Inter, system-ui, sans-serif"){
+  text = String(text || ""); if (!text) return "";
+  const w = t => BR_MEASURE ? (BR_MEASURE.font = font, BR_MEASURE.measureText(t).width * 1.04) : t.length * 7.9;   // a little extra for the web font
+  if (w(text) <= maxPx) return text;
+  let t = text; while (t.length > 1 && w(t + "…") > maxPx) t = t.slice(0, -1);
+  return t.trimEnd() + "…";
+}
+const BR_IFNOTE = (x, y) => `<text x="${x}" y="${y}" class="note">Only if the losers-bracket</text><text x="${x}" y="${y + 15}" class="note">team wins Game 10.</text>`;
 function brSvg(S, B){
   const e = brEsc, out = [];
   const box = id => { const [c, y] = BR_POS[id]; return {x: BRX[c], y}; };
@@ -295,30 +306,32 @@ function brSvg(S, B){
   // byes: a short "BYE" arrow straight into the top line of round-2 games G3 / G4
   ["g4", "g3"].forEach(id => {
     const b = box(id), y = b.y + BRH * 0.25;
-    out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/><text x="${b.x - 13}" y="${y - 5}" class="bye" text-anchor="middle">BYE</text>`);
+    out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/>`);
   });
   // the games
   BR_GAMES.forEach(g => {
     const x = S.out[g.id], b = box(g.id), nx = S.next && S.next.g.id === g.id;
     const tm = x.r ? "FINAL" : g.ifNeeded && !x.needed ? "NOT NEEDED" : "~" + brTime(B, g.n);
     out.push(`<g class="gm${nx ? " nx" : ""}${!x.needed ? " skip" : ""}" data-g="${g.id}">
-      <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.ifNeeded ? " · IF NEEDED" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt" text-anchor="end">${tm}</text>
+      <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.a.slot != null && g.a.slot < 2 ? " · BYE" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt" text-anchor="end">${tm}</text>
       <rect x="${b.x}" y="${b.y}" width="${BRW}" height="${BRH}" rx="8" class="bx"/>
       <line x1="${b.x}" y1="${b.y + BRH / 2}" x2="${b.x + BRW}" y2="${b.y + BRH / 2}" class="mid"/>`);
     [0, 1].forEach(side => {
       const c = side ? x.B : x.A, ty = b.y + side * BRH / 2, cls = !c ? "tbd" : x.winner === c ? "win" : x.loser === c ? "lose" : "tm";
       if (c) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="5" height="${BRH / 2 - 2}" rx="2" fill="${e(teamColor(c) || "#6c7689")}"/>`);
-      out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(nm(x, side))}</text>`);
+      out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(brFit(nm(x, side), BRW - 13 - (x.r ? 38 : 10)))}</text>`);
       if (x.r) out.push(`<text x="${b.x + BRW - 10}" y="${ty + 19}" class="sc ${cls}" text-anchor="end">${side ? x.r.sb : x.r.sa}</text>`);
     });
+    if (g.ifNeeded) out.push(BR_IFNOTE(b.x, b.y + BRH + 16));
     out.push(`</g>`);
   });
   // champion
   const cb = {x: BRX[4], y: 520};
-  out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="62" rx="10" class="champ${S.champion ? " won" : ""}"/>
-    <text x="${cb.x + BRW / 2}" y="${cb.y + 22}" class="cl" text-anchor="middle">🏆 CHAMPION</text>
-    <text x="${cb.x + BRW / 2}" y="${cb.y + 47}" class="cn${S.champion ? "" : " tbd"}" text-anchor="middle">${e(S.champion ? draftTeamName(S.champion) : "TBD")}</text>`);
-  return `<svg class="br-svg" viewBox="0 0 1000 600" role="img" aria-label="${CURRENT_SEASON} Turkey Bowl bracket">${out.join("")}</svg>`;
+  out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="84" rx="10" class="champ${S.champion ? " won" : ""}"/>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 20}" class="cl" text-anchor="middle">🏆 CHAMPION</text>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 49}" class="cn${S.champion ? "" : " tbd"}" text-anchor="middle">${e(S.champion ? brFit(draftTeamName(S.champion), BRW - 24, "700 18px Oswald, sans-serif") : "TBD")}</text>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 72}" class="note" text-anchor="middle">Turkey Bowl ${typeof CURRENT_SEASON !== "undefined" ? CURRENT_SEASON : ""}</text>`);
+  return `<svg class="br-svg" viewBox="0 0 1000 610" role="img" aria-label="${CURRENT_SEASON} Turkey Bowl bracket">${out.join("")}</svg>`;
 }
 function brFullBracket(){
   const ov = document.createElement("div"); ov.className = "ov br-full";

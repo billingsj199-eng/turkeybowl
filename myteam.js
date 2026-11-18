@@ -119,3 +119,99 @@ document.addEventListener("tbc-change", () => {
   const n = (window.TBC && TBC.chat || []).length, grew = n > MT_SEEN; MT_SEEN = n;
   renderMyTeam(); if (grew && MT_TAB === "chat") setTimeout(mtScrollChat, 0);
 });
+
+// ===================== ADMIN: link players to Google accounts (with suggested matches) =====================
+// The admin panel (tb-cloud.js openAdmin) calls mtLinksPanel. For every unlinked player it suggests the signed-in
+// account whose name or email looks like theirs; Jack checks it and taps ✓ (or "Link all"). Nothing links without a tap.
+const MT_NICK = [["jake","jacob","jakob"],["matt","matthew","mat"],["joe","joseph","joey"],["dan","danny","daniel"],["mike","michael","mikey"],
+  ["chris","christopher"],["nick","nicholas","nicolas","nico"],["tom","thomas","tommy"],["will","william","billy","bill","liam"],
+  ["jim","jimmy","james","jamie"],["bob","robert","rob","bobby","robbie"],["ben","benjamin","benny"],["sam","samuel","sammy"],
+  ["tony","anthony"],["alex","alexander","alec"],["andy","andrew","drew"],["zach","zachary","zack","zac"],["josh","joshua"],
+  ["steve","steven","stephen"],["dave","david"],["ed","edward","eddie"],["greg","gregory"],["pat","patrick"],["tim","timothy","timmy"],
+  ["ken","kenneth","kenny"],["jon","jonathan","john","johnny"],["shay","shea"],["luke","lucas"],["max","maxwell"],["nate","nathan","nathaniel"],
+  ["charlie","charles","chuck"],["jeff","jeffrey"],["rich","richard","rick","ricky"],["ron","ronald","ronnie"],["vince","vincent","vinny"],
+  ["frank","francis","frankie"],["gabe","gabriel"],["sean","shawn"],["cam","cameron"],["dom","dominic","dominick"]];
+const mtToks = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/['’.]/g, "").split(/[^a-z]+/).filter(Boolean);
+const mtNicks = f => (MT_NICK.find(g => g.includes(f)) || [f]);
+const mtSameFirst = (a, b) => a === b || mtNicks(a).includes(b) || (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a)));
+const mtSameLast = (a, b) => a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)));
+
+// How much an account (name + email) looks like a player: 0-100 plus a short reason.
+function mtMatchScore(player, acct){
+  const pt = mtToks(player); if (!pt.length) return {s: 0, why: ""};
+  const first = pt[0], last = pt.length > 1 ? pt[pt.length - 1] : "", at = mtToks(acct.name);
+  let s = 0, why = "";
+  const take = (v, w) => { if (v > s) { s = v; why = w; } };
+  if (at.length && at.join(" ") === pt.join(" ")) take(100, "same name");
+  const hasF = at.some(t => mtSameFirst(t, first)), hasL = !!last && at.some(t => mtSameLast(t, last));
+  if (hasF && hasL) take(92, "name matches");
+  if (hasL && at.some(t => t === first[0])) take(80, "initial + last name");
+  if (last && hasF && at.some(t => t === last[0])) take(72, "first name + last initial");
+  if (hasL) take(55, "same last name");
+  const e = String(acct.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
+  if (e && last) {
+    const firsts = mtNicks(first).concat(first);
+    if (firsts.some(f => e.includes(f + last) || e.includes(last + f))) take(90, "email matches");
+    else if (last.length >= 4 && e.includes(last) && (e.startsWith(first[0]) || firsts.some(f => f.length >= 3 && e.includes(f)))) take(80, "email matches");
+    else if (firsts.some(f => f.length >= 3 && e.startsWith(f) && e[f.length] === last[0])) take(66, "email looks like it");
+    else if (last.length >= 5 && e.includes(last)) take(55, "last name in email");
+  }
+  return {s, why};
+}
+
+// Best guess for each unlinked player among accounts not linked yet. Only confident, one-to-one guesses:
+// a player with two close candidates (or an account two players fit about equally) gets no suggestion.
+function mtSuggestLinks(names, people, links){
+  const linkedP = new Set(Object.values(links || {})), linkedU = new Set(Object.keys(links || {}));
+  const pairs = [];
+  names.filter(n => !linkedP.has(n)).forEach(n => Object.entries(people).forEach(([u, a]) => {
+    if (linkedU.has(u)) return; const m = mtMatchScore(n, a); if (m.s >= 55) pairs.push({n, u, s: m.s, why: m.why});
+  }));
+  pairs.sort((a, b) => b.s - a.s);
+  const out = {}, usedU = new Set(), doneN = new Set();
+  for (const p of pairs) {
+    if (doneN.has(p.n) || usedU.has(p.u)) continue;
+    const rival = pairs.some(q => q !== p && q.s > p.s - 10 &&
+      ((q.n === p.n && !usedU.has(q.u)) || (q.u === p.u && q.n !== p.n && !doneN.has(q.n))));
+    doneN.add(p.n);
+    if (p.s < 66 || rival) { if (rival) usedU.add(p.u); continue; }   // too weak or too close to call: Jack picks from the list
+    usedU.add(p.u); out[p.n] = p;
+  }
+  return out;
+}
+
+const MT_SUG_NO = new Set();   // suggestions Jack waved off this visit ("player|uid")
+function mtLinksPanel(box, people, links, save){
+  links = links || {};
+  const names = (window.tbPlayers && window.tbPlayers()) || [], teamOf = n => mtPlayerTeam(n) || "";
+  const groups = {}; names.forEach(n => { const t = teamOf(n); (groups[t] = groups[t] || []).push(n); });
+  const order = Object.keys(groups).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+  const uidOf = n => Object.keys(links).find(u => links[u] === n) || "";
+  const sug = mtSuggestLinks(names, people, links);
+  Object.keys(sug).forEach(n => { if (MT_SUG_NO.has(n + "|" + sug[n].u)) delete sug[n]; });
+  const nSug = Object.keys(sug).length, nLinked = names.filter(uidOf).length;
+  const sorted = Object.entries(people).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const opts = cur => `<option value="">— not linked —</option>${sorted.map(([u, v]) => `<option value="${esc2(u)}" ${u === cur ? "selected" : ""}>${esc2(v.name)} (${esc2(v.email)})${links[u] && u !== cur ? " · now " + esc2(links[u]) : ""}</option>`).join("")}`;
+  const row = n => { const s = sug[n];
+    return `<div class="adm-row mt-lr${s ? " sug" : ""}"><div class="mt-lr-n"><b>${esc2(n)}</b>${s ? `<div class="mt-sug"><span class="mt-sug-t">💡 <b>${esc2(people[s.u].name)}</b> <small>${esc2(people[s.u].email)} · ${esc2(s.why)}</small></span><span class="mt-sug-b"><button class="obtn solid sm" data-sok="${esc2(n)}">✓ Link</button><button class="obtn sm" data-sno="${esc2(n)}" title="Not them">✗</button></span></div>` : ""}</div>
+      <select data-pl="${esc2(n)}">${opts(uidOf(n))}</select></div>`; };
+  box.innerHTML = `<div class="sec-t" style="margin:18px 0 4px">Player accounts (My Team) · ${nLinked} of ${names.length} linked</div>
+    <div class="ed-hint" style="margin:0 0 8px">Link each player to their Google account. It stays linked every season; each year they see the private My Team page of whatever team drafted them. Nobody, you included, can see another team's page. Friends show up here after they sign in once.</div>
+    ${nSug ? `<div class="mt-sugbar"><span>💡 <b>${nSug} suggested match${nSug === 1 ? "" : "es"}</b> from account names and emails. Check each one and tap ✓ Link (✗ if it's wrong), or link them all at once.</span><button class="obtn solid sm" id="mtSugAll">✓ Link all ${nSug}</button></div>` : ""}
+    ${order.map(t => `<div class="ed-hint" style="margin:10px 0 4px;font-weight:700;color:var(--ink)">${t ? esc2(window.draftTeamName ? draftTeamName(t) : t) : "Not on a team this season"}</div>` + groups[t].map(row).join("")).join("")}`;
+  const commit = async (pairs, lock) => {
+    const byUid = {...links};
+    pairs.forEach(([player, uid]) => {
+      Object.keys(byUid).forEach(u => { if (byUid[u] === player || u === uid) delete byUid[u]; });   // one account per player, one player per account
+      if (uid) byUid[uid] = player;
+    });
+    lock.forEach(el => el.disabled = true);
+    try { await save(byUid); links = byUid; } catch(err){ alert("Couldn't save: " + err.message); }
+    mtLinksPanel(box, people, links, save);
+  };
+  box.querySelectorAll("select[data-pl]").forEach(sel => sel.onchange = () => commit([[sel.dataset.pl, sel.value]], [sel]));
+  box.querySelectorAll("[data-sok]").forEach(b => b.onclick = () => commit([[b.dataset.sok, sug[b.dataset.sok].u]], [b]));
+  box.querySelectorAll("[data-sno]").forEach(b => b.onclick = () => { MT_SUG_NO.add(b.dataset.sno + "|" + sug[b.dataset.sno].u); mtLinksPanel(box, people, links, save); });
+  const all = box.querySelector("#mtSugAll");
+  if (all) all.onclick = () => commit(Object.keys(sug).map(n => [n, sug[n].u]), [all]);
+}

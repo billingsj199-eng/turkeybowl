@@ -85,8 +85,8 @@ function promo(d){
     <div class="brand">🦃 Turkey Bowl ${d.season}</div>
     <div class="title">Bracket<span>Challenge</span></div>
     <div class="tag">Can you pick the <em>perfect bracket?</em></div>
-    <div class="ladder card"><div class="k">Scoring · points double every round (like ESPN)</div>
-      <div class="steps">${ladder.map(([p, r, g], i) => `<div class="st${i === 4 ? " champ" : ""}" style="height:${96 + i * 22}px"><b>${p}</b><span>${r}</span><small>${g}</small></div>`).join("")}</div>
+    <div class="ladder card"><div class="k">Scoring · points double every round</div>
+      <div class="steps">${ladder.map(([p, r, g], i) => `<div class="st${i === 4 ? " champ" : ""}" style="height:${128 + i * 22}px"><b>${p}</b><span>${r}</span><small>${g}</small></div>`).join("")}</div>
       <div class="perfect"><span>Perfect bracket = <b>${d.max} points</b> · 🔥 live leaderboard all day</span><span>Tiebreaker: Game 10 total</span></div></div>
     <div class="row2">
       <div class="card how"><div class="k">How to play</div><ol>

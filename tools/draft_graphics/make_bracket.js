@@ -16,8 +16,8 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 
   // run the site's bracket.js with the site's team names + colors
   const tbc = { live: { order: L.order } };
-  const ctx = { window: { TBC: tbc }, TBC: tbc, CURRENT_SEASON: SEASON, captains: L.order, esc2: esc, console,
-    document: { addEventListener(){} }, draftTeamName: cap => team(cap).name, teamColor: cap => team(cap).color };
+  const ctx = { window: { TBC: tbc }, TBC: tbc, CURRENT_SEASON: SEASON, captains: L.order, esc2: esc, console, location: { hash: "" },
+    document: { addEventListener(){}, getElementById(){ return null; } }, draftTeamName: cap => team(cap).name, teamColor: cap => team(cap).color };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(TB, "bracket.js"), "utf8") + "\nthis.X = {brState, brTime, brSvg, BR_GAMES};", ctx);
   const { brState, brTime, brSvg, BR_GAMES } = ctx.X;

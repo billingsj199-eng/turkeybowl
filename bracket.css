@@ -267,3 +267,20 @@
 .br-mu-leg span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:color-mix(in srgb,var(--team) 70%,#151c2c);vertical-align:-1px}
 .br-mu-leg .oth::before{background:#2a3449}
 .br-mu-leg b{color:#fff}
+
+/* champion box third line (challenge) */
+.ch-svg .cpt{font:700 11px Inter,sans-serif;fill:var(--accent)}
+.ch-svg .cpt.ok{fill:#5fd68f} .ch-svg .cpt.no{fill:#ef6b5f}
+
+/* admin: player <-> account links with suggested matches */
+.mt-lr{flex-wrap:wrap}
+.mt-lr-n{flex:1 1 220px;min-width:0}
+.mt-lr select{max-width:min(60%,320px);background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px}
+.mt-lr.sug{border-color:color-mix(in srgb,var(--accent) 45%,#29334a)}
+.mt-sug{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px;font-size:13px}
+.mt-sug-t{min-width:0;overflow-wrap:anywhere}
+.mt-sug-t small{display:inline;color:var(--muted);font-size:12px}
+.mt-sug-b{display:inline-flex;gap:6px}
+.mt-sugbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:color-mix(in srgb,var(--accent) 12%,#151c2c);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:13px}
+.mt-sugbar span{flex:1 1 220px}
+@media (max-width:600px){ .mt-lr select{max-width:100%;flex:1 1 100%} }

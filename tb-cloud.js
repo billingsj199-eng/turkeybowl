@@ -739,25 +739,8 @@ async function openAdmin(){
   // ---- player accounts (My Team): link each player to their Google account once; it sticks every season ----
   const plBox = document.createElement("div");
   body.appendChild(plBox);
-  const drawLinks = () => {
-    const names = (window.tbPlayers && window.tbPlayers()) || [], teamOf = n => (window.mtPlayerTeam && window.mtPlayerTeam(n)) || "";
-    const groups = {}; names.forEach(n => { const t = teamOf(n); (groups[t] = groups[t] || []).push(n); });
-    const order = Object.keys(groups).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
-    const uidOf = n => Object.keys(TBC.links).find(u => TBC.links[u] === n) || "";
-    const opts = cur => `<option value="">— not linked —</option>${Object.entries(people).sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([u, v]) => `<option value="${esc(u)}" ${u === cur ? "selected" : ""}>${esc(v.name)} (${esc(v.email)})</option>`).join("")}`;
-    plBox.innerHTML = `<div class="sec-t" style="margin:18px 0 4px">Player accounts (My Team)</div>
-      <div class="ed-hint" style="margin:0 0 8px">Link each player to their Google account. It stays linked every season; each year they see the private My Team page of whatever team drafted them. Nobody, you included, can see another team's page.</div>
-      ${order.map(t => `<div class="ed-hint" style="margin:10px 0 4px;font-weight:700;color:var(--ink)">${t ? esc(window.draftTeamName ? window.draftTeamName(t) : t) : "Not on a team this season"}</div>` + groups[t].map(n => `<div class="adm-row"><div><b>${esc(n)}</b></div>
-        <select data-pl="${esc(n)}" style="max-width:60%;background:#0f1525;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px">${opts(uidOf(n))}</select></div>`).join("")).join("")}`;
-    plBox.querySelectorAll("select[data-pl]").forEach(sel => sel.onchange = async () => {
-      const player = sel.dataset.pl, uid = sel.value, byUid = {...TBC.links};
-      Object.keys(byUid).forEach(u => { if (byUid[u] === player) delete byUid[u]; });   // one account per player
-      if (uid) byUid[uid] = player;                                                      // and one player per account
-      sel.disabled = true;
-      try { await TBC.saveLinks(byUid); TBC.links = byUid; } catch(err){ alert("Couldn't save: " + err.message); }
-      drawLinks();
-    });
-  };
+  // matching + suggested links live in myteam.js (mtLinksPanel); nothing links until Jack taps ✓
+  const drawLinks = () => window.mtLinksPanel ? window.mtLinksPanel(plBox, people, TBC.links, async byUid => { await TBC.saveLinks(byUid); TBC.links = byUid; }) : null;
   drawLinks();
   const byId = Object.fromEntries(rq.docs.map(d => [d.id, d.data()]));
   body.querySelectorAll("[data-ok]").forEach(b => b.onclick = async () => {

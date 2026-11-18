@@ -1,9 +1,9 @@
 // ===================== BRACKET CHALLENGE (Bracket page → "🎯 Bracket Challenge" tab) =====================
 // Signed-in people pick the winner of every game before kickoff; a leaderboard scores everyone as real games finish.
-// Scoring works like ESPN's Tournament Challenge: points double each round.
+// Scoring works points double each round.
 //   Round 1 (G1, G2) 10 · Round 2 (Winners R2 G3/G4 + Losers R1 G5/G6) 20 · Round 3 (Winners Final G7, Losers R2 G8) 40
 //   Losers Final (G9) 80 · Champion 160  →  a perfect bracket = 420.
-// A pick scores when the team you picked wins that game (like ESPN: your team has to win that slot).
+// A pick scores when the team you picked wins that game (your team has to win that slot).
 // Tiebreaker: total points scored in Game 10 (closest wins).
 // Picks are run through the real bracket logic (bracket.js brState), so picking G1's winner fills G3 and G1's loser
 // drops into the losers bracket. Stored in challenge/<season>/entries/{uid} (tb-cloud.js). Locks when an editor taps Lock
@@ -60,7 +60,7 @@ function renderChallenge(root, S, B, ed){
   // scoring + status
   const top = document.createElement("div"); top.className = "ch-top";
   top.innerHTML = `<div class="panel ch-rules"><h3>🎯 ${CURRENT_SEASON} Bracket Challenge</h3>
-      <div class="psub">Pick every game before kickoff. Points double each round, like ESPN's Tournament Challenge.</div>
+      <div class="psub">Pick every game before kickoff. Points double each round.</div>
       <div class="ch-pts"><span><b>10</b>Round 1<small>G1 · G2</small></span><span><b>20</b>Round 2<small>G3–G6</small></span><span><b>40</b>Round 3<small>G7 · G8</small></span><span><b>80</b>Losers Final<small>G9</small></span><span class="ch-champ-pts"><b>160</b>Champion<small>G10/G11</small></span></div>
       <div class="psub">Perfect bracket = <b>${CH_MAX}</b> points. A pick counts when your team wins that game. Tiebreaker: total points in Game 10.</div>
       ${(() => { const co = chChampOdds(teams); const nv = ((window.TBC && TBC.votes) || []).length;
@@ -135,32 +135,36 @@ function chSvg(picks, slots, mode, S){
   out.push(`<text x="16" y="30" class="sec">WINNERS BRACKET</text><text x="16" y="364" class="sec">LOSERS BRACKET</text><text x="${BRX[4]}" y="${BR_POS.g10[1] - 34}" class="sec">CHAMPIONSHIP</text>`);
   out.push(`<text x="16" y="400" class="note">${mode === "pick" ? "Tap a team to pick it." : "✓ right · ✗ wrong"}</text><text x="16" y="418" class="note">${mode === "pick" ? "Losers drop down here." : "Grey = not played yet."}</text>`);
   ["g4", "g3"].forEach(id => { const b = box(id), y = b.y + BRH * 0.25;
-    out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/><text x="${b.x - 13}" y="${y - 5}" class="bye" text-anchor="middle">BYE</text>`); });
+    out.push(`<path d="M${b.x - 26} ${y} H${b.x}" class="ln lit"/>`); });
   BR_GAMES.forEach(g => {
     const x = P.out[g.id], b = box(g.id), pts = CH_POINTS[g.id], m = mark(g.id), O = chOdds(g.id);
     const right = !x.needed ? "NOT NEEDED" : g.side === "F" ? (mode === "pick" ? "CHAMPION" : "") : m === "ok" ? "+" + pts : m === "no" ? "✗ 0" : pts + " PTS";
     out.push(`<g class="gm${!x.needed ? " skip" : ""}${m ? " m-" + m : ""}${mode === "pick" && x.needed && x.A && x.B && !x.winner ? " nx" : ""}">
-      <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.ifNeeded ? " · IF NEEDED" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt pts" text-anchor="end">${right}</text>
+      <text x="${b.x}" y="${b.y - 6}" class="gl">G${g.n}${g.a.slot != null && g.a.slot < 2 ? " · BYE" : ""}</text><text x="${b.x + BRW}" y="${b.y - 6}" class="gl gt pts" text-anchor="end">${right}</text>
       <rect x="${b.x}" y="${b.y}" width="${BRW}" height="${BRH}" rx="8" class="bx"/>
       <line x1="${b.x}" y1="${b.y + BRH / 2}" x2="${b.x + BRW}" y2="${b.y + BRH / 2}" class="mid"/>`);
     [0, 1].forEach(side => {
       const c = side ? x.B : x.A, ty = b.y + side * BRH / 2, picked = c && x.winner === c;
       const cls = !c ? "tbd" : picked ? "win" : x.winner ? "dim" : "tm";
+      const pct = c && O.n, mk = picked && m;   // what sits on the right of this line
       if (picked) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="${BRW - 2}" height="${BRH / 2 - 2}" rx="6" class="pk${m ? " " + m : ""}"/>`);
       if (c) out.push(`<rect x="${b.x + 1}" y="${ty + 1}" width="5" height="${BRH / 2 - 2}" rx="2" fill="${e(teamColor(c) || "#6c7689")}"/>`);
-      out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(c ? draftTeamName(c) : brSrc(side ? g.b : g.a))}</text>`);
-      if (picked && m) out.push(`<text x="${b.x + BRW - 10}" y="${ty + 19}" class="mk ${m}" text-anchor="end">${m === "ok" ? "✓" : "✗"}</text>`);
-      if (c && O.n) out.push(`<text x="${b.x + BRW - (picked && m ? 28 : 9)}" y="${ty + 18.5}" class="pp${O.pct(c) >= 50 ? " hi" : ""}" text-anchor="end">${O.pct(c)}%</text>`);
+      out.push(`<text x="${b.x + 13}" y="${ty + 18.5}" class="${cls}">${e(brFit(c ? draftTeamName(c) : brSrc(side ? g.b : g.a), BRW - 13 - (pct ? 44 : 10) - (mk ? 18 : 0)))}</text>`);
+      if (mk) out.push(`<text x="${b.x + BRW - 10}" y="${ty + 19}" class="mk ${m}" text-anchor="end">${m === "ok" ? "✓" : "✗"}</text>`);
+      if (pct) out.push(`<text x="${b.x + BRW - (mk ? 28 : 9)}" y="${ty + 18.5}" class="pp${O.pct(c) >= 50 ? " hi" : ""}" text-anchor="end">${O.pct(c)}%</text>`);
       if (mode === "pick" && c && x.needed) out.push(`<rect x="${b.x}" y="${ty}" width="${BRW}" height="${BRH / 2}" class="hit" data-g="${g.id}" data-t="${e(c)}"><title>Pick ${e(draftTeamName(c))}</title></rect>`);
     });
-    if (x.needed && (x.A || x.B)) out.push(`<g class="vsb" data-mu="${g.id}"><title>Matchup: both rosters</title><circle cx="${b.x}" cy="${b.y + BRH / 2}" r="10"/><text x="${b.x}" y="${b.y + BRH / 2 + 3.5}" text-anchor="middle">vs</text></g>`);
+    if (g.ifNeeded) out.push(BR_IFNOTE(b.x, b.y + BRH + 16));
+    // "vs" (both rosters) sits just outside the box's left edge, clear of the color stripes and the lines
+    if (x.needed && (x.A || x.B)) out.push(`<g class="vsb" data-mu="${g.id}"><title>Matchup: both rosters</title><circle cx="${b.x - 13}" cy="${b.y + BRH / 2}" r="10"/><text x="${b.x - 13}" y="${b.y + BRH / 2 + 3.5}" text-anchor="middle">vs</text></g>`);
     out.push(`</g>`);
   });
   const cb = {x: BRX[4], y: 520}, ch = ps.champion, cm = mode === "review" && ch ? (S.champion ? (S.champion === ch ? "ok" : "no") : (S.losses[ch] || 0) >= 2 ? "no" : "") : "";
-  out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="62" rx="10" class="champ${ch ? " won" : ""}${cm ? " " + cm : ""}"/>
-    <text x="${cb.x + BRW / 2}" y="${cb.y + 22}" class="cl" text-anchor="middle">🏆 ${mode === "pick" ? "YOUR CHAMPION" : "CHAMPION PICK"}${cm === "ok" ? " · +" + CH_CHAMP : cm === "no" ? " · ✗" : " · " + CH_CHAMP}</text>
-    <text x="${cb.x + BRW / 2}" y="${cb.y + 47}" class="cn${ch ? "" : " tbd"}" text-anchor="middle">${e(ch ? draftTeamName(ch) : "Pick through G10")}</text>`);
-  return `<div class="br-pic-in"><svg class="br-svg ch-svg" viewBox="0 0 1000 600" role="img" aria-label="Bracket picks">${out.join("")}</svg></div><div class="swipe-hint">← Swipe sideways for Games 7-11 and your champion →</div>`;
+  out.push(`<rect x="${cb.x}" y="${cb.y}" width="${BRW}" height="84" rx="10" class="champ${ch ? " won" : ""}${cm ? " " + cm : ""}"/>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 20}" class="cl" text-anchor="middle">🏆 ${mode === "pick" ? "YOUR CHAMPION" : "CHAMPION PICK"}</text>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 49}" class="cn${ch ? "" : " tbd"}" text-anchor="middle">${e(ch ? brFit(draftTeamName(ch), BRW - 24, "700 18px Oswald, sans-serif") : "Pick through G10")}</text>
+    <text x="${cb.x + BRW / 2}" y="${cb.y + 72}" class="cpt${cm ? " " + cm : ""}" text-anchor="middle">${cm === "ok" ? "✓ +" + CH_CHAMP + " pts" : cm === "no" ? "✗ 0 pts" : CH_CHAMP + " pts"}</text>`);
+  return `<div class="br-pic-in"><svg class="br-svg ch-svg" viewBox="-24 0 1024 610" role="img" aria-label="Bracket picks">${out.join("")}</svg></div><div class="swipe-hint">← Swipe sideways for Games 7-11 and your champion →</div>`;
 }
 let CH_LIST = false;   // list view instead of the bracket (phones)
 // "vs" on a game → the matchup pop-up for the two teams in THIS bracket (they can differ from the real bracket)
