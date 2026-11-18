@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Draft Final Recap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0d1220;--panel:#131a2a;--panel2:#182033;--line:#232c40;--ink:#e8ecf4;--muted:#8a94a8;--accent:#f5a524;
+    --t-QB:#e9b949;--t-S:#ef5a4c;--t-A:#f5a524;--t-B:#3fbf75;--t-C:#4b9ce8;--t-D:#a07ee0;--t-NA:#6c7689}
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a12;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .page-h{max-width:1100px;margin:0 auto;padding:18px 16px 4px}
+  .page-h h1{font:700 22px Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;margin:0}
+  .gallery{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;padding:16px}
+  .slot{width:min(540px,calc(100vw - 32px))}
+  .slot .cap{color:var(--muted);font:600 12px Inter;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px}
+  .fit{position:relative;width:100%;aspect-ratio:1080/1350;overflow:hidden;border-radius:10px}
+  .art{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;overflow:hidden;background:var(--bg);font-family:Inter,sans-serif}
+  .brand{display:flex;align-items:center;gap:12px;font:600 24px Oswald;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+  .hs{border-radius:50%;overflow:hidden;background:#232c40;border:3px solid var(--tc,#6c7689);display:flex;align-items:center;justify-content:center;flex:none;color:var(--tc);font:700 18px Oswald}
+  .hs img{width:100%;height:100%;object-fit:cover}
+  .tier{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:6px;font:700 17px Oswald;letter-spacing:.06em;color:var(--tc);background:color-mix(in srgb,var(--tc) 22%,#111)}
+  .col{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;color:#c4cbd8;font:600 17px Inter}
+  .col img{width:26px;height:26px;object-fit:contain}
+  .col b{display:inline-flex;width:26px;height:26px;border-radius:50%;background:#232c40;align-items:center;justify-content:center;font-size:10px}
+  .grade{display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:Oswald;font-weight:700;color:#0d1220;background:var(--gc);flex:none}
+  .url{color:var(--accent);font:600 20px Oswald;letter-spacing:.12em}
+
+  /* ===== full draft board ===== */
+  .fb{padding:46px 44px 0;background:radial-gradient(900px 500px at 100% -10%, #f5a52430, transparent 60%), repeating-linear-gradient(135deg,#ffffff05 0 2px,transparent 2px 22px), var(--bg)}
+  .fb-top{display:flex;justify-content:space-between;align-items:flex-end}
+  .fb-title{font:700 104px/0.9 Oswald;text-transform:uppercase;margin-top:10px}
+  .fb-title span{color:transparent;-webkit-text-stroke:2px var(--accent)}
+  .fb-meta{text-align:right;color:var(--muted);font:600 20px Oswald;letter-spacing:.14em;text-transform:uppercase;line-height:1.5}
+  .fb-meta b{color:var(--ink);font-size:30px;letter-spacing:.04em}
+  .fb-grid{display:grid;grid-template-columns:40px repeat(var(--n),1fr);gap:6px;margin-top:22px}
+  .fb-ch{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px 8px;border-radius:10px;background:#131a2a;border-top:4px solid var(--team);text-align:center;min-width:0}
+  .fb-ch .tn{font:700 17px Oswald;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .fb-ch .cp{color:var(--muted);font:600 11px Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .fb-rl{display:flex;align-items:center;justify-content:center;font:700 20px Oswald;color:var(--muted)}
+  .fb-c{position:relative;height:var(--ch);border-radius:10px;padding:8px 6px 6px;display:flex;flex-direction:column;align-items:center;min-width:0;
+     background:color-mix(in srgb,var(--tc) 14%,#131a2a);border:1px solid color-mix(in srgb,var(--tc) 35%,transparent)}
+  .fb-c.empty{background:transparent;border:1px dashed #ffffff18}
+  .fb-c .pk{position:absolute;left:7px;top:5px;font:700 13px Oswald;color:#c4cbd8;letter-spacing:.02em}
+  .fb-c .grade{position:absolute;right:5px;top:5px;width:28px;height:28px;font-size:14px}
+  .fb-c .hs{margin-top:10px}
+  .fb-c .ln{margin-top:5px;font:700 19px/1.05 Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .fb-c .fn{font:600 12px Inter;color:#c4cbd8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .fb-c .tr{font:600 10px Inter;color:var(--accent)}
+  .fb-foot{position:absolute;left:44px;right:44px;bottom:30px}
+  .fb-aw{display:flex;gap:10px}
+  .aw{flex:1;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:#ffffff0a;border:1px solid #ffffff12;min-width:0}
+  .aw .e{font-size:28px}
+  .aw .k{color:var(--muted);font:700 12px Inter;letter-spacing:.12em;text-transform:uppercase}
+  .aw .v{font:700 22px Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aw .v small{color:var(--muted);font-size:16px}
+  .fb-bot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font:600 18px Inter}
+  .fb-legend{display:flex;gap:12px;align-items:center}
+  .fb-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--tc);margin-right:5px}
+
+  /* ===== team recap ===== */
+  .tm{background:radial-gradient(1000px 650px at 90% 0%, color-mix(in srgb,var(--team) 50%,transparent), transparent 62%),
+      linear-gradient(165deg, color-mix(in srgb,var(--team) 20%,#0d1220) 0, #0d1220 55%)}
+  .tm-top{position:absolute;left:56px;right:56px;top:46px;display:flex;justify-content:space-between;align-items:center}
+  .tm-rk{font:600 22px Oswald;letter-spacing:.14em;text-transform:uppercase;color:#c4cbd8}
+  .tm-rk b{color:var(--ink)}
+  .tm-hero{position:absolute;left:56px;right:56px;top:108px;display:flex;align-items:center;gap:28px}
+  .tm-hero .hs{width:150px;height:150px;border-width:6px;font-size:70px}
+  .tm-id{flex:1;min-width:0}
+  .tm-id .k{font:700 18px Inter;letter-spacing:.3em;color:var(--accent)}
+  .tm-id .nm{font:700 86px/0.95 Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tm-id .sub{color:#c4cbd8;font:600 20px Inter;margin-top:8px}
+  .tm-gr{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .tm-gr .grade{width:150px;height:150px;font-size:76px;box-shadow:0 20px 50px #0008}
+  .tm-gr .k{font:700 14px Inter;letter-spacing:.2em;color:var(--muted)}
+  .tm-list{position:absolute;left:56px;right:56px;top:300px;display:flex;flex-direction:column;gap:8px}
+  .tm-row{display:flex;align-items:center;gap:16px;height:var(--rh);padding-right:18px;border-radius:12px;overflow:hidden;background:#131a2acc;border:1px solid #ffffff10}
+  .tm-pk{width:96px;align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--team);color:#0d1220;flex:none}
+  .tm-pk b{font:700 28px/1 Oswald}
+  .tm-pk small{font:700 11px Inter;letter-spacing:.1em;opacity:.75;margin-top:2px}
+  .tm-row.capt .tm-pk{background:#ffffff14;color:var(--ink)}
+  .tm-nm{flex:1;min-width:0}
+  .tm-nm .n{font:700 28px/1 Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tm-nm .n i{font-style:normal;font-weight:500;color:#c4cbd8}
+  .tm-nm .s{display:flex;align-items:center;gap:8px;margin-top:5px;overflow:hidden}
+  .tm-nm .s .flex{color:#c4cbd8;font:600 16px Inter;white-space:nowrap}
+  .tm-row .grade{width:50px;height:50px;font-size:24px}
+  .tm-stats{position:absolute;left:56px;right:56px;bottom:84px;display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px}
+  .st{padding:12px 16px;border-radius:12px;background:#111829;border:1px solid #ffffff14;min-width:0}
+  .st .k{color:var(--muted);font:700 12px Inter;letter-spacing:.12em;text-transform:uppercase}
+  .st .v{font:700 30px/1.15 Oswald;text-transform:uppercase;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st .v.pos{color:#5fd68f} .st .v.neg{color:#ef6b5f}
+  .st .v small{font:600 15px Inter;color:#c4cbd8}
+  .st .mix{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .st.wide{grid-column:span 3/span 3;display:flex;gap:24px;align-items:center}
+  .st.wide > div{flex:1;min-width:0}
+  .tm-bot{position:absolute;left:56px;right:56px;bottom:34px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font:600 18px Inter}
+</style></head>
+<body>
+<div class="page-h"><h1>🦃 Draft board + team recaps · preview</h1></div>
+<div class="gallery" id="g"></div>
+<script>
+const DATA = /*DATA*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const GC = {"A+":"#5fd68f","A":"#5fd68f","A-":"#8fe0a8","B+":"#e9b949","B":"#e9b949","B-":"#f2c96b","C+":"#f28c38","C":"#f28c38","D":"#ef6b5f","F":"#d9443a"};
+const gc = g => GC[g] || "#6c7689";
+const ini = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 3);
+const hs = (src, name, size, tc, extra = "") => `<div class="hs" style="width:${size}px;height:${size}px;--tc:${tc};${extra}">${src ? `<img src="${esc(src)}" alt="">` : esc(ini(name))}</div>`;
+const LOGOS = id => /^n-/.test(id) ? ["bgd", "bgl"].map(v => `https://www.ncaa.com/sites/default/files/images/logos/schools/${v}/${id.slice(2)}.svg`)
+  : ["500-dark", "500"].map(v => `https://a.espncdn.com/i/teamlogos/ncaa/${v}/${id}.png`);
+const logoImg = c => { const [a, b] = LOGOS(String(c.id)), i = esc(ini(c.name));
+  return `<img src="${a}" alt="" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${b}'}else this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${i}'}))">`; };
+const colTag = c => !c ? "" : `<span class="col">${c.id ? logoImg(c) : `<b>${esc(ini(c.name))}</b>`}${esc(c.name)}</span>`;
+const teamBadge = (t, size) => t.logo && !/^data:/.test(t.logo)
+  ? `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color};background:${t.color};font-size:${size * .55}px">${esc(t.logo)}</div>`
+  : hs(t.logo || t.img, t.cap, size, t.color);
+const tierLbl = t => t === "NA" ? "Unranked" : t + " Tier";
+const ord = k => k + (k % 10 === 1 && k !== 11 ? "st" : k % 10 === 2 && k !== 12 ? "nd" : k % 10 === 3 && k !== 13 ? "rd" : "th");
+
+function board(d){
+  const n = d.n, ch = Math.floor((1350 - 46 - 186 - 106 - 150 - 6 * d.rounds) / d.rounds);
+  const grid = [];
+  grid.push(`<div style="grid-row:1;grid-column:1"></div>`);
+  d.order.forEach((t, c) => grid.push(`<div class="fb-ch" style="--team:${t.color};grid-row:1;grid-column:${c + 2}">${teamBadge(t, 44)}<div class="tn">${esc(t.name)}</div><div class="cp">${esc(t.cap)}</div></div>`));
+  for (let r = 0; r < d.rounds; r++) {
+    grid.push(`<div class="fb-rl" style="grid-row:${r + 2};grid-column:1">R${r + 1}</div>`);
+    for (let c = 0; c < n; c++) {
+      const x = d.cells.find(p => p.row === r && p.col === c), pos = `grid-row:${r + 2};grid-column:${c + 2};--ch:${ch}px`;
+      if (!x) { grid.push(`<div class="fb-c empty" style="${pos}"></div>`); continue; }
+      const moved = x.holder !== x.drafter ? d.order.find(t => t.cap === x.holder) : null;
+      grid.push(`<div class="fb-c" style="${pos};--tc:var(--t-${x.tier})"><span class="pk">${x.label}</span>${x.grade !== "—" ? `<div class="grade" style="--gc:${gc(x.grade)}">${x.grade}</div>` : ""}
+        ${hs(x.img, x.name, 50, `var(--t-${x.tier})`)}<div class="ln">${esc(x.last)}</div><div class="fn">${esc(x.first)}</div>${moved ? `<div class="tr">⇄ ${esc(moved.name)}</div>` : ""}</div>`);
+    }
+  }
+  const legend = ["S", "A", "B", "C", "D"].map(t => `<span><i style="--tc:var(--t-${t})"></i>${t}</span>`).join("");
+  return `<div class="art fb">
+    <div class="fb-top"><div><div class="brand">🦃 Turkey Bowl ${d.season}</div><div class="fb-title">Draft <span>Board</span></div></div>
+      <div class="fb-meta"><b>${d.made} picks</b><br>${d.rounds} rounds · snake${d.done ? "" : " · in progress"}</div></div>
+    <div class="fb-grid" style="--n:${n};grid-template-rows:auto">${grid.join("")}</div>
+    <div class="fb-foot">
+      <div class="fb-aw">
+        ${d.steal ? `<div class="aw"><span class="e">💎</span><div style="min-width:0"><div class="k">Steal of the draft</div><div class="v">${esc(d.steal.name)} <small>${d.steal.label}</small></div></div></div>` : ""}
+        ${d.reach ? `<div class="aw"><span class="e">🎯</span><div style="min-width:0"><div class="k">Biggest reach</div><div class="v">${esc(d.reach.name)} <small>${d.reach.label}</small></div></div></div>` : ""}
+        ${d.bestTeam ? `<div class="aw"><span class="e">🏆</span><div style="min-width:0"><div class="k">Best draft</div><div class="v">${esc(d.bestTeam.name)} <small>${d.bestTeam.grade}</small></div></div></div>` : ""}
+      </div>
+      <div class="fb-bot"><span class="fb-legend">Tier ${legend}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+    </div></div>`;
+}
+
+function teamSlide(t, d){
+  const rows = t.picks.length + 1, rh = Math.min(92, Math.floor((740 - 8 * (rows - 1)) / rows));
+  const row = (p, capt) => `<div class="tm-row${capt ? " capt" : ""}" style="--rh:${rh}px">
+      <div class="tm-pk">${capt ? `<b>C</b><small>CAPTAIN</small>` : `<b>${p.label}</b><small>#${p.overall} OVR</small>`}</div>
+      ${capt ? hs(t.img, t.cap, rh - 16, t.color) : hs(p.img, p.name, rh - 16, `var(--t-${p.tier})`)}
+      <div class="tm-nm"><div class="n">${capt ? esc(t.cap) : `<i>${esc(p.first)}</i> ${esc(p.last)}`}</div>
+        <div class="s">${capt ? `<span class="tier" style="--tc:var(--t-QB)">QB</span><span class="flex">Captain</span>` : `<span class="tier" style="--tc:var(--t-${p.tier})">${tierLbl(p.tier)}</span>${p.rank ? `<span class="flex">FLEX #${p.rank}</span>` : ""}${colTag(p.college)}`}</div></div>
+      ${capt ? "" : `<div class="grade" style="--gc:${gc(p.grade)}">${p.grade}</div>`}
+    </div>`;
+  const v = t.valueSum, ar = t.avgRank;
+  return `<div class="art tm" style="--team:${t.color}">
+    <div class="tm-top"><div class="brand">🦃 Turkey Bowl ${d.season} Draft</div><div class="tm-rk">Team draft grades · <b>#${t.gradeRank}</b> of ${d.teams.length}</div></div>
+    <div class="tm-hero">${teamBadge(t, 150)}
+      <div class="tm-id"><div class="k">TEAM RECAP</div><div class="nm">${esc(t.name)}</div>
+        <div class="sub">Captain ${esc(t.cap)} · picked ${ord(t.slot)} · ${t.picks.length} players drafted</div></div>
+      <div class="tm-gr"><div class="grade" style="--gc:${gc(t.grade)}">${t.grade}</div><div class="k">DRAFT GRADE</div></div></div>
+    <div class="tm-list">${row(null, true)}${t.picks.map(p => row(p, false)).join("")}</div>
+    <div class="tm-stats">
+      <div class="st"><div class="k">Tier mix</div><div class="mix">${t.tiers.map(([k, c]) => `<span class="tier" style="--tc:var(--t-${k})">${c}× ${k}</span>`).join("")}</div></div>
+      <div class="st"><div class="k">Avg board rank</div><div class="v">${ar != null ? "#" + ar.toFixed(1).replace(/\.0$/, "") : "—"}</div></div>
+      <div class="st"><div class="k">Value vs board</div><div class="v ${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${v > 0 ? "+" : ""}${v} <small>spots</small></div></div>
+      <div class="st wide">
+        ${t.best ? `<div><div class="k">💎 Best pick</div><div class="v">${esc(t.best.name)} <small>${t.best.label} · ${t.best.grade}</small></div></div>` : ""}
+        ${t.worst ? `<div><div class="k">🎯 Biggest reach</div><div class="v">${esc(t.worst.name)} <small>${t.worst.label} · ${t.worst.grade}</small></div></div>` : `<div><div class="k">🎯 Biggest reach</div><div class="v" style="color:#5fd68f">None <small>no real reaches</small></div></div>`}
+      </div>
+    </div>
+    <div class="tm-bot"><span>${t.gradeRank === 1 ? "🏆 Best draft of " + d.season : "Grades: tiers first, then board rank"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+  </div>`;
+}
+
+const SINGLE = /*SINGLE*/null;
+const slides = [board(DATA), ...DATA.teams.map(t => teamSlide(t, DATA))];
+if (SINGLE !== null) { document.body.style.background = "#0d1220"; document.body.innerHTML = slides[SINGLE]; document.querySelector(".art").style.position = "relative"; }
+else {
+  const g = document.getElementById("g");
+  slides.forEach((s, k) => { const el = document.createElement("div"); el.className = "slot"; el.innerHTML = `<div class="cap">${k ? "Team #" + k : "Draft board"}</div><div class="fit">${s}</div>`; g.appendChild(el); });
+  const fit = () => document.querySelectorAll(".fit").forEach(f => { f.firstElementChild.style.transform = `scale(${f.clientWidth / 1080})`; });
+  addEventListener("resize", fit); fit();
+}
+</script>
+</body></html>
