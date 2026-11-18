@@ -211,16 +211,19 @@ const brBase = d => ({slots: (d && d.slots) || [], lotteryId: (d && d.lotteryId)
 const lotLocked = d => { if (d && Object.keys(d.results || {}).length) throw new Error("Games have already been played, so the lottery is locked."); };
 const newLotId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const randInt = n => { const r = new Uint32Array(1); crypto.getRandomValues(r); return r[0] % n; };
-TBC.bracketDraw = async teams => runTransaction(db, async tx => {     // the next single pick
+// fixed = automatic byes (bracket.js BR_FIXED_BYES): they go in first, then the draw continues from there.
+TBC.bracketDraw = async (teams, fixed = []) => runTransaction(db, async tx => {     // the next single pick
   const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null; lotLocked(d);
-  const slots = [...((d && d.slots) || [])];
+  let slots = [...((d && d.slots) || [])]; const fresh = !slots.length;
+  if (fresh) slots = [...fixed];
   if (slots.length >= 6) throw new Error("The lottery is already complete. Start over to redo it.");
   const left = teams.filter(t => !slots.includes(t)); slots.push(left[randInt(left.length)]);
-  tx.set(bracketRef, {...brBase(d), slots, lotteryId: slots.length === 1 || !(d && d.lotteryId) ? newLotId() : d.lotteryId, by: by(), at: serverTimestamp()});
+  tx.set(bracketRef, {...brBase(d), slots, lotteryId: fresh || !(d && d.lotteryId) ? newLotId() : d.lotteryId, by: by(), at: serverTimestamp()});
 });
-TBC.bracketLottery = async teams => runTransaction(db, async tx => {  // draw every pick that's left at once
+TBC.bracketLottery = async (teams, fixed = []) => runTransaction(db, async tx => {  // draw every pick that's left at once
   const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null; lotLocked(d);
-  const slots = [...((d && d.slots) || [])].slice(0, 6), fresh = !slots.length;
+  let slots = [...((d && d.slots) || [])].slice(0, 6); const fresh = !slots.length;
+  if (fresh) slots = [...fixed];
   const left = teams.filter(t => !slots.includes(t));
   while (left.length) slots.push(left.splice(randInt(left.length), 1)[0]);
   tx.set(bracketRef, {...brBase(d), slots, lotteryId: fresh || !(d && d.lotteryId) ? newLotId() : d.lotteryId, by: by(), at: serverTimestamp()});

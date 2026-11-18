@@ -26,9 +26,17 @@ const BR_BY = Object.fromEntries(BR_GAMES.map(g => [g.id, g]));
 const brNext = (gid, wl) => { const g = BR_GAMES.find(x => !x.ifNeeded && [x.a, x.b].some(s => s[wl] === gid)); return g ? "G" + g.n : wl === "l" ? "out" : ""; };
 
 // Everything about the bracket from the saved doc: teams in each game, winners, who's alive, the champion.
+// Automatic byes: teams that get a bye without being drawn (Jack 11-18: Team Billings + Team Surtz have people coming late).
+// They fill slots 1-2 before the draw starts; the lottery only draws the Game 1 / Game 2 teams. [] = byes are drawn too.
+const BR_FIXED_BYES = {2026: ["Luke Billings", "Danny Surtz"]};
+function brFixed(){
+  try { const f = BR_FIXED_BYES[CURRENT_SEASON] || [], t = brTeams(); return f.length === 2 && f.every(c => t.includes(c)) ? f.slice() : []; } catch(e){ return []; }
+}
 function brState(B){
-  const drawn = (B && Array.isArray(B.slots)) ? B.slots : [], slots = drawn.length === 6 ? drawn : [], res = (B && B.results) || {}, out = {};
-  const who = s => s.slot != null ? (slots[s.slot] || null) : s.w ? (out[s.w] && out[s.w].winner) : (out[s.l] && out[s.l].loser);
+  const real = (B && Array.isArray(B.slots)) ? B.slots : [], fx = brFixed();
+  const drawn = real.length ? real : fx, ready = drawn.length === 6, slots = ready ? drawn : [], res = (B && B.results) || {}, out = {};
+  const fixedN = fx.length && drawn[0] === fx[0] && drawn[1] === fx[1] ? fx.length : 0;
+  const who = s => s.slot != null ? (drawn[s.slot] || null) : s.w ? (out[s.w] && out[s.w].winner) : (out[s.l] && out[s.l].loser);
   BR_GAMES.forEach(g => {
     const A = who(g.a), Bt = who(g.b), r = res[g.id];
     const valid = !!(r && A && Bt && r.a === A && r.b === Bt && r.sa !== r.sb);
@@ -42,7 +50,7 @@ function brState(B){
   const champion = f.winner && !f2.needed ? f.winner : f2.winner || null;
   const losses = {}; Object.values(out).forEach(x => { if (x.loser) losses[x.loser] = (losses[x.loser] || 0) + 1; });
   const next = slots.length ? BR_GAMES.find(g => out[g.id].needed && !out[g.id].r && !champion) || null : null;
-  return {slots, drawn, out, champion, losses, next: next && out[next.id]};
+  return {slots, drawn, realN: real.length, fixedN, out, champion, losses, next: next && out[next.id]};
 }
 // games whose teams come from this game's result
 const brDependents = gid => BR_GAMES.filter(x => [x.a, x.b].some(s => s.w === gid || s.l === gid) || (gid === "g10" && x.id === "g11"));
@@ -163,14 +171,14 @@ function renderBracket(force){
   // ---- lottery: drawn one by one ----
   const lot = document.createElement("div"); lot.className = "panel br-lot";
   const dr = S.drawn, nd = dr.length, played = Object.keys((B && B.results) || {}).length;
-  lot.innerHTML = `<h3>🎰 Schedule lottery</h3>${!nd ? `<div class="psub">Draws the 2 teams with byes and both first-round games, one pick at a time. ${ed ? "Everyone on this page watches each pick land." : "Stay on this page to watch it live."}</div>` : ""}`;
+  lot.innerHTML = `<h3>🎰 Schedule lottery</h3>${S.fixedN ? `<div class="lv-lotto-tag">📌 Automatic byes: ${brEsc(draftTeamName(dr[0]))} and ${brEsc(draftTeamName(dr[1]))} (people coming late)</div>` : ""}${nd <= S.fixedN ? `<div class="psub">Draws ${S.fixedN ? "the 4 teams in Game 1 and Game 2" : "the 2 teams with byes and both first-round games"}, one pick at a time. ${ed ? "Everyone on this page watches each pick land." : "Stay on this page to watch it live."}</div>` : ""}`;
   if (nd) {
     lot.insertAdjacentHTML("beforeend", `<div class="br-byes"><span class="lbl2">Byes</span></div><div class="br-r1"><div><span class="lbl2">Game 1</span></div><div><span class="lbl2">Game 2</span></div></div>`);
     const chip = i => dr[i] ? brTeamChip(dr[i]) : Object.assign(document.createElement("span"), {className: "br-q", textContent: "?"});
     const by = lot.querySelector(".br-byes"); [0, 1].forEach(i => by.appendChild(chip(i)));
     const r1 = lot.querySelectorAll(".br-r1 > div");
     [[2, 3], [4, 5]].forEach(([p, q], k) => { r1[k].append(chip(p), Object.assign(document.createElement("span"), {className: "br-vs", textContent: "vs"}), chip(q)); });
-    if (nd < 6) lot.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">🔴 Draw in progress · ${nd} of 6 picked · next: ${BR_DRAWS[nd]}</div>`);
+    if (nd < 6 && S.realN) lot.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">🔴 Draw in progress · ${nd - S.fixedN} of ${6 - S.fixedN} picked · next: ${BR_DRAWS[nd]}</div>`);
   }
   const lb = document.createElement("div"); lb.className = "row-btns";
   if (ed && nd < 6) {
@@ -179,7 +187,7 @@ function renderBracket(force){
     lb.appendChild(nx);
     if (nd) { const rest = document.createElement("button"); rest.className = "btn"; rest.textContent = "⏩ Draw the rest"; rest.onclick = () => brDrawRest(rest); lb.appendChild(rest); }
   }
-  if (ed && nd) {
+  if (ed && S.realN) {
     const so = document.createElement("button"); so.className = "btn lv-danger"; so.textContent = "↺ Start over";
     so.disabled = played > 0; if (played) so.title = "Locked: games have been played";
     so.onclick = async () => {
@@ -189,7 +197,7 @@ function renderBracket(force){
     };
     lb.appendChild(so);
   }
-  if (nd && nd < 6) { const w = document.createElement("button"); w.className = "btn"; w.textContent = "👀 Watch the draw"; w.onclick = () => brDrawOverlay(dr, true); lb.appendChild(w); }
+  if (S.realN && nd < 6) { const w = document.createElement("button"); w.className = "btn"; w.textContent = "👀 Watch the draw"; w.onclick = () => brDrawOverlay(dr, true); lb.appendChild(w); }
   if (nd === 6) { const rp = document.createElement("button"); rp.className = "btn"; rp.textContent = "▶ Replay lottery"; rp.onclick = () => brReplay(dr); lb.appendChild(rp); }
   if (lb.children.length) lot.appendChild(lb);
   wrap.appendChild(lot);
@@ -296,14 +304,14 @@ function brFullBracket(){
 let BR_ANIM = Promise.resolve();   // reveals play one after another, never on top of each other
 async function brDrawNext(btn){
   if (btn) btn.disabled = true;
-  try { await TBC.bracketDraw(brTeams()); }
+  try { await TBC.bracketDraw(brTeams(), brFixed()); }
   catch(err){ alert("Couldn't draw: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
   finally { if (btn) btn.disabled = false; }
 }
 async function brDrawRest(btn){
   if (!confirm("Draw all the remaining picks at once?")) return;
   if (btn) btn.disabled = true;
-  try { await TBC.bracketLottery(brTeams()); }
+  try { await TBC.bracketLottery(brTeams(), brFixed()); }
   catch(err){ if (btn) btn.disabled = false; alert("Couldn't draw: " + (err.code === "permission-denied" ? "you don't have edit access." : err.message)); }
 }
 // The reveal screen. Opens (or reuses) the overlay and shows the picks drawn so far (no spin).
@@ -326,19 +334,24 @@ function brDrawOverlay(drawn, open){
     const reel = ov.querySelector("#bdReel");
     brTeams().forEach(c => { const f = document.createElement("div"); f.className = "lo-face"; f.dataset.c = c; f.appendChild(teamBadge(c)); reel.appendChild(f); });
   }
-  ov.querySelectorAll(".lo-v").forEach(v => { const i = +v.dataset.s; if (drawn[i]) { v.innerHTML = brEsc(draftTeamName(drawn[i])); v.closest("li").classList.add("set"); } else { v.textContent = "?"; } });
+  ov.querySelectorAll(".lo-v").forEach(v => { const i = +v.dataset.s; if (drawn[i]) { const fx = brFixed(); v.innerHTML = brEsc(draftTeamName(drawn[i])) + (i < fx.length && drawn[i] === fx[i] ? " <small>📌 auto</small>" : ""); v.closest("li").classList.add("set"); } else { v.textContent = "?"; } });
   brDrawState(ov, drawn.length);
   return ov;
 }
 function brDrawState(ov, n){
   const ed = !!(window.TBC && TBC.canEdit()), nb = ov.querySelector("#bdNext");
-  ov.querySelector("#bdSub").innerHTML = n >= 6 ? `The ${CURRENT_SEASON} schedule is set` : n ? `Waiting for the next draw… <small style="color:var(--muted)">(${BR_DRAWS[n]})</small>` : `Waiting for the first draw…`;
+  ov.querySelector("#bdSub").innerHTML = n >= 6 ? `The ${CURRENT_SEASON} schedule is set` : n > brFixed().length ? `Waiting for the next draw… <small style="color:var(--muted)">(${BR_DRAWS[n]})</small>` : `Waiting for the first draw… <small style="color:var(--muted)">(${BR_DRAWS[n]})</small>`;
   nb.hidden = !ed || n >= 6; nb.textContent = `🎰 Draw next: ${BR_DRAWS[n] || ""}`;
   const cl = ov.querySelector("#bdClose"); cl.textContent = n >= 6 ? "Done" : "Close"; cl.classList.toggle("primary", n >= 6);
 }
 const BR_SUBS = ["The first <b>bye</b> goes to…", "The second <b>bye</b> goes to…", "<b>Game 1</b> · first team…", "<b>Game 1</b> · their opponent…", "<b>Game 2</b> · first team…", "<b>Game 2</b> · their opponent…"];
 // Spin through the teams still left and land on pick k.
 async function brRevealPick(drawn, k){
+  const fx = brFixed();
+  if (k < fx.length && drawn[k] === fx[k]) {   // automatic bye: just show it, no spin
+    brDrawOverlay(drawn.slice(0, k + 1), true);
+    return;
+  }
   const ov = brDrawOverlay(drawn.slice(0, k), true), reel = ov.querySelector("#bdReel"), nb = ov.querySelector("#bdNext");
   const faces = [...reel.querySelectorAll(".lo-face")], show = c => { faces.forEach(f => f.classList.toggle("on", f.dataset.c === c)); ov.querySelector("#bdName").textContent = draftTeamName(c) + " · " + c; };
   const left = brTeams().filter(c => !drawn.slice(0, k).includes(c));
