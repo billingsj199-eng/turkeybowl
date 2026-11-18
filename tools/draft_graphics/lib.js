@@ -121,4 +121,4 @@ function render(templateFile, DATA, names, pngDir) {
   });
 }
 
-module.exports = { load, render, grade, TB };
+module.exports = { load, render, grade, get, TB };

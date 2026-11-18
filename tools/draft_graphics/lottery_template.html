@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Schedule Lottery Graphic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0d1220;--ink:#e8ecf4;--muted:#8a94a8;--accent:#f5a524}
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a12;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .gallery{display:flex;justify-content:center;padding:16px}
+  .fit{position:relative;width:min(540px,calc(100vw - 32px));aspect-ratio:1080/1350;overflow:hidden;border-radius:10px}
+  .art{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;overflow:hidden;font-family:Inter,sans-serif;
+    background:radial-gradient(900px 520px at 100% -8%, #f5a52433, transparent 60%), repeating-linear-gradient(135deg,#ffffff05 0 2px,transparent 2px 22px), var(--bg);padding:48px 56px 0}
+  .brand{display:flex;align-items:center;gap:12px;font:600 24px Oswald;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+  .top{display:flex;justify-content:space-between;align-items:flex-end}
+  .title{font:700 104px/0.9 Oswald;text-transform:uppercase;margin-top:10px}
+  .title span{display:block;color:transparent;-webkit-text-stroke:2px var(--accent);font-size:80px;letter-spacing:.06em;margin-top:6px}
+  .meta{text-align:right;color:var(--muted);font:600 19px Oswald;letter-spacing:.12em;text-transform:uppercase;line-height:1.55}
+  .meta b{color:var(--ink);font-size:30px;letter-spacing:.04em}
+  .hs{border-radius:50%;overflow:hidden;background:#232c40;border:4px solid var(--tc,#6c7689);display:flex;align-items:center;justify-content:center;flex:none;color:var(--tc);font:700 30px Oswald}
+  .hs img{width:100%;height:100%;object-fit:cover}
+  .hs.q{border-style:dashed;border-color:#3a4560;color:#6c7689;font-size:44px;background:#141b2b}
+  .lbl{font:700 15px Inter;letter-spacing:.22em;color:var(--muted);text-transform:uppercase}
+  /* byes */
+  .byes{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .bye{position:relative;display:flex;align-items:center;gap:18px;padding:16px 18px;border-radius:16px;background:linear-gradient(110deg,color-mix(in srgb,var(--team) 34%,#151c2c),#151c2c 70%);border:1px solid color-mix(in srgb,var(--team) 50%,transparent)}
+  .bye .k{font:800 13px Inter;letter-spacing:.24em;color:#f1d39a}
+  .bye .n{font:700 38px/1 Oswald;text-transform:uppercase;margin-top:4px;white-space:nowrap}
+  .bye .s{color:#c4cbd8;font:600 16px Inter;margin-top:6px}
+  .auto{margin-top:10px;color:#f1d39a;font:600 16px Inter}
+  /* round 1 */
+  .r1{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .g{padding:14px 16px 16px;border-radius:16px;background:#131a2a;border:1px solid #ffffff14}
+  .gh{display:flex;justify-content:space-between;align-items:baseline}
+  .gh b{font:700 30px Oswald;letter-spacing:.02em}
+  .gh span{font:700 26px Oswald;color:var(--accent)}
+  .vs{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+  .side{display:flex;flex-direction:column;align-items:center;gap:8px;width:42%;text-align:center}
+  .side .tn{font:700 24px/1.05 Oswald;text-transform:uppercase}
+  .side .cp{color:var(--muted);font:600 13px Inter}
+  .vsx{font:800 22px Oswald;color:var(--muted)}
+  .gnext{margin-top:10px;color:#c4cbd8;font:600 14px Inter;text-align:center}
+  /* schedule */
+  .sch{margin-top:22px;border-radius:16px;background:#111829;border:1px solid #ffffff12;padding:12px 18px}
+  .row{display:grid;grid-template-columns:118px 1fr 190px;align-items:center;gap:12px;height:40px;border-bottom:1px solid #ffffff0c}
+  .row:last-child{border-bottom:0}
+  .row .t{font:700 20px Oswald;color:var(--accent)}
+  .row .m{font:600 17px Inter;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .m i{font-style:normal;color:#8a94a8;font-weight:500}
+  .row .m .x{color:var(--muted);margin:0 6px;font-size:14px}
+  .row .r{font:600 13px Inter;letter-spacing:.06em;color:#8a94a8;text-transform:uppercase;text-align:right;white-space:nowrap}
+  .row.F .r{color:var(--accent)}
+  .row .gn{font:700 13px Inter;color:#c4cbd8;margin-right:8px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--team);margin-right:7px;vertical-align:1px}
+  .foot{position:absolute;left:56px;right:56px;bottom:30px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font:600 17px Inter}
+  .url{color:var(--accent);font:600 20px Oswald;letter-spacing:.12em}
+  .pending{position:absolute;right:56px;top:150px;padding:6px 12px;border-radius:8px;background:#ef6b5f22;color:#ef8b80;font:800 14px Inter;letter-spacing:.14em}
+</style></head>
+<body>
+<div class="gallery"><div class="fit" id="fit"></div></div>
+<script>
+const DATA = /*DATA*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ini = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 3);
+const hs = (t, size) => t ? (t.logo && !/^data:/.test(t.logo)
+    ? `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color};background:${t.color};font-size:${size * .55}px">${esc(t.logo)}</div>`
+    : `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color}">${t.logo || t.img ? `<img src="${esc(t.logo || t.img)}" alt="">` : esc(ini(t.cap))}</div>`)
+  : `<div class="hs q" style="width:${size}px;height:${size}px">?</div>`;
+const tname = t => t ? esc(t.name) : "To be drawn";
+const who = s => s.tbd ? `<i>${esc(s.tbd)}</i>` : `<span class="dot" style="--team:${s.color}"></span>${esc(s.name)}`;
+
+function slide(d){
+  const byes = d.byes.map(t => `<div class="bye" style="--team:${t ? t.color : "#3a4560"}">${hs(t, 96)}<div><div class="k">BYE</div><div class="n">${tname(t)}</div>
+      <div class="s">${t ? `Captain ${esc(t.cap)}<br>First game: Game ${t.game} · ~${t.time}` : ""}</div></div></div>`).join("");
+  const r1 = d.r1.map(g => `<div class="g"><div class="gh"><b>GAME ${g.n}</b><span>${g.time}</span></div>
+      <div class="vs"><div class="side">${hs(g.a, 92)}<div class="tn">${tname(g.a)}</div><div class="cp">${g.a ? esc(g.a.cap) : "&nbsp;"}</div></div>
+        <div class="vsx">VS</div>
+        <div class="side">${hs(g.b, 92)}<div class="tn">${tname(g.b)}</div><div class="cp">${g.b ? esc(g.b.cap) : "&nbsp;"}</div></div></div>
+      <div class="gnext">Winner plays ${d.byes[g.next === 3 ? 0 : 1] ? esc(d.byes[g.next === 3 ? 0 : 1].name) : "a bye team"} in Game ${g.next}</div></div>`).join("");
+  const rows = d.games.map(g => `<div class="row ${g.side}"><span class="t">${g.time}</span>
+      <span class="m"><span class="gn">G${g.n}</span>${who(g.a)}<span class="x">vs</span>${who(g.b)}</span>
+      <span class="r">${g.ifNeeded ? "Champ · if needed" : esc(g.round)}</span></div>`).join("");
+  return `<div class="art">
+    <div class="top"><div><div class="brand">🦃 Turkey Bowl ${d.season}</div><div class="title">Schedule<span>Lottery</span></div></div>
+      <div class="meta"><b>Game 1 · ${d.start}</b><br>${d.minutes}-min games · one field<br>double elimination</div></div>
+    ${d.complete ? "" : `<div class="pending">DRAW IN PROGRESS</div>`}
+    <div class="byes">${byes}</div>
+    ${d.fixedN ? `<div class="auto">📌 Automatic byes: both teams have people coming late</div>` : ""}
+    <div class="r1">${r1}</div>
+    <div class="sch">${rows}</div>
+    <div class="foot"><span>Live bracket + scores on the site</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+  </div>`;
+}
+const SINGLE = /*SINGLE*/null;
+if (SINGLE !== null) { document.body.style.background = "#0d1220"; document.body.innerHTML = slide(DATA); document.querySelector(".art").style.position = "relative"; }
+else { const f = document.getElementById("fit"); f.innerHTML = slide(DATA); const fit = () => { f.firstElementChild.style.transform = `scale(${f.clientWidth / 1080})`; }; addEventListener("resize", fit); fit(); }
+</script>
+</body></html>

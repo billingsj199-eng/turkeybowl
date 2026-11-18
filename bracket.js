@@ -11,15 +11,18 @@
 const BR_GAMES = [
   {id: "g1",  n: 1,  round: "Winners R1",    side: "W", a: {slot: 2}, b: {slot: 3}},
   {id: "g2",  n: 2,  round: "Winners R1",    side: "W", a: {slot: 4}, b: {slot: 5}},
-  {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: 0}, b: {w: "g2"}},
-  {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: 1}, b: {w: "g1"}},
-  {id: "g5",  n: 5,  round: "Losers R1",     side: "L", a: {l: "g3"}, b: {l: "g1"}},
-  {id: "g6",  n: 6,  round: "Losers R1",     side: "L", a: {l: "g4"}, b: {l: "g2"}},
-  {id: "g7",  n: 7,  round: "Losers R2",     side: "L", a: {w: "g5"}, b: {w: "g6"}},
-  {id: "g8",  n: 8,  round: "Winners Final", side: "W", a: {w: "g3"}, b: {w: "g4"}},
-  {id: "g9",  n: 9,  round: "Losers Final",  side: "L", a: {l: "g8"}, b: {w: "g7"}},
-  {id: "g10", n: 10, round: "Championship",  side: "F", a: {w: "g8"}, b: {w: "g9"}},
-  {id: "g11", n: 11, round: "Championship (if necessary)", side: "F", a: {w: "g8"}, b: {w: "g9"}, ifNeeded: true},
+  // Order chosen for rest (Jack 11-18): each round-1 winner gets one game off before round 2 (G1 winner plays G3, G2 winner G4),
+  // and the Winners Final comes before Losers R2 so nobody waits more than 3 games in the winners bracket.
+  // Losers R1 is crossed (G3 loser v G2 loser, G4 loser v G1 loser) so nobody gets an instant rematch.
+  {id: "g3",  n: 3,  round: "Winners R2",    side: "W", a: {slot: 0}, b: {w: "g1"}},
+  {id: "g4",  n: 4,  round: "Winners R2",    side: "W", a: {slot: 1}, b: {w: "g2"}},
+  {id: "g5",  n: 5,  round: "Losers R1",     side: "L", a: {l: "g3"}, b: {l: "g2"}},
+  {id: "g6",  n: 6,  round: "Losers R1",     side: "L", a: {l: "g4"}, b: {l: "g1"}},
+  {id: "g7",  n: 7,  round: "Winners Final", side: "W", a: {w: "g3"}, b: {w: "g4"}},
+  {id: "g8",  n: 8,  round: "Losers R2",     side: "L", a: {w: "g5"}, b: {w: "g6"}},
+  {id: "g9",  n: 9,  round: "Losers Final",  side: "L", a: {l: "g7"}, b: {w: "g8"}},
+  {id: "g10", n: 10, round: "Championship",  side: "F", a: {w: "g7"}, b: {w: "g9"}},
+  {id: "g11", n: 11, round: "Championship (if necessary)", side: "F", a: {w: "g7"}, b: {w: "g9"}, ifNeeded: true},
 ];
 const BR_BY = Object.fromEntries(BR_GAMES.map(g => [g.id, g]));
 // where each game's winner / loser goes next (for the little "→" hints)
@@ -241,11 +244,11 @@ function renderBracket(force){
 // ===== The bracket graphic: a classic bracket with lines (SVG), filled in live =====
 // Winners bracket on top (R1 → R2 → Final), losers bracket below (R1 → R2 → Final), both into the Championship.
 const BRX = [16, 216, 416, 616, 816], BRW = 168, BRH = 56;
-const BR_POS = {g1: [0, 70], g2: [0, 190], g4: [1, 70], g3: [1, 190], g8: [2, 130],
-  g5: [1, 400], g6: [1, 520], g7: [2, 460], g9: [3, 460], g10: [4, 295], g11: [4, 415]};
+const BR_POS = {g1: [0, 70], g2: [0, 190], g3: [1, 70], g4: [1, 190], g7: [2, 130],
+  g5: [1, 400], g6: [1, 520], g8: [2, 460], g9: [3, 460], g10: [4, 295], g11: [4, 415]};
 // lines: [from, to, which row of "to" (0 top / 1 bottom)]
-const BR_LINES = [["g1", "g4", 1], ["g2", "g3", 1], ["g4", "g8", 1], ["g3", "g8", 0], ["g8", "g10", 0],
-  ["g5", "g7", 0], ["g6", "g7", 1], ["g7", "g9", 1], ["g9", "g10", 1]];
+const BR_LINES = [["g1", "g3", 1], ["g2", "g4", 1], ["g3", "g7", 0], ["g4", "g7", 1], ["g7", "g10", 0],
+  ["g5", "g8", 0], ["g6", "g8", 1], ["g8", "g9", 1], ["g9", "g10", 1]];
 function brSvg(S, B){
   const e = brEsc, out = [];
   const box = id => { const [c, y] = BR_POS[id]; return {x: BRX[c], y}; };
