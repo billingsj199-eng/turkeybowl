@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bracket Challenge Graphic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0d1220;--ink:#e8ecf4;--muted:#8a94a8;--accent:#f5a524;--good:#5fd68f}
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a12;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .gallery{display:flex;justify-content:center;padding:16px}
+  .fit{position:relative;width:min(540px,calc(100vw - 32px));aspect-ratio:1080/1350;overflow:hidden;border-radius:10px}
+  .art{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;overflow:hidden;font-family:Inter,sans-serif;padding:48px 56px 0;
+    background:radial-gradient(800px 600px at 105% -5%, #f5a52440, transparent 60%), radial-gradient(700px 500px at -10% 105%, #4b9ce822, transparent 60%),
+      repeating-linear-gradient(135deg,#ffffff05 0 2px,transparent 2px 22px), var(--bg)}
+  .brand{display:flex;align-items:center;gap:12px;font:600 24px Oswald;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+  .title{font:700 112px/0.88 Oswald;text-transform:uppercase;margin-top:12px}
+  .title span{display:block;color:transparent;-webkit-text-stroke:2.5px var(--accent)}
+  .tag{margin-top:16px;font:700 34px Oswald;letter-spacing:.02em}
+  .tag em{font-style:normal;color:var(--accent)}
+  .k{font:700 14px Inter;letter-spacing:.22em;color:var(--muted);text-transform:uppercase}
+  .hs{border-radius:50%;overflow:hidden;background:#232c40;border:3px solid var(--tc,#6c7689);display:flex;align-items:center;justify-content:center;flex:none;color:var(--tc);font:700 16px Oswald}
+  .hs img{width:100%;height:100%;object-fit:cover}
+  .card{border-radius:18px;background:#131a2a;border:1px solid #ffffff14;padding:18px 20px}
+  /* promo */
+  .ladder{margin-top:40px}
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:end;margin-top:12px}
+  .st{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;border-radius:14px;background:linear-gradient(180deg,#f5a52433,#151c2c);border:1px solid #f5a52455;padding:10px 6px 12px;text-align:center}
+  .st b{font:700 44px/1 Oswald;color:var(--accent)}
+  .st span{font:700 17px Oswald;text-transform:uppercase;margin-top:6px}
+  .st small{color:var(--muted);font:600 13px Inter;margin-top:2px}
+  .st.champ{background:linear-gradient(180deg,#f5a52466,#2a2210);border-color:var(--accent)}
+  .perfect{margin-top:12px;display:flex;justify-content:space-between;align-items:center;font:600 18px Inter;color:#c4cbd8}
+  .perfect b{color:var(--ink)}
+  .row2{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;margin-top:40px}
+  .how ol{margin:12px 0 0;padding:0;list-style:none;counter-reset:s}
+  .how li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;font:600 19px/1.35 Inter;margin-bottom:18px}
+  .how li::before{content:counter(s);flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#0d1220;font:800 18px Oswald;display:flex;align-items:center;justify-content:center}
+  .how li small{display:block;color:var(--muted);font-size:15px;font-weight:500}
+  .lock{margin-top:6px;padding:12px 14px;border-radius:12px;background:#2a1a12;border:1px solid #8a4a20;color:#f2b35a;font:700 17px Inter}
+  .mu .g{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:18px 0;border-bottom:1px solid #ffffff10}
+  .mu .g:last-of-type{border-bottom:0}
+  .mu .sd{display:flex;flex-direction:column;align-items:center;gap:6px;width:40%;text-align:center;font:700 17px/1.05 Oswald;text-transform:uppercase}
+  .mu .mid{text-align:center;font:700 15px Oswald;color:var(--muted)}
+  .mu .mid b{display:block;color:var(--accent);font-size:19px}
+  .mu .byes{display:flex;justify-content:space-around;gap:8px;margin-top:10px;padding-top:12px;border-top:1px dashed #ffffff22}
+  .mu .bye{display:flex;flex-direction:column;align-items:center;gap:5px;font:700 15px Oswald;text-transform:uppercase}
+  .mu .bye small{color:#f1d39a;font:800 11px Inter;letter-spacing:.18em}
+  /* leaderboard */
+  .bstat{display:flex;gap:12px;margin-top:22px}
+  .bstat div{flex:1;border-radius:14px;background:#131a2a;border:1px solid #ffffff14;padding:12px 16px}
+  .bstat b{display:block;font:700 34px Oswald}
+  .bstat .fire b{color:var(--accent)}
+  .lb{margin-top:18px;border-radius:18px;background:#111829;border:1px solid #ffffff14;padding:8px 18px}
+  .lr{display:grid;grid-template-columns:56px 1fr 210px 120px;align-items:center;gap:12px;height:72px;border-bottom:1px solid #ffffff0c}
+  .lr:last-child{border-bottom:0}
+  .lr .rk{font:700 34px Oswald;color:var(--muted);text-align:center}
+  .lr.top1 .rk{color:var(--accent)}
+  .lr .nm{font:700 30px Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lr .nm small{display:block;font:600 14px Inter;text-transform:none;color:var(--muted);letter-spacing:0}
+  .lr .cp{display:flex;align-items:center;gap:8px;min-width:0;font:700 17px Oswald;text-transform:uppercase;color:#c4cbd8;white-space:nowrap;overflow:hidden}
+  .lr .cp .hs{width:34px;height:34px}
+  .lr .pt{text-align:right}
+  .lr .pt b{display:block;font:700 38px/1 Oswald}
+  .lr .pt small{color:var(--muted);font:600 13px Inter}
+  .lr.top1{background:linear-gradient(90deg,#f5a52422,transparent 70%);margin:0 -18px;padding:0 18px;border-radius:12px}
+  .more{text-align:center;color:var(--muted);font:600 16px Inter;padding:8px 0 4px}
+  .foot{position:absolute;left:56px;right:56px;bottom:30px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font:600 17px Inter}
+  .url{color:var(--accent);font:700 24px Oswald;letter-spacing:.12em}
+</style></head>
+<body>
+<div class="gallery"><div class="fit" id="fit"></div></div>
+<script>
+const DATA = /*DATA*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ini = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 3);
+const hs = (t, size) => t ? (t.logo && !/^data:/.test(t.logo)
+    ? `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color};background:${t.color};font-size:${size * .55}px">${esc(t.logo)}</div>`
+    : `<div class="hs" style="width:${size}px;height:${size}px;--tc:${t.color}">${t.logo || t.img ? `<img src="${esc(t.logo || t.img)}" alt="">` : esc(ini(t.cap))}</div>`)
+  : `<div class="hs" style="width:${size}px;height:${size}px;border-style:dashed;--tc:#3a4560">?</div>`;
+const tn = t => t ? esc(t.name) : "TBD";
+
+function promo(d){
+  const ladder = [["10", "Round 1", "G1 · G2"], ["20", "Round 2", "G3 – G6"], ["40", "Round 3", "G7 · G8"], ["80", "Losers Final", "G9"], ["160", "Champion", "the title"]];
+  return `<div class="art">
+    <div class="brand">🦃 Turkey Bowl ${d.season}</div>
+    <div class="title">Bracket<span>Challenge</span></div>
+    <div class="tag">Can you pick the <em>perfect bracket?</em></div>
+    <div class="ladder card"><div class="k">Scoring · points double every round (like ESPN)</div>
+      <div class="steps">${ladder.map(([p, r, g], i) => `<div class="st${i === 4 ? " champ" : ""}" style="height:${96 + i * 22}px"><b>${p}</b><span>${r}</span><small>${g}</small></div>`).join("")}</div>
+      <div class="perfect"><span>Perfect bracket = <b>${d.max} points</b> · 🔥 live leaderboard all day</span><span>Tiebreaker: Game 10 total</span></div></div>
+    <div class="row2">
+      <div class="card how"><div class="k">How to play</div><ol>
+        <li><span>Go to theturkeybowl.web.app<small>🏆 Bracket → 🎯 Bracket Challenge</small></span></li>
+        <li><span>Sign in with Google</span></li>
+        <li><span>Pick the winner of every game<small>+ the total points in Game 10 (tiebreaker)</small></span></li>
+        <li><span>Change it as much as you want<small>until it locks</small></span></li></ol>
+        <div class="lock">🔒 Picks lock at kickoff: ${esc(d.ko)}</div></div>
+      <div class="card mu"><div class="k">Round 1</div>
+        ${d.r1.map(g => `<div class="g"><div class="sd">${hs(g.a, 64)}${tn(g.a)}</div><div class="mid"><b>G${g.n}</b>${esc(g.time)}</div><div class="sd">${hs(g.b, 64)}${tn(g.b)}</div></div>`).join("")}
+        <div class="byes">${d.byes.map(t => `<div class="bye">${hs(t, 52)}<small>BYE</small>${tn(t)}</div>`).join("")}</div></div>
+    </div>
+    <div class="foot"><span>Free · friends only · bragging rights</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+  </div>`;
+}
+function board(d){
+  const status = d.champion ? "Final standings" : d.played ? `After Game ${d.last}` : "Locked in · kickoff";
+  return `<div class="art">
+    <div class="brand">🦃 Turkey Bowl ${d.season} · Bracket Challenge</div>
+    <div class="title" style="font-size:100px">Leader<span style="display:inline">board</span></div>
+    <div class="tag" style="font-size:28px;color:#c4cbd8">${esc(status)}</div>
+    <div class="bstat"><div><span class="k">Brackets</span><b>${d.total}</b></div>
+      <div class="fire"><span class="k">${d.champion ? "Perfect brackets" : "Still perfect"}</span><b>${d.perfect ? "🔥 " + d.perfect : d.played ? "💀 0" : "🔥 all"}</b></div>
+      <div><span class="k">${d.champion ? "Champion" : "Games played"}</span><b>${d.champion ? esc(d.champion.name) : d.played + " / 10-11"}</b></div></div>
+    <div class="lb">${d.board.map(r => `<div class="lr${r.rank === 1 ? " top1" : ""}"><span class="rk">${r.rank}</span>
+        <span class="nm">${esc(r.name)}${r.perfect ? " 🔥" : ""}<small>${r.correct} right · max ${r.max}</small></span>
+        <span class="cp">${hs(r.champ, 34)}${tn(r.champ)}</span>
+        <span class="pt"><b>${r.pts}</b><small>points</small></span></div>`).join("") || `<div class="more">No brackets were entered.</div>`}
+      ${d.more ? `<div class="more">+ ${d.more} more on the site</div>` : ""}</div>
+    <div class="foot"><span>${d.tbTotal != null ? `Tiebreaker: Game 10 total ${d.tbTotal}` : "Max = points still possible · 🔥 = perfect so far"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+  </div>`;
+}
+const slide = d => d.mode === "promo" ? promo(d) : board(d);
+const SINGLE = /*SINGLE*/null;
+if (SINGLE !== null) { document.body.style.background = "#0d1220"; document.body.innerHTML = slide(DATA); document.querySelector(".art").style.position = "relative"; }
+else { const f = document.getElementById("fit"); f.innerHTML = slide(DATA); const fit = () => { f.firstElementChild.style.transform = `scale(${f.clientWidth / 1080})`; }; addEventListener("resize", fit); fit(); }
+</script>
+</body></html>
