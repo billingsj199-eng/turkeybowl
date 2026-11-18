@@ -183,7 +183,8 @@ function pick(p, d){
       ${p.comp ? `<div class="pk-comp"><img src="${esc(p.comp.img)}" alt="" onerror="this.style.visibility='hidden'"><div><div class="k">Player comp</div><div class="v">${esc(p.comp.name)}<small>${esc(p.comp.team || "")}</small></div></div></div>` : ""}
     </div>
     <div class="pk-foot">
-      <div class="pk-ros"><span class="k">${esc(p.team.name)} so far</span><span class="r">C · ${esc(p.team.cap)}</span>${p.roster.map(x => `<span class="r ${x === p.name ? "new" : ""}">${esc(x)}</span>`).join("")}</div>
+      ${(() => { const sh = x => p.roster.length >= 4 ? x.split(" ")[0][0] + ". " + x.split(" ").slice(1).join(" ") : x;   // short names once the row gets long
+        return `<div class="pk-ros"><span class="k">${esc(p.team.name)} so far</span><span class="r">C · ${esc(sh(p.team.cap))}</span>${p.roster.map(x => `<span class="r ${x === p.name ? "new" : ""}">${esc(sh(x))}</span>`).join("")}</div>`; })()}
       <div class="pk-bot"><span class="next">${p.next ? `On the clock: <b>${esc(p.next.team)}</b> · ${p.next.label}` : "That's the draft!"}</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
     </div></div>`;
 }
