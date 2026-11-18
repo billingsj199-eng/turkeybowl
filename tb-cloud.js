@@ -205,7 +205,7 @@ const bracketRef = doc(db, "bracket", DRAFT_ID);
 onSnapshot(bracketRef, d => { TBC.bracket = d.exists() ? d.data() : null; TBC.bracketReady = true; changed(); },
   err => { console.warn("Turkey Bowl cloud: couldn't load the bracket", err); TBC.bracketReady = true; changed(); });
 const brBase = d => ({slots: (d && d.slots) || [], lotteryId: (d && d.lotteryId) || "", start: d && typeof d.start === "string" ? d.start : "10:00",
-  minutes: (d && d.minutes) || 45, results: (d && d.results) || {}});
+  minutes: (d && d.minutes) || 20, results: (d && d.results) || {}});
 // Schedule lottery: shuffle the 6 teams into slots (1-2 = byes, 3v6 and 4v5 play first). Not once a game has a result.
 TBC.bracketLottery = async teams => runTransaction(db, async tx => {
   const s = await tx.get(bracketRef), d = s.exists() ? s.data() : null;

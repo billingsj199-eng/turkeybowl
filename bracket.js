@@ -49,7 +49,7 @@ const brDependents = gid => BR_GAMES.filter(x => [x.a, x.b].some(s => s.w === gi
 const brTime = (B, n) => {
   const start = B && typeof B.start === "string" ? B.start : "10:00";   // Game 1 at 10 AM until someone changes it
   if (!start) return "";
-  const [h, m] = start.split(":").map(Number), t = h * 60 + m + (n - 1) * ((B && B.minutes) || 45);
+  const [h, m] = start.split(":").map(Number), t = h * 60 + m + (n - 1) * ((B && B.minutes) || 20);
   const hh = Math.floor(t / 60) % 24, mm = t % 60;
   return `${(hh % 12) || 12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
 };
@@ -196,7 +196,7 @@ function renderBracket(force){
   // ---- schedule settings (editors) ----
   if (ed) {
     const s = document.createElement("div"); s.className = "br-set";
-    s.innerHTML = `<span class="lbl">Times</span> Game 1 at <input type="time" id="brStart" value="${(B && typeof B.start === "string") ? B.start : "10:00"}"> · <input type="number" id="brMin" min="10" max="240" value="${(B && B.minutes) || 45}"> min per game <button class="btn" id="brSetSave">Save times</button> <span class="psub" id="brSetMsg"></span>`;
+    s.innerHTML = `<span class="lbl">Times</span> Game 1 at <input type="time" id="brStart" value="${(B && typeof B.start === "string") ? B.start : "10:00"}"> · <input type="number" id="brMin" min="10" max="240" value="${(B && B.minutes) || 20}"> min per game <button class="btn" id="brSetSave">Save times</button> <span class="psub" id="brSetMsg"></span>`;
     s.querySelector("#brSetSave").onclick = async () => {
       const st = s.querySelector("#brStart").value, mn = +s.querySelector("#brMin").value;
       if (st && !/^([01]\d|2[0-3]):[0-5]\d$/.test(st)) return s.querySelector("#brSetMsg").textContent = "Pick a start time.";
