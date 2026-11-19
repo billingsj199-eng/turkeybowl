@@ -12,7 +12,7 @@
 :root{
   --bg:#f3f6f2; --panel:#ffffff; --line:#d9e1d7; --fg:#16201a; --muted:#5b695f;
   --accent:#e2550f; --accent-fg:#ffffff; --chip:#eef2ec; --warn:#a85a00; --warn-bg:#fff3df; --ok:#1d7a44; --ok-bg:#e5f4ea;
-  --turf:#2f7a45; --turf2:#2a7040; --turf-edge:#235c35; --chalk:rgba(255,255,255,.82); --los:#8cc8ff;
+  --turf:#2f7a45; --turf2:#2a7040; --turf-edge:#235c35; --endzone:#9c3a1f; --rz-fg:#c2410c; --chalk:rgba(255,255,255,.82); --los:#8cc8ff;
   --display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;
   --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
@@ -164,7 +164,7 @@ details[open] summary{margin-bottom:8px}
 <style>
 /* ---- Turkey Bowl look: same navy, gold, Oswald + Inter and buttons as the rest of the site ---- */
 :root[data-theme="dark"]{--bg:#0d1220;--panel:#131a2a;--line:#232c40;--fg:#e8ecf4;--muted:#8a94a8;--accent:#f5a524;--accent-fg:#1a1205;--chip:#182033;
-  --display:Oswald,"Arial Narrow",sans-serif;--body:Inter,system-ui,sans-serif}
+  --display:Oswald,"Arial Narrow",sans-serif;--body:Inter,system-ui,sans-serif;--rz-fg:#ff7a5c}
 button{border-radius:6px;background:var(--panel);font:600 13px Inter,sans-serif}
 button:hover{border-color:#3a4560}
 button[aria-pressed="true"],.seg button[aria-pressed="true"]{background:#3a2a52;color:#fff;border-color:#8a5cc7}
@@ -246,6 +246,7 @@ input[type=text],textarea,select{border-radius:6px;background:#0f1525}
           <button data-act="mode" data-mode="motion" id="mMotion">Motion</button>
         </div>
         <select id="formSel" aria-label="Formation" class="edit-only"></select>
+        <select id="rzSel" aria-label="Field position" class="edit-only" title="Open field, or a red zone play a set distance from the goal line"></select>
         <button data-act="saveForm" id="btnSaveForm" class="edit-only" title="Save where X, Y, Z and the QB are lined up as a formation you can reuse">Save formation</button>
         <button data-act="flip" id="btnFlip" class="edit-only" title="Mirror the play to the other side">Flip</button>
         <button data-act="def" id="btnDef" aria-pressed="false">Defense</button>
@@ -370,6 +371,7 @@ function setPreset(P,p,name,opt={}){
   const c=get(P,'C');const ref=p.id==='C'?15:c.x;let side=s.x>=ref?1:-1;if(opt.flip)side=-side;
   const kk=name==='Block-Go'?1:k;
   p.route=base.map(([dx,dy,hold],i)=>{const q={x:clX(s.x+dx*side),y:clY(s.y-dy*(name==='Block-Go'&&i===base.length-1?k:kk))};if(hold)q.hold=hold;return q});p.end='arrow';
+  if(P.rz){const b=backY(P)+.7;p.route.forEach(q=>{if(q.y<b)q.y=b})}
   p.preset={name,depth,flip:!!opt.flip};
 }
 function samples(){
@@ -397,7 +399,7 @@ const sx=x=>(PAD+x*U).toFixed(1), sy=y=>(PAD+y*U).toFixed(1);
 const COLORS={C:'#ffffff',QB:'#fb923c',X:'#fde047',Y:'#f87171',Z:'#67e8f9'};
 const ROLE={C:'Center · snaps the ball, then eligible',QB:'Quarterback · takes the snap',X:'Receiver',Y:'Receiver',Z:'Receiver'};
 const KEY='flag5v5.playbook.v2';
-const FONT='Barlow Condensed,Arial Narrow,sans-serif';
+const FONT='Oswald,Arial Narrow,sans-serif';
 const clone=o=>JSON.parse(JSON.stringify(o));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const lerp=(a,b,k)=>({x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k});
@@ -450,7 +452,12 @@ function undo(){const P=cur();if(!P)return;const h=hist[P.id];if(!h||!h.length)r
 
 /* ---------- drawing ---------- */
 const svg=$('field'), layer=$('layer');
-function turfSVG(mini){
+/* red zone: P.rz = yards from the goal line (3, 5 or 10). The end zone is END_D yards deep. */
+const END_D=10, RZ_OPTS=[[0,'Open field'],[10,'Red zone · 10 yd out'],[5,'Red zone · 5 yd out'],[3,'Goal line · 3 yd out']];
+const goalY=P=>P&&P.rz?LOS-P.rz:null, backY=P=>P&&P.rz?LOS-P.rz-END_D:null;
+const rzTag=P=>P&&P.rz?(P.rz<=3?'Goal line':'Red zone')+` · ${P.rz} yd`:'';
+function turfSVG(mini,P){
+  if(P&&P.rz)return turfRZ(mini,P);
   let s=`<rect x="0" y="0" width="${VW}" height="${VH}" rx="${mini?0:10}" fill="var(--turf-edge)"/>`;
   let i=0;for(let y0=LOS-25;y0<FH;y0+=5,i++){const a=Math.max(0,y0),b=Math.min(FH,y0+5);if(b>a)s+=`<rect x="${sx(0)}" y="${sy(a)}" width="${FW*U}" height="${(b-a)*U}" fill="${i%2?'var(--turf2)':'var(--turf)'}"/>`}
   if(!mini){
@@ -465,7 +472,30 @@ function turfSVG(mini){
   if(!mini)s+=`<text x="${sx(FW-.4)}" y="${+sy(LOS)+16}" text-anchor="end" fill="var(--los)" font-family="${FONT}" font-weight="700" font-size="14" letter-spacing="1">LINE OF SCRIMMAGE</text>`;
   return s;
 }
-$('turf').innerHTML=turfSVG(false);
+function turfRZ(mini,P){
+  const G=goalY(P),B=Math.max(0,backY(P));
+  let s=`<rect x="0" y="0" width="${VW}" height="${VH}" rx="${mini?0:10}" fill="var(--turf-edge)"/>`;
+  let i=0;for(let y0=G;y0<FH;y0+=5,i++){const a=y0,b=Math.min(FH,y0+5);s+=`<rect x="${sx(0)}" y="${sy(a)}" width="${FW*U}" height="${(b-a)*U}" fill="${i%2?'var(--turf2)':'var(--turf)'}"/>`}
+  s+=`<rect x="${sx(0)}" y="${sy(B)}" width="${FW*U}" height="${(G-B)*U}" fill="var(--endzone)"/>`;
+  if(B>0)s+=`<rect x="${sx(0)}" y="${sy(0)}" width="${FW*U}" height="${B*U}" fill="rgba(0,0,0,.38)"/>`;   // past the back line = out of bounds
+  if(!mini){
+    for(let y=Math.ceil(G+.01);y<FH;y++){if(Math.abs((y-G)%5)<.01)continue;[[0,.6],[FW-.6,FW],[9.7,10.3],[19.7,20.3]].forEach(([a,b])=>s+=`<line x1="${sx(a)}" x2="${sx(b)}" y1="${sy(y)}" y2="${sy(y)}" stroke="var(--chalk)" stroke-width="1.5" opacity=".7"/>`)}
+    for(let d=5;G+d<FH;d+=5){const y=G+d;
+      s+=`<line x1="${sx(0)}" x2="${sx(FW)}" y1="${sy(y)}" y2="${sy(y)}" stroke="var(--chalk)" stroke-width="2"/>`;
+      s+=`<text x="${sx(1.6)}" y="${+sy(y)-6}" fill="var(--chalk)" font-family="${FONT}" font-weight="700" font-size="20">${d}</text><text x="${sx(FW-1.6)}" y="${+sy(y)-6}" text-anchor="end" fill="var(--chalk)" font-family="${FONT}" font-weight="700" font-size="20">${d}</text>`}
+    s+=`<text x="${VW/2}" y="${+sy((G+B)/2)+15}" text-anchor="middle" fill="#fff" opacity=".3" font-family="${FONT}" font-weight="800" font-size="44" letter-spacing="8">END ZONE</text>`;
+    s+=`<rect x="${sx(0)}" y="${sy(0)}" width="${FW*U}" height="${FH*U}" fill="none" stroke="var(--chalk)" stroke-width="3"/>`;
+    s+=`<text x="${sx(.6)}" y="${+sy(G)+17}" fill="#fff" font-family="${FONT}" font-weight="700" font-size="14" letter-spacing="1">GOAL LINE</text>`;
+  }
+  s+=`<line x1="${sx(0)}" x2="${sx(FW)}" y1="${sy(G)}" y2="${sy(G)}" stroke="#fff" stroke-width="${mini?7:5}"/>`;
+  if(backY(P)>0)s+=`<line x1="${sx(0)}" x2="${sx(FW)}" y1="${sy(B)}" y2="${sy(B)}" stroke="#fff" stroke-width="${mini?5:3}"/>`;
+  s+=`<line x1="${sx(0)}" x2="${sx(FW)}" y1="${sy(LOS)}" y2="${sy(LOS)}" stroke="var(--los)" stroke-width="${mini?8:3}"/>`;
+  if(!mini)s+=`<text x="${sx(FW-.4)}" y="${+sy(LOS)+16}" text-anchor="end" fill="var(--los)" font-family="${FONT}" font-weight="700" font-size="14" letter-spacing="1">${P.rz} YD OUT</text>`;
+  return s;
+}
+let turfKey=null;
+function drawTurf(){const P=cur();const k=String(P&&P.rz||0);if(k===turfKey)return;turfKey=k;$('turf').innerHTML=turfSVG(false,P)}
+drawTurf();
 
 function polyStr(pts){return pts.map(p=>sx(p.x)+','+sy(p.y)).join(' ')}
 function endMark(pts,color,end,w){
@@ -513,7 +543,7 @@ function drawPlay(P,o={}){
   return s;
 }
 function render(){
-  const P=cur();svg.setAttribute('class','mode-'+mode);
+  const P=cur();svg.setAttribute('class','mode-'+mode);drawTurf();
   if(!P){layer.innerHTML=`<rect x="${sx(4)}" y="${sy(9)}" width="${22*U}" height="${5*U}" rx="10" fill="rgba(0,0,0,.55)"/><text x="${VW/2}" y="${+sy(11.2)}" text-anchor="middle" fill="#fff" font-family="${FONT}" font-weight="700" font-size="26" letter-spacing="1">NO PLAYS YET</text><text x="${VW/2}" y="${+sy(12.7)}" text-anchor="middle" fill="#fff" font-family="Inter,sans-serif" font-size="14" opacity=".85">${loaded?(canWrite?'Press + New play to draw your first one.':'The owner hasn’t added plays yet.'):'Loading the playbook…'}</text>`;return}
   layer.innerHTML=drawPlay(P,{anim:anim&&anim.frame,sel:canWrite?sel:null});
 }
@@ -566,6 +596,7 @@ function checks(P){
     });
     if(fwd>1)out.push(['warn',`${fwd} forward passes. Only one forward pass is allowed per play.`]);
   }
+  if(P.rz){const b=backY(P),over=P.offense.filter(p=>p.route.some(q=>q.y<b-.2)).map(p=>p.label);if(over.length)out.push(['warn',`${over.join(', ')} ${over.length>1?'run':'runs'} out the back of the end zone. Shorten the route or pick a preset again.`])}
   const noRoute=P.offense.filter(p=>p!==passer&&!p.route.length).map(p=>p.label);if(noRoute.length)out.push(['',`No route yet: ${noRoute.join(', ')}`]);
   if(!out.some(o=>o[0]==='warn'))out.unshift(['ok','Legal set: center on the ball, everyone behind the line.']);
   return out;
@@ -613,23 +644,25 @@ function readsLine(P){
 let listForm=null, bookForm=null;
 const formOf=P=>P.form||'Custom';
 function formGroups(){const m=new Map();sorted().forEach(P=>{const f=formOf(P);if(!m.has(f))m.set(f,[]);m.get(f).push(P)});return [...m.entries()]}
-function inForm(f){const L=sorted();return f==='*'?L:L.filter(P=>formOf(P)===f)}
-function formOnly(P){const Q=clone(P);Q.offense.forEach(q=>{q.route=[];q.motion=[];q.read=0;q.preset=null});Q.ball=null;Q.showDef=false;return Q}
-function followCur(){if(listForm&&listForm!=='*'&&cur())listForm=formOf(cur())}
+function inForm(f){const L=sorted();return f==='*'?L:f==='~rz'?L.filter(P=>P.rz):L.filter(P=>formOf(P)===f)}
+const viewName=f=>f==='*'?'All plays':f==='~rz'?'🔴 Red zone':f;
+function formOnly(P){const Q=clone(P);delete Q.rz;Q.offense.forEach(q=>{q.route=[];q.motion=[];q.read=0;q.preset=null});Q.ball=null;Q.showDef=false;return Q}
+function followCur(){if(listForm&&listForm!=='*'&&listForm!=='~rz'&&cur())listForm=formOf(cur())}
 const plural=n=>n+' play'+(n===1?'':'s');
 function renderBook(){
   const L=sorted();
   if(!L.length){$('list').innerHTML=`<div class="empty"><p class="hint">${loaded?'No plays in this playbook yet.':'Loading…'}</p>${loaded&&canWrite?'<button data-act="starter">Add 3 example plays</button>':''}</div>`;return}
   if(listForm&&listForm!=='*'&&!inForm(listForm).length)listForm=null;
-  const mini=P=>`<svg viewBox="${PAD} ${PAD+(LOS-19)*U} ${FW*U} ${FW*U}" aria-hidden="true">${turfSVG(true)}${drawPlay(P,{mini:true})}</svg>`;
+  const mini=P=>`<svg viewBox="${PAD} ${PAD+(LOS-19)*U} ${FW*U} ${FW*U}" aria-hidden="true">${turfSVG(true,P)}${drawPlay(P,{mini:true})}</svg>`;
+  const nRZ=inForm('~rz').length;
   const curF=cur()&&formOf(cur());
   if(!listForm){
     $('list').innerHTML=`<p class="hint">Pick a formation to see its plays.</p>`+formGroups().map(([f,ps])=>`<div class="pitem${f===curF?' on':''}"><button class="open" data-act="formView" data-where="list" data-f="${esc(f)}">${mini(formOnly(ps[0]))}<div><b>${esc(f)}</b><span class="f">${plural(ps.length)}</span></div><span class="go" aria-hidden="true">›</span></button></div>`).join('')+
-      `<div class="pitem"><button class="open" data-act="formView" data-where="list" data-f="*"><span class="num">#</span><div><b>All plays</b><span class="f">${plural(L.length)}</span></div><span class="go" aria-hidden="true">›</span></button></div>`;
+      (nRZ?`<div class="pitem"><button class="open" data-act="formView" data-where="list" data-f="~rz"><span class="num">🔴</span><div><b>Red zone</b><span class="f">${plural(nRZ)}</span></div><span class="go" aria-hidden="true">›</span></button></div>`:'')+`<div class="pitem"><button class="open" data-act="formView" data-where="list" data-f="*"><span class="num">#</span><div><b>All plays</b><span class="f">${plural(L.length)}</span></div><span class="go" aria-hidden="true">›</span></button></div>`;
     return}
   const F=inForm(listForm);const num=new Map(L.map((P,i)=>[P.id,i+1]));
-  $('list').innerHTML=`<div class="fhead"><button class="back" data-act="formView" data-where="list" data-f="">‹ Formations</button><b>${listForm==='*'?'All plays':esc(listForm)}</b></div>`+
-    F.map((P,i)=>`<div class="pitem${P.id===(cur()&&cur().id)?' on':''}"><button class="open" data-act="open" data-id="${P.id}"><span class="num">${num.get(P.id)}</span>${mini(P)}<div><b>${esc(P.name||'Untitled play')}</b>${listForm==='*'?`<span class="f">${esc(formOf(P))}</span>`:''}</div></button><div class="mv"><button data-act="up" data-id="${P.id}" aria-label="Move up" ${i?'':'disabled'}>▲</button><button data-act="down" data-id="${P.id}" aria-label="Move down" ${i<F.length-1?'':'disabled'}>▼</button></div></div>`).join('');
+  $('list').innerHTML=`<div class="fhead"><button class="back" data-act="formView" data-where="list" data-f="">‹ Formations</button><b>${esc(viewName(listForm))}</b></div>`+
+    F.map((P,i)=>`<div class="pitem${P.id===(cur()&&cur().id)?' on':''}"><button class="open" data-act="open" data-id="${P.id}"><span class="num">${num.get(P.id)}</span>${mini(P)}<div><b>${esc(P.name||'Untitled play')}</b>${listForm==='*'||listForm==='~rz'||P.rz?`<span class="f">${[listForm==='*'||listForm==='~rz'?esc(formOf(P)):'',P.rz?'🔴 '+rzTag(P):''].filter(Boolean).join(' · ')}</span>`:''}</div></button><div class="mv"><button data-act="up" data-id="${P.id}" aria-label="Move up" ${i?'':'disabled'}>▲</button><button data-act="down" data-id="${P.id}" aria-label="Move down" ${i<F.length-1?'':'disabled'}>▼</button></div></div>`).join('');
 }
 function renderMeta(){
   const P=cur();const n=$('playName'),t=$('notes');
@@ -637,6 +670,7 @@ function renderMeta(){
   if(document.activeElement!==t)t.value=P?(P.notes||''):'';
   n.readOnly=t.readOnly=!canWrite||!P;
   $('formSel').value=P&&(FORMS[P.form]||customFormFor(P.form))?P.form:'';$('btnDef').setAttribute('aria-pressed',String(!!(P&&P.showDef)));
+  $('rzSel').value=String(P&&P.rz||0);
   delArm=false;$('btnDel').textContent='Delete';
 }
 function renderChecks(){const P=cur();$('checks').innerHTML=P&&canWrite?checks(P).map(([k,t])=>`<span class="chip ${k}">${esc(t)}</span>`).join(''):(P?`<div class="reads">${readsLine(P)}</div>`:'')}
@@ -724,16 +758,17 @@ async function renderCards(){
     $('cards').innerHTML=formGroups().map(([f,ps])=>`<button class="pcard ftile" data-act="formView" data-where="book" data-f="${esc(f)}"><header><div><h3>${esc(f)}</h3><div class="form">${plural(ps.length)}</div></div></header>
       <svg viewBox="0 ${PAD+(LOS-5)*U} ${VW} ${(FH-LOS+5)*U+PAD}" role="img" aria-label="${esc(f)} formation">${turfSVG(false)}${drawPlay(formOnly(ps[0]),{})}</svg>
       <div class="body"><ol class="fplays">${ps.map(P=>`<li>${esc(P.name||'Untitled play')}</li>`).join('')}</ol></div></button>`).join('')+
+      (inForm('~rz').length?`<button class="pcard ftile all" data-act="formView" data-where="book" data-f="~rz"><header><div><h3>🔴 Red zone</h3><div class="form">${plural(inForm('~rz').length)}</div></div></header></button>`:'')+
       `<button class="pcard ftile all" data-act="formView" data-where="book" data-f="*"><header><div><h3>All plays</h3><div class="form">${plural(L.length)} on one page</div></div></header></button>`;
     return}
   const num=new Map(L.map((P,i)=>[P.id,i+1]));const F=inForm(bookForm);
-  $('bookNav').innerHTML=`<div class="fhead"><button class="back" data-act="formView" data-where="book" data-f="">‹ Formations</button><h2 class="fnav">${bookForm==='*'?'All plays':esc(bookForm)} <span class="hint">${plural(F.length)}</span></h2></div>`;
+  $('bookNav').innerHTML=`<div class="fhead"><button class="back" data-act="formView" data-where="book" data-f="">‹ Formations</button><h2 class="fnav">${esc(viewName(bookForm))} <span class="hint">${plural(F.length)}</span></h2></div>`;
   let names={};
   const ids=[...new Set(F.map(p=>p.updatedBy).filter(Boolean))];
   if(user&&ids.length){try{const ps=await user.profiles(ids);ids.forEach(i=>names[i]=(ps[i]&&ps[i].name)||'')}catch(e){}}
   if(!bookForm)return;
-  $('cards').innerHTML=F.map((P)=>({P,i:num.get(P.id)-1})).map(({P,i})=>`<article class="pcard"><header><span class="bignum">${i+1}</span><div><h3>${esc(P.name||'Untitled play')}</h3><div class="form">${esc(P.form||'Custom')} formation</div></div></header>
-    <svg viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Diagram of ${esc(P.name)}">${turfSVG(false)}${drawPlay(P,{})}</svg>
+  $('cards').innerHTML=F.map((P)=>({P,i:num.get(P.id)-1})).map(({P,i})=>`<article class="pcard"><header><span class="bignum">${i+1}</span><div><h3>${esc(P.name||'Untitled play')}</h3><div class="form">${esc(P.form||'Custom')} formation${P.rz?` · <b style="color:var(--rz-fg)">🔴 ${rzTag(P)}</b>`:''}</div></div></header>
+    <svg viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Diagram of ${esc(P.name)}">${turfSVG(false,P)}${drawPlay(P,{})}</svg>
     <div class="body"><div class="reads">${readsLine(P)}</div>${ballLine(P)?`<div class="by"><b>Ball:</b> ${ballLine(P)}</div>`:''}${P.notes?`<p>${esc(P.notes)}</p>`:''}
     ${P.updatedAt?`<div class="by">Edited ${names[P.updatedBy]?'by '+esc(names[P.updatedBy])+' · ':''}${new Date(P.updatedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>`:''}
     <div class="acts"><button data-act="openIn" data-id="${P.id}">${canWrite?'Edit':'Open'} and run it</button></div></div></article>`).join('');
@@ -912,9 +947,9 @@ document.addEventListener('click',e=>{
   switch(act){
     case 'mode':setMode(b.dataset.mode);if(b.dataset.mode!=='move'&&!sel)flash('Tap a player first, then tap the field to add points.');break;
     case 'formView':{const f=b.dataset.f||null;if(b.dataset.where==='book'){bookForm=f;renderCards();$('bookNav').scrollIntoView({block:'start'})}else{listForm=f;if(f&&f!=='*'){const c=cur();if(!c||formOf(c)!==f){const L=inForm(f);if(L.length){current=L[0].id;sel=null;refreshAll();break}}}renderBook()}break}
-    case 'new':{const lf=listForm&&listForm!=='*'?listForm:null;const known=lf&&(FORMS[lf]||customFormFor(lf));const n=newPlay('New play '+(plays.length+1),known?lf:'Spread 2x1',nextOrder());
+    case 'new':{const lf=listForm&&listForm!=='*'&&listForm!=='~rz'?listForm:null;const known=lf&&(FORMS[lf]||customFormFor(lf));const n=newPlay('New play '+(plays.length+1),known?lf:'Spread 2x1',nextOrder());
       if(lf&&!known){const src=inForm(lf)[0];if(src){['QB','X','Y','Z'].forEach(k=>{const a=get(src,k),q=get(n,k);moveTo(q,a.x,a.y)});n.form=lf}}
-      plays.push(n);current=n.id;if(listForm!=='*')listForm=formOf(n);sel=null;changed(true);$('playName').focus();$('playName').select();break}
+      if(listForm==='~rz')n.rz=5;plays.push(n);current=n.id;if(listForm!=='*'&&listForm!=='~rz')listForm=formOf(n);sel=null;changed(true);$('playName').focus();$('playName').select();break}
     case 'starter':{let o=nextOrder();samples().forEach(s=>{s.order=o++;plays.push(s);persist(s)});current=sorted()[0].id;refreshAll();break}
     case 'open':current=b.dataset.id;sel=null;if(!db)saveLocal();refreshAll();break;
     case 'openIn':current=b.dataset.id;sel=null;{const c=cur();if(c)listForm=formOf(c)}location.hash='designer';refreshAll();break;
@@ -1007,6 +1042,10 @@ document.addEventListener('click',e=>{
       catch(_){$('ioMsg').textContent='That code didn’t load. Paste the full code from “Copy playbook code”.'}break;
   }
 });
+$('rzSel').innerHTML=RZ_OPTS.map(([v,t])=>`<option value="${v}">${t}</option>`).join('');
+$('rzSel').addEventListener('change',e=>{const P=cur();if(!P||!canWrite)return;stopAnim();push();const v=+e.target.value;if(v)P.rz=v;else delete P.rz;
+  P.offense.forEach(p=>{if(p.preset)setPreset(P,p,p.preset.name,{depth:p.preset.depth,flip:p.preset.flip})});
+  if(listForm==='~rz'&&!P.rz)listForm=formOf(P);changed(true)});
 $('formSel').addEventListener('change',e=>{const v=e.target.value;const P=cur();if(!v||!P||!canWrite)return;stopAnim();push();applyForm(P,v);P.form=v;followCur();changed(true)});
 $('playName').addEventListener('input',e=>{const P=cur();if(!P||!canWrite)return;P.name=e.target.value;persist(P);renderBook()});
 $('notes').addEventListener('input',e=>{const P=cur();if(!P||!canWrite)return;P.notes=e.target.value;persist(P)});
