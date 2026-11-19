@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Team Playbook · Turkey Bowl</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: coach's desk — playbook list | the field + key | selected-player tools; a second "Playbook" view shows every play as a numbered card */
 :root{
@@ -161,16 +161,52 @@ details[open] summary{margin-bottom:8px}
 @media (max-width:1100px){.app{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .board{grid-column:1/-1;order:-1}}
 @media (max-width:680px){.app{grid-template-columns:minmax(0,1fr)} h1{font-size:28px} .toolbar select{max-width:none;flex:1} .tabs{margin-left:0}}
 </style>
-<style>:root[data-theme="dark"]{--bg:#131a2a;--panel:#182033;--line:#2a3550;--chip:#1e283d;--muted:#9aa6bd}</style>
+<style>
+/* ---- Turkey Bowl look: same navy, gold, Oswald + Inter and buttons as the rest of the site ---- */
+:root[data-theme="dark"]{--bg:#0d1220;--panel:#131a2a;--line:#232c40;--fg:#e8ecf4;--muted:#8a94a8;--accent:#f5a524;--accent-fg:#1a1205;--chip:#182033;
+  --display:Oswald,"Arial Narrow",sans-serif;--body:Inter,system-ui,sans-serif}
+button{border-radius:6px;background:var(--panel);font:600 13px Inter,sans-serif}
+button:hover{border-color:#3a4560}
+button[aria-pressed="true"],.seg button[aria-pressed="true"]{background:#3a2a52;color:#fff;border-color:#8a5cc7}
+.seg{border-radius:6px}
+button.primary{font:700 14px Inter,sans-serif;letter-spacing:.02em;text-transform:none;padding:7px 16px;border-radius:6px}
+button.danger{color:#ef5a4c}
+.card h2{font:700 12px Inter,sans-serif;letter-spacing:.1em;color:var(--muted)}
+.card h2 button{letter-spacing:0;text-transform:none}
+input[type=text],textarea,select{border-radius:6px;background:#0f1525}
+.tabs{margin-left:0;border:0;border-radius:0;gap:8px;overflow:visible}
+.tabs a{font:600 13px Inter,sans-serif;letter-spacing:0;text-transform:none;padding:7px 13px;border:1px solid var(--line);border-radius:6px;color:var(--fg);background:var(--panel)}
+.tabs a+a{border-left:1px solid var(--line)}
+.tabs a[aria-current="page"]{background:#3a2a52;border-color:#8a5cc7;color:#fff}
+.pitem.on{background:#182033}
+.chip.ok{background:rgba(63,191,117,.14);color:#3fbf75}
+.chip.warn{background:rgba(245,165,36,.14);color:#f5a524}
+/* inside My Team: no second title, edge to edge, its tabs sit at the top like the rest of the page */
+.embed header.top h1,.embed header.top .tag{display:none}
+.embed header.top{padding-block:0 2px;gap:8px 12px}
+.embed .wrap{padding-left:0;padding-right:0;max-width:none}
+.embed .app{padding-block:10px 8px}
+.embed .bookview{padding-block:10px 8px}
+.embed .store{width:auto;flex:1;text-align:right}
+@media (max-width:680px){.embed .store{text-align:left;flex:1 1 100%}}
+/* plays list beside the field (formation first), player tools under the list; field capped so it fits on screen */
+@media (min-width:760px){
+  .embed .app{grid-template-columns:250px minmax(0,1fr)}
+  .embed .app>aside:first-child{grid-column:1;grid-row:1}
+  .embed .board{grid-column:2;grid-row:1/span 2;order:0}
+  .embed #insp{grid-column:1;grid-row:2}
+}
+.embed #field{width:min(100%,600px)}
+</style>
 </head>
 <body>
 <div class="wrap" id="root">
   <header class="top">
-    <h1>Flag <span>5v5</span> Playbook</h1>
-    <div class="tag">Center snaps · 5 on the field</div>
+    <h1>Team <span>Playbook</span></h1>
+    <div class="tag">5v5 flag · center snaps</div>
     <nav class="tabs" aria-label="View">
       <a href="#designer" id="tabDesigner">Designer</a>
-      <a href="#playbook" id="tabBook">Playbook</a>
+      <a href="#playbook" id="tabBook">Play cards</a>
     </nav>
     <div class="store" id="store">Loading plays…</div>
   </header>
@@ -257,7 +293,7 @@ details[open] summary{margin-bottom:8px}
   </section>
 </div>
 
-<script>window.PB_ENV=new Promise(r=>window.PB_SET=r);</script>
+<script>if(window.frameElement)document.documentElement.classList.add('embed');window.PB_ENV=new Promise(r=>window.PB_SET=r);</script>
 <script type="module">
 // Turkey Bowl team playbook: plays + formations live in teamspace/<season>/teams/<captain>/{plays,formations}.
 // firestore.rules onTeam() decides who can read or change them (that team only; nobody else, the admin included).

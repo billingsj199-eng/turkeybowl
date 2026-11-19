@@ -71,7 +71,7 @@ const mtPbKey = (cap, me) => `${CURRENT_SEASON}|${cap}|${me.uid}`;
 function mtPlaybook(pane, cap, me){
   const src = `playbook.html?season=${encodeURIComponent(CURRENT_SEASON)}&team=${encodeURIComponent(cap)}`;
   pane.classList.add("mt-pbpane");
-  pane.innerHTML = `<h3>📘 Playbook <small class="psub">only your team can see or change these plays</small> <a class="obtn sm mt-pbfull" href="${esc2(src)}" target="_blank" rel="noopener">Open full screen ↗</a></h3>`;
+  pane.innerHTML = `<div class="mt-pbbar"><a class="mt-pbfull" href="${esc2(src)}" target="_blank" rel="noopener">Full screen ↗</a></div>`;
   const f = document.createElement("iframe");
   f.className = "mt-pbframe"; f.title = "Team playbook"; f.src = src; f.dataset.key = mtPbKey(cap, me);
   pane.appendChild(f);
