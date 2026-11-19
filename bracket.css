@@ -284,3 +284,8 @@
 .mt-sugbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:color-mix(in srgb,var(--accent) 12%,#151c2c);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:13px}
 .mt-sugbar span{flex:1 1 220px}
 @media (max-width:600px){ .mt-lr select{max-width:100%;flex:1 1 100%} }
+/* My Team playbook tab: playbook.html in a frame that grows to fit (it sets its own height) */
+.mt-pbpane h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mt-pbfull{margin-left:auto;text-decoration:none}
+.mt-pbframe{display:block;width:100%;height:760px;border:0;border-radius:10px;background:#131a2a}
+@media (max-width:760px){.mt-pbpane{padding-left:6px;padding-right:6px}}

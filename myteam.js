@@ -26,6 +26,9 @@ function renderMyTeam(){
   const active = document.activeElement;
   if (active && root.contains(active) && (active.tagName === "INPUT" || active.tagName === "TEXTAREA") && active.value) return;   // don't wipe a message being typed
   const T = window.TBC, me = T && T.user, cap = T && T.myTeam ? T.myTeam() : null, L = T && T.live;
+  // the playbook is an iframe: redrawing would reload it and drop what someone is drawing, so leave it alone while it's open
+  const pb = root.querySelector("iframe.mt-pbframe");
+  if (MT_TAB === "playbook" && pb && me && pb.dataset.key === mtPbKey(cap, me)) return;
   root.innerHTML = `<header><h1>My <span>Team</span></h1></header>`;
   if (!T || !T.ready) { root.insertAdjacentHTML("beforeend", `<div class="empty">Loading…</div>`); return; }
   if (!me) {
@@ -59,7 +62,19 @@ function renderMyTeam(){
   const pane = document.createElement("div"); pane.className = "panel mt-pane"; root.appendChild(pane);
   if (MT_TAB === "roster") mtRoster(pane, cap, L);
   else if (MT_TAB === "chat") mtChat(pane);
-  else pane.innerHTML = `<h3>📘 Playbook</h3><div class="mt-empty">The playbook goes here. Jack will upload it before the tournament. Only your team will be able to see it.</div>`;
+  else mtPlaybook(pane, cap, me);
+}
+
+// Team playbook: playbook.html (the 5v5 play designer) in a frame. Plays live in teamspace/<season>/teams/<captain>/plays,
+// so each team has its own playbook, starting empty. firestore.rules lets only that team read or change it.
+const mtPbKey = (cap, me) => `${CURRENT_SEASON}|${cap}|${me.uid}`;
+function mtPlaybook(pane, cap, me){
+  const src = `playbook.html?season=${encodeURIComponent(CURRENT_SEASON)}&team=${encodeURIComponent(cap)}`;
+  pane.classList.add("mt-pbpane");
+  pane.innerHTML = `<h3>📘 Playbook <small class="psub">only your team can see or change these plays</small> <a class="obtn sm mt-pbfull" href="${esc2(src)}" target="_blank" rel="noopener">Open full screen ↗</a></h3>`;
+  const f = document.createElement("iframe");
+  f.className = "mt-pbframe"; f.title = "Team playbook"; f.src = src; f.dataset.key = mtPbKey(cap, me);
+  pane.appendChild(f);
 }
 
 function mtRoster(pane, cap, L){

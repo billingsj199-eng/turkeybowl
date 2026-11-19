@@ -393,6 +393,35 @@ service cloud.firestore {
         && request.resource.data.at == request.time;
       allow delete: if onTeam(season, cap) && resource.data.uid == request.auth.uid;
     }
+    // Team playbook (playbook.html in the My Team Playbook tab): teamspace/{season}/teams/{captain}/plays/{id} and /formations/{id}.
+    // Same lock as the chat: only that team reads or changes it. Nobody else, the admin included. Each team starts empty.
+    function validPlay(d) {
+      return d.keys().hasOnly(['name', 'notes', 'form', 'showDef', 'order', 'offense', 'defense', 'ball', 'updatedAt', 'updatedBy'])
+        && d.keys().hasAll(['name', 'offense'])
+        && shortText(d.name, 60)
+        && (!('notes' in d) || shortText(d.notes, 4000))
+        && (!('form' in d) || shortText(d.form, 40))
+        && (!('showDef' in d) || d.showDef is bool)
+        && (!('order' in d) || d.order is number)
+        && d.offense is list && d.offense.size() == 5
+        && (!('defense' in d) || (d.defense is list && d.defense.size() <= 7))
+        && (!('ball' in d) || d.ball == null || (d.ball is list && d.ball.size() <= 12))
+        && (!('updatedAt' in d) || d.updatedAt is number)
+        && (!('updatedBy' in d) || d.updatedBy == null || shortText(d.updatedBy, 80));
+    }
+    match /teamspace/{season}/teams/{cap}/plays/{pid} {
+      allow read, delete: if onTeam(season, cap);
+      allow create, update: if onTeam(season, cap) && season.matches('^[0-9]{4}$') && validPlay(request.resource.data);
+    }
+    match /teamspace/{season}/teams/{cap}/formations/{fid} {
+      allow read, delete: if onTeam(season, cap);
+      allow create, update: if onTeam(season, cap) && season.matches('^[0-9]{4}$')
+        && request.resource.data.keys().hasOnly(['name', 'pos', 'updatedAt', 'updatedBy'])
+        && shortText(request.resource.data.name, 40) && request.resource.data.name.size() > 0
+        && request.resource.data.pos is map && request.resource.data.pos.size() <= 6
+        && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is number)
+        && (!('updatedBy' in request.resource.data) || request.resource.data.updatedBy == null || shortText(request.resource.data.updatedBy, 80));
+    }
 
     // Team names for a season, keyed by captain. Editors can rename teams at or after the draft.
     match /teams/{season} {
