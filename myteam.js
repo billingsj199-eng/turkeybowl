@@ -67,7 +67,12 @@ function renderMyTeam(){
 
 // Team playbook: playbook.html (the 5v5 play designer) in a frame. Plays live in teamspace/<season>/teams/<captain>/plays,
 // so each team has its own playbook, starting empty. firestore.rules lets only that team read or change it.
-const mtPbKey = (cap, me) => `${CURRENT_SEASON}|${cap}|${me.uid}`;
+// The playbook frame asks for this to fill "Player at X": your team's captain + roster this season (trades included).
+window.tbMyRoster = () => {
+  const T = window.TBC, cap = T && T.myTeam ? T.myTeam() : null, L = T && T.live;
+  return cap ? [cap, ...(L ? rosterOf(L, cap).map(r => r.name) : [])] : [];
+};
+const mtPbKey = (cap, me) =>`${CURRENT_SEASON}|${cap}|${me.uid}`;
 function mtPlaybook(pane, cap, me){
   const src = `playbook.html?season=${encodeURIComponent(CURRENT_SEASON)}&team=${encodeURIComponent(cap)}`;
   pane.classList.add("mt-pbpane");

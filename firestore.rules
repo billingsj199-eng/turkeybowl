@@ -396,7 +396,7 @@ service cloud.firestore {
     // Team playbook (playbook.html in the My Team Playbook tab): teamspace/{season}/teams/{captain}/plays/{id} and /formations/{id}.
     // Same lock as the chat: only that team reads or changes it. Nobody else, the admin included. Each team starts empty.
     function validPlay(d) {
-      return d.keys().hasOnly(['name', 'notes', 'form', 'showDef', 'order', 'offense', 'defense', 'ball', 'rz', 'updatedAt', 'updatedBy'])
+      return d.keys().hasOnly(['name', 'notes', 'form', 'showDef', 'order', 'offense', 'defense', 'ball', 'rz', 'who', 'updatedAt', 'updatedBy'])
         && d.keys().hasAll(['name', 'offense'])
         && shortText(d.name, 60)
         && (!('notes' in d) || shortText(d.notes, 4000))
@@ -406,6 +406,7 @@ service cloud.firestore {
         && d.offense is list && d.offense.size() == 5
         && (!('defense' in d) || (d.defense is list && d.defense.size() <= 7))
         && (!('ball' in d) || d.ball == null || (d.ball is list && d.ball.size() <= 12))
+        && (!('who' in d) || (d.who is map && d.who.size() <= 5 && d.who.keys().hasOnly(['C', 'QB', 'X', 'Y', 'Z'])))   // who plays each spot
         && (!('rz' in d) || d.rz == null || (d.rz is int && d.rz >= 1 && d.rz <= 20))   // red zone: yards from the goal line
         && (!('updatedAt' in d) || d.updatedAt is number)
         && (!('updatedBy' in d) || d.updatedBy == null || shortText(d.updatedBy, 80));
