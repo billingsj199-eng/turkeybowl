@@ -15,7 +15,8 @@ const FIELD = 10000;
 // name as shown -> name on the site, when they differ
 const ALIAS = { "Anthony Rossi": "Ant Rossi" };
 // [player, team name], best odds first. cards: false = no Favorite / Top QB / Field cards, just the full list.
-// odds: an award's own ladder (default LADDER). sub: the small line under the title. field: who "Other" means.
+// odds: an award's own ladder (default LADDER). sub: the small line under the title. field: who "Other" means,
+// or false = nobody else is eligible (no Field card, no Other row).
 const AWARDS = {
   mvp: { short: "MVP", long: "Tournament MVP", sub: "QBs eligible", players: [
     ["Matt Giordano", "Team Consig"], ["Danny Surtz", "Team Danny"], ["Jake Veres", "Team Jake"], ["Matt Vingara", "Team Danny"],
@@ -30,7 +31,7 @@ const AWARDS = {
     ["Mike Surtz", "Team Luke"], ["George Fotiou", "Team Danny"], ["Shay McGowan", "Team Shay"], ["Jeremy Christiansen", "Team Baj"],
     ["Anthony Rossi", "Team Jake"], ["Joe Toscano", "Team Shay"], ["Billy Seymour", "Team Jake"]] },
   // rookies: a smaller field, so shorter odds than MVP/DPOY. Order follows draft position.
-  roty: { short: "ROTY", long: "Rookie of the Year", sub: "First-year players", field: "Any other rookie",
+  roty: { short: "ROTY", long: "Rookie of the Year", sub: "First-year players", field: false,   // these 13 are every rookie
     odds: [150, 300, 500, 700, 800, 1000, 1200, 1500, 1800, 2000, 2500, 3000, 4000], players: [
     ["Matt Giordano", "Team Consig"], ["Matt Vingara", "Team Danny"], ["Luke Billings", "Team Luke"], ["Shay McGowan", "Team Shay"],
     ["Mike Surtz", "Team Luke"], ["Brenden Bechamps", "Team Danny"], ["Darren Henderson", "Team Luke"], ["Matt Heverin", "Team Luke"],
@@ -65,8 +66,9 @@ const AWARDS = {
     const cats = !fav ? [] : [{ cat: "Tournament Favorite", ...fav, fav: true }, { cat: "Top QB Contender", ...qb },
       { cat: "Field Selection", field: true, name: "The Field", first: "Any other player", last: "The Field", odds: "+" + FIELD, team: { name: A.field ? "" : "Remaining flex / depth", color: "#6c7689" }, role: "" }];
     if (A.field) cats[2].first = A.field;
+    if (A.field === false) cats.pop();
     const other = { rank: rows.length + 1, other: true, name: "Other", odds: "+" + FIELD, img: "", team: { name: "The Field", color: "#6c7689" }, role: A.field || "Any other player" };
-    const DATA = { season: SEASON, short: A.short, long: A.long, sub: A.sub, cats, rest: [...rows.filter(r => r !== fav && r !== qb), other], total: rows.length };
+    const DATA = { season: SEASON, short: A.short, long: A.long, sub: A.sub, cats, rest: [...rows.filter(r => r !== fav && r !== qb), ...(A.field === false ? [] : [other])], total: rows.length };
     render("mvp_odds_template.html", DATA, [key + "-odds"], PNG, { clear: false });
     console.log(`${A.short} odds graphic: ` + path.relative(TB, path.join(PNG, key + "-odds.png")));
   }
