@@ -88,9 +88,9 @@ function slide(d){
   return `<div class="art">
     <div class="head"><div><div class="brand">🦃 Turkey Bowl ${d.season} · Sportsbook</div>
       <div class="title">${esc(d.short)} <span>Odds</span></div></div>
-      <div class="meta"><b>${esc(d.long)}</b><span>QBs eligible · ${d.total} on the board</span></div></div>
+      <div class="meta"><b>${esc(d.long)}</b><span>${esc(d.sub)} · ${d.total} on the board</span></div></div>
     ${d.cats.length ? `<div class="top">${d.cats.map(hero).join("")}</div>` : ""}
-    <div class="list${d.cats.length ? "" : " big"}"><div class="col">${d.rest.slice(0, half).map(row).join("")}</div><div class="col">${d.rest.slice(half).map(row).join("")}</div></div>
+    <div class="list${d.rest.length <= (d.cats.length ? 12 : 20) ? " big" : ""}"><div class="col">${d.rest.slice(0, half).map(row).join("")}</div><div class="col">${d.rest.slice(half).map(row).join("")}</div></div>
     <div class="foot"><span>Odds for fun only · no real money</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
   </div>`;
 }
