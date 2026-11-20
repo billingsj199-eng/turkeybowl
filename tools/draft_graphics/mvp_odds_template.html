@@ -70,7 +70,7 @@ const hero = r => `<div class="hero${r.fav ? " fav" : ""}" style="--tc:${r.team.
     <div class="fn">${esc(r.first)}</div><div class="ln">${esc(r.last)}</div>
     <div class="tm">${r.field ? esc(r.team.name) : `${tlogo(r.team)}${esc(r.team.name)}<small>· ${esc(r.role)}</small>`}</div>
     <div class="od">${esc(r.odds)}</div></div>`;
-const row = r => `<div class="r" style="--tc:${r.team.color}"><span class="rk">${r.rank}</span>${head(r, 48)}
+const row = r => `<div class="r" style="--tc:${r.team.color}"><span class="rk">${r.rank}</span>${r.other ? `<div class="hs" style="width:48px;height:48px;border-style:dashed;border-color:#ffffff40;background:#1a2236;font-size:24px">🦃</div>` : head(r, 48)}
     <span class="nm"><b>${esc(r.name)}</b><span><i></i><em>${esc(r.team.name)}</em>· ${esc(r.role)}</span></span>
     <span class="od">${esc(r.odds)}</span></div>`;
 function slide(d){

@@ -47,7 +47,8 @@ const FIELD = 10000;
   const fav = rows[0], qb = rows.find(r => /^QB/.test(r.role));
   const cats = [{ cat: "Tournament Favorite", ...fav, fav: true }, { cat: "Top QB Contender", ...qb },
     { cat: "Field Selection", field: true, name: "The Field", first: "Any other player", last: "The Field", odds: "+" + FIELD, team: { name: "Remaining flex / depth", color: "#6c7689" }, role: "" }];
-  const DATA = { season: SEASON, cats, rest: rows.filter(r => r !== fav && r !== qb), total: rows.length };
+  const other = { rank: rows.length + 1, other: true, name: "Other", odds: "+" + FIELD, img: "", team: { name: "The Field", color: "#6c7689" }, role: "Any other player" };
+  const DATA = { season: SEASON, cats, rest: [...rows.filter(r => r !== fav && r !== qb), other], total: rows.length };
   render("mvp_odds_template.html", DATA, ["mvp-odds"], PNG, { clear: false });
   console.log("MVP odds graphic: " + path.relative(TB, path.join(PNG, "mvp-odds.png")));
 })().catch(e => { console.error("Error:", e.message); process.exit(1); });
