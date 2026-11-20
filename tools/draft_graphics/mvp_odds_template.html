@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MVP Odds Graphic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0d1220;--ink:#e8ecf4;--muted:#8a94a8;--accent:#f5a524;--good:#5fd68f}
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a12;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .gallery{display:flex;justify-content:center;padding:16px}
+  .fit{position:relative;width:min(540px,calc(100vw - 32px));aspect-ratio:1080/1350;overflow:hidden;border-radius:10px}
+  .art{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;overflow:hidden;font-family:Inter,sans-serif;padding:46px 48px 0;
+    background:radial-gradient(800px 600px at 105% -5%, #f5a52440, transparent 60%), radial-gradient(700px 500px at -10% 105%, #4b9ce822, transparent 60%),
+      repeating-linear-gradient(135deg,#ffffff05 0 2px,transparent 2px 22px), var(--bg)}
+  .head{display:flex;justify-content:space-between;align-items:flex-end}
+  .brand{display:flex;align-items:center;gap:12px;font:600 24px Oswald;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+  .title{font:700 104px/0.9 Oswald;text-transform:uppercase;margin-top:10px;letter-spacing:.01em}
+  .title span{color:transparent;-webkit-text-stroke:2.5px var(--accent)}
+  .meta{text-align:right;padding-bottom:10px}
+  .meta b{display:block;font:700 34px Oswald;text-transform:uppercase}
+  .meta span{font:600 19px Oswald;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .hs{border-radius:50%;overflow:hidden;background:#232c40;border:3px solid var(--tc,#6c7689);display:flex;align-items:center;justify-content:center;flex:none;color:var(--tc);font:700 16px Oswald}
+  .hs img{width:100%;height:100%;object-fit:cover}
+  .tlogo{width:22px;height:22px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden;background:var(--tc)}
+  .tlogo img{width:100%;height:100%;object-fit:cover}
+  /* top 3 */
+  .top{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
+  .hero{position:relative;border-radius:20px;background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 22%,#131a2a),#131a2a 70%);border:1px solid #ffffff18;border-top:4px solid var(--tc);
+    padding:20px 16px 18px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .hero.fav{border-color:#f5a52488;border-top-color:var(--accent);box-shadow:0 0 0 1px #f5a52455, 0 18px 50px #f5a52422}
+  .hero .cat{font:800 13px Inter;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);background:#ffffff14;border-radius:7px;padding:6px 10px;margin-bottom:14px}
+  .hero.fav .cat{color:#0d1220;background:var(--accent)}
+  .hero .hs{width:136px;height:136px;border-width:4px}
+  .hero .fld{width:136px;height:136px;border-radius:50%;border:3px dashed #ffffff40;display:flex;align-items:center;justify-content:center;font-size:66px;background:#1a2236}
+  .hero .fn{margin-top:12px;font:600 18px Oswald;color:#c4cbd8;text-transform:uppercase;letter-spacing:.06em}
+  .hero .ln{font:700 40px/1 Oswald;text-transform:uppercase}
+  .hero .tm{display:flex;align-items:center;gap:7px;margin-top:9px;font:600 15px Inter;color:#c4cbd8}
+  .hero .tm small{color:var(--muted)}
+  .hero .od{margin-top:12px;font:700 64px/1 Oswald;color:var(--accent);letter-spacing:.01em}
+  /* list */
+  .list{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-top:20px}
+  .col{border-radius:18px;background:#111829;border:1px solid #ffffff14;padding:4px 16px}
+  .r{display:grid;grid-template-columns:34px 52px 1fr auto;align-items:center;gap:12px;height:66px;border-bottom:1px solid #ffffff0c}
+  .r:last-child{border-bottom:0}
+  .r .rk{font:700 26px Oswald;color:var(--muted);text-align:center}
+  .r .hs{width:48px;height:48px}
+  .r .nm{min-width:0}
+  .r .nm b{display:block;font:700 25px/1.05 Oswald;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .r .nm span{display:flex;align-items:center;gap:6px;margin-top:3px;font:600 13.5px Inter;color:var(--muted);white-space:nowrap;overflow:hidden}
+  .r .nm span i{width:9px;height:9px;border-radius:50%;background:var(--tc);flex:none}
+  .r .nm span em{font-style:normal;color:#c4cbd8}
+  .r .od{font:700 34px Oswald;color:var(--ink);text-align:right;padding-left:6px}
+  .field{display:flex;justify-content:space-between;align-items:center;margin-top:14px;border-radius:14px;border:1px dashed #ffffff2a;padding:12px 20px;font:700 22px Oswald;text-transform:uppercase;color:#c4cbd8}
+  .field small{font:600 14px Inter;text-transform:none;color:var(--muted);margin-left:10px}
+  .field b{font:700 30px Oswald;color:var(--ink)}
+  .foot{position:absolute;left:48px;right:48px;bottom:28px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font:600 16px Inter}
+  .url{color:var(--accent);font:700 24px Oswald;letter-spacing:.12em}
+</style></head>
+<body>
+<div class="gallery"><div class="fit" id="fit"></div></div>
+<script>
+const DATA = /*DATA*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ini = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 3);
+const head = (r, size) => `<div class="hs" style="width:${size}px;height:${size}px;--tc:${r.team.color}">${r.img ? `<img src="${esc(r.img)}" alt="">` : esc(ini(r.name))}</div>`;
+const tlogo = t => `<span class="tlogo" style="--tc:${t.color}">${t.logo ? (/^data:/.test(t.logo) ? `<img src="${esc(t.logo)}" alt="">` : esc(t.logo)) : ""}</span>`;
+const hero = r => `<div class="hero${r.fav ? " fav" : ""}" style="--tc:${r.team.color}">
+    <span class="cat">${esc(r.cat)}</span>
+    ${r.field ? `<div class="fld">🦃</div>` : head(r, 136)}
+    <div class="fn">${esc(r.first)}</div><div class="ln">${esc(r.last)}</div>
+    <div class="tm">${r.field ? esc(r.team.name) : `${tlogo(r.team)}${esc(r.team.name)}<small>· ${esc(r.role)}</small>`}</div>
+    <div class="od">${esc(r.odds)}</div></div>`;
+const row = r => `<div class="r" style="--tc:${r.team.color}"><span class="rk">${r.rank}</span>${head(r, 48)}
+    <span class="nm"><b>${esc(r.name)}</b><span><i></i><em>${esc(r.team.name)}</em>· ${esc(r.role)}</span></span>
+    <span class="od">${esc(r.odds)}</span></div>`;
+function slide(d){
+  const half = Math.ceil(d.rest.length / 2);
+  return `<div class="art">
+    <div class="head"><div><div class="brand">🦃 Turkey Bowl ${d.season} · Sportsbook</div>
+      <div class="title">MVP <span>Odds</span></div></div>
+      <div class="meta"><b>Tournament MVP</b><span>QBs eligible · ${d.total} on the board</span></div></div>
+    <div class="top">${d.cats.map(hero).join("")}</div>
+    <div class="list"><div class="col">${d.rest.slice(0, half).map(row).join("")}</div><div class="col">${d.rest.slice(half).map(row).join("")}</div></div>
+    <div class="foot"><span>Odds for fun only · no real money</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+  </div>`;
+}
+const SINGLE = /*SINGLE*/null;
+if (SINGLE !== null) { document.body.style.background = "#0d1220"; document.body.innerHTML = slide(DATA); document.querySelector(".art").style.position = "relative"; }
+else { const f = document.getElementById("fit"); f.innerHTML = slide(DATA); const fit = () => { f.firstElementChild.style.transform = `scale(${f.clientWidth / 1080})`; }; addEventListener("resize", fit); fit(); }
+</script>
+</body></html>
