@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MVP Odds Graphic</title>
+<title>Award Odds Graphic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -50,6 +50,16 @@
   .r .nm span i{width:9px;height:9px;border-radius:50%;background:var(--tc);flex:none}
   .r .nm span em{font-style:normal;color:#c4cbd8}
   .r .od{font:700 34px Oswald;color:var(--ink);text-align:right;padding-left:6px}
+  /* no category cards: the whole board, bigger rows */
+  .list.big{margin-top:34px}
+  .list.big .r{grid-template-columns:36px 62px 1fr auto;height:100px;gap:12px}
+  .list.big .r .rk{font-size:30px}
+  .list.big .r .hs{width:62px!important;height:62px!important}
+  .list.big .r .nm b{font-size:25px}
+  .list.big .r .nm b.long{font-size:22px}
+  .list.big .r .nm span{font-size:13.5px;margin-top:5px}
+  .list.big .r .od{font-size:36px}
+  .list.big .r.r1 .od,.list.big .r.r1 .rk{color:var(--accent)}
   .field{display:flex;justify-content:space-between;align-items:center;margin-top:14px;border-radius:14px;border:1px dashed #ffffff2a;padding:12px 20px;font:700 22px Oswald;text-transform:uppercase;color:#c4cbd8}
   .field small{font:600 14px Inter;text-transform:none;color:var(--muted);margin-left:10px}
   .field b{font:700 30px Oswald;color:var(--ink)}
@@ -70,17 +80,17 @@ const hero = r => `<div class="hero${r.fav ? " fav" : ""}" style="--tc:${r.team.
     <div class="fn">${esc(r.first)}</div><div class="ln">${esc(r.last)}</div>
     <div class="tm">${r.field ? esc(r.team.name) : `${tlogo(r.team)}${esc(r.team.name)}<small>· ${esc(r.role)}</small>`}</div>
     <div class="od">${esc(r.odds)}</div></div>`;
-const row = r => `<div class="r" style="--tc:${r.team.color}"><span class="rk">${r.rank}</span>${r.other ? `<div class="hs" style="width:48px;height:48px;border-style:dashed;border-color:#ffffff40;background:#1a2236;font-size:24px">🦃</div>` : head(r, 48)}
-    <span class="nm"><b>${esc(r.name)}</b><span><i></i><em>${esc(r.team.name)}</em>· ${esc(r.role)}</span></span>
+const row = r => `<div class="r${r.rank === 1 ? " r1" : ""}" style="--tc:${r.team.color}"><span class="rk">${r.rank}</span>${r.other ? `<div class="hs" style="width:48px;height:48px;border-style:dashed;border-color:#ffffff40;background:#1a2236;font-size:24px">🦃</div>` : head(r, 48)}
+    <span class="nm"><b${r.name.length > 17 ? ' class="long"' : ""}>${esc(r.name)}</b><span><i></i><em>${esc(r.team.name)}</em>· ${esc(r.role)}</span></span>
     <span class="od">${esc(r.odds)}</span></div>`;
 function slide(d){
   const half = Math.ceil(d.rest.length / 2);
   return `<div class="art">
     <div class="head"><div><div class="brand">🦃 Turkey Bowl ${d.season} · Sportsbook</div>
-      <div class="title">MVP <span>Odds</span></div></div>
-      <div class="meta"><b>Tournament MVP</b><span>QBs eligible · ${d.total} on the board</span></div></div>
-    <div class="top">${d.cats.map(hero).join("")}</div>
-    <div class="list"><div class="col">${d.rest.slice(0, half).map(row).join("")}</div><div class="col">${d.rest.slice(half).map(row).join("")}</div></div>
+      <div class="title">${esc(d.short)} <span>Odds</span></div></div>
+      <div class="meta"><b>${esc(d.long)}</b><span>QBs eligible · ${d.total} on the board</span></div></div>
+    ${d.cats.length ? `<div class="top">${d.cats.map(hero).join("")}</div>` : ""}
+    <div class="list${d.cats.length ? "" : " big"}"><div class="col">${d.rest.slice(0, half).map(row).join("")}</div><div class="col">${d.rest.slice(half).map(row).join("")}</div></div>
     <div class="foot"><span>Odds for fun only · no real money</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
   </div>`;
 }
