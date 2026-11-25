@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rulebook Graphic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0d1220;--ink:#e8ecf4;--muted:#8a94a8;--accent:#f5a524}
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a12;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .gallery{display:flex;justify-content:center;padding:16px}
+  .fit{position:relative;width:min(540px,calc(100vw - 32px));aspect-ratio:1080/1350;overflow:hidden;border-radius:10px}
+  .art{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;overflow:hidden;font-family:Inter,sans-serif;
+    background:radial-gradient(900px 520px at 100% -8%, #f5a52433, transparent 60%), repeating-linear-gradient(135deg,#ffffff05 0 2px,transparent 2px 22px), var(--bg);padding:48px 56px 0}
+  .brand{font:600 24px Oswald;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+  .top{display:flex;justify-content:space-between;align-items:flex-end}
+  .title{font:700 104px/0.9 Oswald;text-transform:uppercase;margin-top:10px}
+  .title span{display:block;color:transparent;-webkit-text-stroke:2px var(--accent);font-size:80px;letter-spacing:.06em;margin-top:6px}
+  .meta{text-align:right;color:var(--muted);font:600 19px Oswald;letter-spacing:.12em;text-transform:uppercase;line-height:1.55}
+  .meta b{color:var(--ink);font-size:30px;letter-spacing:.04em}
+  .cols{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:18px}
+  .grp{border-radius:16px;background:#131a2a;border:1px solid #ffffff14;padding:14px 18px 6px}
+  .gh{display:flex;align-items:center;gap:10px;font:700 22px Oswald;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);padding-bottom:6px}
+  .r{display:flex;gap:14px;padding:11px 0;border-top:1px solid #ffffff10}
+  .n{flex:none;width:32px;height:32px;border-radius:50%;background:#f5a52422;color:var(--accent);display:flex;align-items:center;justify-content:center;font:700 16px Oswald;margin-top:1px}
+  .t{font:700 26px/1.1 Oswald;text-transform:uppercase;letter-spacing:.02em}
+  .d{color:#c4cbd8;font:500 18px/1.38 Inter;margin-top:4px}
+  .foot{position:absolute;left:56px;right:56px;bottom:30px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font:600 17px Inter}
+  .url{color:var(--accent);font:600 20px Oswald;letter-spacing:.12em}
+</style></head>
+<body>
+<div class="gallery"><div class="fit" id="fit"></div></div>
+<script>
+const DATA = /*DATA*/null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function slide(d){
+  let n = 0;
+  const card = g => `<div class="grp"><div class="gh"><span>${g.icon}</span>${esc(g.group)}</div>
+    ${g.items.map(r => `<div class="r"><div class="n">${r.n}</div><div><div class="t">${esc(r.t)}</div><div class="d">${esc(r.d)}</div></div></div>`).join("")}</div>`;
+  // number the rules in order, then split the groups (kept in order) where the two columns come out most level
+  const w = g => 60 + g.items.reduce((s, r) => s + 50 + 21 * Math.ceil(r.d.length / 50), 0);
+  d.groups.forEach(g => g.items.forEach(r => r.n = ++n));
+  const tot = d.groups.reduce((s, g) => s + w(g), 0);
+  let best = 1, bd = 1e9, acc = 0;
+  d.groups.forEach((g, i) => { acc += w(g); if (i < d.groups.length - 1 && Math.abs(tot - 2 * acc) < bd) { bd = Math.abs(tot - 2 * acc); best = i + 1; } });
+  const cols = [d.groups.slice(0, best), d.groups.slice(best)];
+  const groups = cols.map(c => `<div class="col">${c.map(card).join("")}</div>`).join("");
+  return `<div class="art">
+    <div class="top"><div><div class="brand">🦃 Turkey Bowl ${d.season}</div><div class="title">Official<span>Rulebook</span></div></div>
+      <div class="meta"><b>5 on 5 · Flag</b><br>6 teams · double elim<br>Thanksgiving ${d.season}</div></div>
+    <div class="cols">${groups}</div>
+    <div class="foot"><span>Full rules + live bracket on the site</span><span class="url">THETURKEYBOWL.WEB.APP</span></div>
+  </div>`;
+}
+const SINGLE = /*SINGLE*/null;
+if (SINGLE !== null) { document.body.style.background = "#0d1220"; document.body.innerHTML = slide(DATA); document.querySelector(".art").style.position = "relative"; }
+else { const f = document.getElementById("fit"); f.innerHTML = slide(DATA); const fit = () => { f.firstElementChild.style.transform = `scale(${f.clientWidth / 1080})`; }; addEventListener("resize", fit); fit(); }
+</script>
+</body></html>

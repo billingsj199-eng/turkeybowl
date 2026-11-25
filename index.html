@@ -267,6 +267,9 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     .topnav .navlink{padding:16px 6px;font-size:11px;letter-spacing:.03em}
   }
   @media (max-width:380px){ .topnav .navlink{padding:16px 4px;font-size:10.5px} }
+  /* 6 nav links (Rules added 11-24): on small phones drop the turkey + "My" so the sign-in button still fits */
+  @media (max-width:430px){ .topnav .brand,.topnav .nl-my{display:none} .topnav .navlink{padding:16px 4px;letter-spacing:0} }
+  @media (max-width:350px){ .topnav .navlink{padding:16px 3px;font-size:10px} #abIn{padding:5px 7px;font-size:11px} }
   .adminpc{max-width:560px}
   /* live draft */
   .live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4b3f;box-shadow:0 0 0 0 rgba(239,75,63,.7);animation:lvpulse 1.4s infinite}
@@ -418,6 +421,15 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .ed-danger{margin-left:auto;color:#ef6b5f !important;border-color:#5a2a2a !important}
   .adm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#1b2336;border:1px solid #29334a;border-radius:8px;padding:9px 12px;margin-bottom:6px}
   .adm-row small{display:block;color:var(--muted);font-size:12px}
+  /* 📜 Rules page (rules.js) */
+  .rl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;margin-top:16px;align-items:start}
+  .rl-g{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .rl-g h2{display:flex;gap:8px;align-items:center;margin:0 0 6px;font:700 18px Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+  .rl-g ol{list-style:none;margin:0;padding:0}
+  .rl-g li{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+  .rl-g li:first-child{border-top:0}
+  .rl-n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--panel2);color:var(--accent);display:flex;align-items:center;justify-content:center;font:700 14px Oswald,sans-serif}
+  .rl-g li p{margin:3px 0 0;color:var(--muted);font-size:14px;line-height:1.4}
 </style>
 <link rel="stylesheet" href="film.css">
 <link rel="stylesheet" href="bracket.css">
@@ -428,15 +440,17 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
     <span class="brand">🦃 <span class="brand-t">Turkey Bowl</span></span>
     <a href="#board" data-page="board" class="navlink"><span class="nl-l">Draft </span>Board</a>
     <a href="#bracket" data-page="bracket" class="navlink"><span class="nl-e">🏆 </span>Bracket</a>
-    <a href="#myteam" data-page="myteam" class="navlink"><span class="nl-e">🏈 </span>My Team</a>
+    <a href="#myteam" data-page="myteam" class="navlink"><span class="nl-e">🏈 </span><span class="nl-my">My </span>Team</a>
     <a href="#film" data-page="film" class="navlink">Film<span class="nl-l"> Room</span></a>
     <a href="#history" data-page="history" class="navlink">History</a>
+    <a href="#rules" data-page="rules" class="navlink"><span class="nl-e">📜 </span>Rules</a>
   </div>
 </nav>
 <div id="pg-bracket" class="wrap" hidden></div>
 <div id="pg-myteam" class="wrap" hidden></div>
 <div id="pg-film" hidden></div>
 <div id="pg-history" hidden></div>
+<div id="pg-rules" class="wrap" hidden></div>
 <div class="wrap" id="pg-board">
   <header>
     <h1>Turkey Bowl <span>2026</span> Draft Board</h1>
@@ -1653,6 +1667,7 @@ document.getElementById("addPlayerBtn").onclick = () => window.TBC && TBC.openAd
 <script src="bracket.js"></script>
 <script src="challenge.js"></script>
 <script src="myteam.js"></script>
+<script src="rules.js"></script>
 <script type="module" src="tb-cloud.js"></script>
 </body>
 </html>
