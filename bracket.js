@@ -376,7 +376,7 @@ function brMatchup(gid, o){
       list.appendChild(r);
     };
     row(c, "Captain · QB");
-    (L ? rosterOf(L, c) : []).forEach(r => row(r.name, `${byName[r.name] ? byName[r.name].prank + " · " : ""}Pick ${pickLabel(L, r.i)}`));
+    (L ? rosterOf(L, c) : []).forEach(r => row(r.name, `${byName[r.name] ? byName[r.name].prank + " · " : ""}${pickTxt(L, r.i)}`));
     col.appendChild(list);
     return col;
   };

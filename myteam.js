@@ -89,7 +89,7 @@ function mtRoster(pane, cap, L){
   const t = document.createElement("table"); t.className = "mt-tbl";
   t.innerHTML = `<thead><tr><th>Player</th><th>Tier</th><th>GP</th><th>FPTS/G</th><th>REC</th><th>YDS</th><th>TD</th><th>TKL</th><th>INT</th><th>PD</th></tr></thead>`;
   const tb = document.createElement("tbody");
-  [{name: cap, sub: "Captain · QB"}, ...ros.map(r => ({name: r.name, sub: "Pick " + pickLabel(L, r.i)}))].forEach(r => {
+  [{name: cap, sub: "Captain · QB"}, ...ros.map(r => ({name: r.name, sub: pickTxt(L, r.i)}))].forEach(r => {
     const p = byName[r.name], s = mtStats(r.name), tr = document.createElement("tr");
     const td0 = document.createElement("td"); const pl = document.createElement("div"); pl.className = "mt-pl";
     if (p) { pl.style.setProperty("--tc", `var(--t-${p.tier})`); pl.appendChild(headshot(p)); }

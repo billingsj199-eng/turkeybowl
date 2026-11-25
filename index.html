@@ -105,6 +105,12 @@ if (location.hostname.endsWith("github.io")) location.replace("https://theturkey
   .clock .lbl2{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
   .clock .who{font-weight:700;font-size:16px}
   .avail{max-height:520px;overflow:auto;margin-top:8px}
+  .lv-addpool{margin-top:14px} .lv-addpool .ap{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--line)}
+  .lv-late-sel{font:inherit;font-size:13px;padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);max-width:150px}
+  .lv-late .ap{flex-wrap:wrap} .lv-late .ap > div:not(.hs){min-width:120px} .lv-addpool .ap .hs{width:30px;height:30px;font-size:11px} .lv-late .ap .lv-late-sel{flex:1 1 110px;max-width:none}
+  .lv-late-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+  .lv-late-add .lv-late-sel{flex:1 1 130px;max-width:none}
+  @media (max-width:560px){ .lv-late-sel{font-size:16px} }
   .avail .ap{display:flex;align-items:center;gap:10px;padding:7px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:6px}
   .avail .ap:hover{background:#1a2338}
   .avail .ap .r{width:24px;color:var(--muted);font-weight:700;text-align:right}
@@ -667,6 +673,7 @@ function buildPlayers(){
   if (L && Array.isArray(L.order) && L.order.length) {
     L.order.forEach(c => { if (byName[c] && !byName[c].team) { byName[c].team = draftTeamName(c); byName[c].pick = "Captain"; } });
     (L.picks || []).forEach((n, i) => { const c = playerOwnerOf(L, n); if (byName[n] && !byName[n].team) { byName[n].team = draftTeamName(c); byName[n].pick = pickLabel(L, i); } });
+    lateOf(L).forEach(([n, c]) => { if (byName[n] && !byName[n].team) { byName[n].team = draftTeamName(c); byName[n].pick = "Late add"; } });
   }
   captains = players.filter(p => p.pos === "QB").map(p => p.name);
   // Draft pool (mock + live): ranked FLEX players only. Unranked = not playing this year, so they stay on the
@@ -1078,14 +1085,59 @@ function editTeam(c){ TBC.openTeamEditor(c); }
 function liveTeamFor(L, i){ const n = L.order.length, r = Math.floor(i / n), s = i % n; return L.order[r % 2 === 0 ? s : n - 1 - s]; }   // snake slot
 // Trades move picks and players (draft.owners / draft.moved, same rules as firestore.rules):
 function pickOwnerOf(L, i){ return (L.owners || {})[String(i)] || liveTeamFor(L, i); }
-function playerOwnerOf(L, name){ const i = (L.picks || []).indexOf(name); return i < 0 ? null : ((L.moved || {})[name] || pickOwnerOf(L, i)); }
-function pickLabel(L, i){ const n = L.order.length; return `${Math.floor(i / n) + 1}.${String(i % n + 1).padStart(2, "0")}`; }
-function rosterOf(L, c){ return (L.picks || []).map((name, i) => ({name, i})).filter(r => playerOwnerOf(L, r.name) === c); }
+// Late adds (draft.late {player: captain}): players an editor put on a team without being drafted. They have no pick (i = -1).
+function playerOwnerOf(L, name){ const i = (L.picks || []).indexOf(name); return i < 0 ? ((L.late || {})[name] || null) : ((L.moved || {})[name] || pickOwnerOf(L, i)); }
+function pickLabel(L, i){ if (i < 0) return "Late add"; const n = L.order.length; return `${Math.floor(i / n) + 1}.${String(i % n + 1).padStart(2, "0")}`; }
+function pickTxt(L, i){ return i < 0 ? "Late add" : "Pick " + pickLabel(L, i); }
+function lateOf(L){ const picks = L.picks || []; return Object.entries(L.late || {}).filter(([n, c]) => c && !picks.includes(n) && L.order.includes(c)); }
+function rosterOf(L, c){ return [...(L.picks || []).map((name, i) => ({name, i})), ...lateOf(L).map(([name]) => ({name, i: -1}))].filter(r => playerOwnerOf(L, r.name) === c); }
 function futurePicksOf(L, c){ const out = []; for (let i = (L.picks || []).length; i < (L.pool || []).length; i++) if (pickOwnerOf(L, i) === c) out.push(i); return out; }
 function offersToMe(){ const me = myCap(); return me && window.TBC ? (TBC.trades || []).filter(t => t.status === "pending" && t.to === me) : []; }
 window.tbCaptains = () => captains; window.draftTeamName = draftTeamName;
 let LIVE_SETUP = null, LIVE_SETUP_FROM = null;      // captain order being set up before the start (editors only, not saved until Start)
 let LIVE_SEEN = null;       // number of picks already shown, to flash the newest one
+// 🆕 Late adds (editors + admin, any time, also after the draft is done): put a player who wasn't drafted straight on a team.
+// Lists every board player who isn't a captain, wasn't drafted, isn't still in the live pool and isn't on a team yet;
+// and the late adds so far (change team / remove).
+function lateBox(host, L, done){
+  if (!window.TBC || !TBC.canEdit()) return;
+  const late = lateOf(L), picks = L.picks || [], undrafted = done ? [] : (L.pool || []);
+  const free = players.filter(p => p.pos !== "QB" && !captains.includes(p.name) && !picks.includes(p.name) && !(L.late || {})[p.name] && !undrafted.includes(p.name)).map(p => p.name);
+  const box = document.createElement("div"); box.className = "lv-addpool lv-late";
+  const teamOpts = val => `<option value="">Pick a team…</option>` + L.order.map(c => `<option value="${esc2(c)}" ${c === val ? "selected" : ""}>${esc2(draftTeamName(c))}</option>`).join("");
+  box.innerHTML = `<h3>🆕 Late adds${late.length ? ` (${late.length})` : ""}</h3><div class="psub" style="margin-bottom:6px">Someone joining after the draft? Put them straight on a team${done ? " (the draft stays complete)" : ""}. New people go on the Draft Board first (+ Add player).</div>`;
+  const save = async (el, name, cap) => {
+    el.disabled = true;
+    try { await TBC.setLate(name, cap); }
+    catch(err){ el.disabled = false; alert("Couldn't save: " + (err.code === "permission-denied" ? "only editors and Jack can do this." : err.message)); }
+  };
+  const playerRow = name => {
+    const p = byName[name], r = document.createElement("div"); r.className = "ap ro";
+    if (p) { r.style.setProperty("--tc", `var(--t-${p.tier})`); r.appendChild(headshot(p)); }
+    r.insertAdjacentHTML("beforeend", `<div style="flex:1 1 140px"><div class="pname" style="font-size:14px">${esc2(name)}</div><div class="psub">${p ? (p.tier === "NA" ? "Not ranked" : p.prank) : ""}</div></div>`);
+    return r;
+  };
+  late.forEach(([name, cap]) => {
+    const r = playerRow(name), sel = document.createElement("select"); sel.className = "lv-late-sel"; sel.innerHTML = teamOpts(cap);
+    sel.onchange = () => { if (sel.value && sel.value !== cap) save(sel, name, sel.value); else sel.value = cap; };
+    r.appendChild(sel);
+    const x = document.createElement("button"); x.className = "btn"; x.textContent = "Remove"; x.title = "Take " + name + " off the team";
+    x.onclick = () => { if (confirm(`Take ${name} off ${draftTeamName(cap)}?`)) save(x, name, null); };
+    r.appendChild(x); box.appendChild(r);
+  });
+  if (free.length) {
+    const r = document.createElement("div"); r.className = "lv-late-add";
+    r.innerHTML = `<select class="lv-late-sel lv-late-p"><option value="">Player…</option>${free.map(n => `<option value="${esc2(n)}">${esc2(n)}${byName[n] && byName[n].tier === "NA" ? " (not ranked)" : ""}</option>`).join("")}</select><select class="lv-late-sel lv-late-t">${teamOpts("")}</select>`;
+    const b = document.createElement("button"); b.className = "btn primary"; b.textContent = "Add to team";
+    b.onclick = () => {
+      const n = r.querySelector(".lv-late-p").value, c = r.querySelector(".lv-late-t").value;
+      if (!n || !c) return alert("Pick a player and a team.");
+      if (confirm(`Put ${n} on ${draftTeamName(c)}?`)) save(b, n, c);
+    };
+    r.appendChild(b); box.appendChild(r);
+  } else if (!late.length) box.insertAdjacentHTML("beforeend", `<div class="psub">Everyone on the board is already on a team${done ? "" : " or in the draft pool"}.</div>`);
+  host.appendChild(box);
+}
 function renderLive(board){
   const L = window.TBC && TBC.live, ed = !!(window.TBC && TBC.canEdit()), admin = !!(window.TBC && TBC.role === "admin");
   const wrap = document.createElement("div"); wrap.className = "md";
@@ -1192,11 +1244,12 @@ function renderLive(board){
       try { await TBC.liveReset(); LIVE_SEEN = null; } catch(err){ alert(err.message); }
     }, "lv-danger");
     left.appendChild(b);
+    lateBox(left, L, done);
     // Ranked FLEX players on the board who aren't in the locked pool (added or re-tiered after the start): editors add them.
-    const missing = pool.filter(x => !(L.pool || []).includes(x));
+    const missing = pool.filter(x => !(L.pool || []).includes(x) && !(L.late || {})[x]);
     if (missing.length && (!done || admin)) {
       const box = document.createElement("div"); box.className = "lv-addpool";
-      box.innerHTML = `<h3>➕ Not in the draft pool (${missing.length})</h3><div class="psub" style="margin-bottom:6px">On the board after the draft started. Add them so they can be drafted (they go to the end of the pool${done ? " and reopen the draft" : ""}).</div>`;
+      box.innerHTML = `<h3>➕ Not in the draft pool (${missing.length})</h3><div class="psub" style="margin-bottom:6px">On the board after the draft started. Add them so they can be drafted (they go to the end of the pool${done ? " and reopen the draft" : ""}), or put them straight on a team in Late adds above.</div>`;
       missing.forEach(x => {
         const p = byName[x], r = document.createElement("div"); r.className = "ap ro";
         if (p) { r.style.setProperty("--tc", `var(--t-${p.tier})`); r.appendChild(headshot(p)); }
@@ -1214,7 +1267,7 @@ function renderLive(board){
   }
   if (!done) {
     const q = document.getElementById("q").value.trim().toLowerCase();
-    const avail = (L.pool || []).filter(x => !picks.includes(x))
+    const avail = (L.pool || []).filter(x => !picks.includes(x) && !(L.late || {})[x])
       .sort((a, b) => (byName[a] ? players.indexOf(byName[a]) : 1e6) - (byName[b] ? players.indexOf(byName[b]) : 1e6))
       .filter(x => !q || x.toLowerCase().includes(q));
     const canPick = ed || mine;
@@ -1373,8 +1426,8 @@ function renderTeams(board){
   };
   row(c, "Captain · QB");
   ros.forEach(x => {
-    const p = byName[x.name], viaT = (L.moved || {})[x.name] && L.moved[x.name] !== pickOwnerOf(L, x.i);
-    row(x.name, `${p ? p.prank + " · " : ""}Pick ${pickLabel(L, x.i)}${viaT ? ` · ⇄ from ${esc2(draftTeamName(pickOwnerOf(L, x.i)))}` : ""}`);
+    const p = byName[x.name], viaT = x.i >= 0 && (L.moved || {})[x.name] && L.moved[x.name] !== pickOwnerOf(L, x.i);
+    row(x.name, `${p ? p.prank + " · " : ""}${pickTxt(L, x.i)}${viaT ? ` · ⇄ from ${esc2(draftTeamName(pickOwnerOf(L, x.i)))}` : ""}`);
   });
   left.appendChild(list);
   if (!L) left.insertAdjacentHTML("beforeend", `<div class="psub" style="margin-top:8px">The roster fills in during the live draft.</div>`);
@@ -1422,7 +1475,7 @@ function openTradeBuilder(from, to){
   const close = () => ov.remove();
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
   const items = c => [
-    ...rosterOf(L, c).map(r => ({k: "n:" + r.name, label: r.name, sub: (byName[r.name] ? byName[r.name].tier + " tier · " : "") + "drafted " + pickLabel(L, r.i)})),
+    ...rosterOf(L, c).filter(r => r.i >= 0).map(r => ({k: "n:" + r.name, label: r.name, sub: (byName[r.name] ? byName[r.name].tier + " tier · " : "") + "drafted " + pickLabel(L, r.i)})),
     ...futurePicksOf(L, c).map(i => ({k: "p:" + i, label: "Pick " + pickLabel(L, i), sub: "#" + (i + 1) + " overall"})),
   ];
   const draw = () => {

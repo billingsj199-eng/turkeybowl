@@ -83,7 +83,8 @@ service cloud.firestore {
     match /draft/{season} {
       allow read: if true;
       function validDraft(d) {
-        return d.keys().hasOnly(['status', 'order', 'pool', 'picks', 'owners', 'moved', 'tradesDone', 'by', 'at'])
+        return d.keys().hasOnly(['status', 'order', 'pool', 'picks', 'owners', 'moved', 'tradesDone', 'late', 'by', 'at'])
+          && (!('late' in d) || (d.late is map && d.late.size() <= 100))
           && d.keys().hasAll(['status', 'order', 'pool', 'picks', 'by', 'at'])
           && d.status in ['live', 'done']
           && d.order is list && d.order.size() >= 2 && d.order.size() <= 20
@@ -126,6 +127,10 @@ service cloud.firestore {
            == pickOwner(resource.data.get('owners', {}), resource.data.order, resource.data.picks.size());
       // Applying an accepted trade (same commit as trades/{id} going pending -> accepted).
       allow update: if signedIn() && tradeApplied(season);
+      // Late adds: an editor (or the admin) puts a player who wasn't drafted on a team, or changes/removes that,
+      // any time (also after the draft is done). draft.late {player: captain}. Nothing else in the draft changes.
+      allow update: if isEditor() && validDraft(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['late', 'by', 'at']);
       allow delete: if isAdmin();
     }
 

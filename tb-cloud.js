@@ -3,7 +3,8 @@
 //   players/{slug}  {num, age, ht "5-11", wt, nickname, comp:{name,team,league,id,img}|null, college:{name,id|null}|null, tier, name+added (players added on the site), by, at}
 //   board/order     {order: [slug, ...], by, at}  - drag-and-drop order on the Draft Board (tiers stay on players/{slug})
 //   draft/<season>  the live draft: {status: "live"|"done", order: [captains], pool: [players], picks: [names],
-//                   owners: {"<pick index>": captain} (traded picks), moved: {player: captain} (traded players), tradesDone: [trade ids], by, at}
+//                   owners: {"<pick index>": captain} (traded picks), moved: {player: captain} (traded players), tradesDone: [trade ids],
+//                   late: {player: captain} (late adds: players editors put on a team without being drafted), by, at}
 //   trades/{id}     trade offers: {season, from, to, givePicks/getPicks: ["<pick index>"], givePlayers/getPlayers: [names],
 //                   givePlayerIdx/getPlayerIdx: [pick index], note, status: pending|accepted|declined|cancelled, by, at}
 //   lottery/<season> {order: [captains], id, by, at}  - draft lottery result (everyone on Live Draft watches it run)
@@ -139,7 +140,7 @@ TBC.livePick = async (name, expect) => runTransaction(db, async tx => {
   const d = s.data();
   if (d.status !== "live") throw new Error("The draft is over.");
   if (d.picks.length !== expect) throw new Error("Another pick just came in. Check the board and try again.");
-  if (d.picks.includes(name) || !d.pool.includes(name)) throw new Error(name + " can't be picked.");
+  if (d.picks.includes(name) || !d.pool.includes(name) || (d.late || {})[name]) throw new Error(name + " can't be picked.");
   const picks = [...d.picks, name];
   tx.update(draftRef, {picks, status: picks.length >= d.pool.length ? "done" : "live", by: by(), at: serverTimestamp()});
 });
@@ -148,7 +149,20 @@ TBC.liveAddToPool = async name => runTransaction(db, async tx => {
   const s = await tx.get(draftRef); if (!s.exists()) throw new Error("The draft isn't running.");
   const d = s.data();
   if (d.pool.includes(name)) throw new Error(name + " is already in the pool.");
+  if ((d.late || {})[name]) throw new Error(name + " is already on a team (late add).");
   tx.update(draftRef, {pool: [...d.pool, name], status: "live", by: by(), at: serverTimestamp()});
+});
+// Late add: put a player who wasn't drafted on a team (cap), or take him off (cap = null). Editors + admin, any time,
+// also after the draft is done. Stored as draft.late {player: captain}; rosters everywhere include them.
+TBC.setLate = async (name, cap) => runTransaction(db, async tx => {
+  const s = await tx.get(draftRef); if (!s.exists()) throw new Error("There's no draft yet for this season.");
+  const d = s.data(), late = {...(d.late || {})};
+  if (cap) {
+    if ((d.picks || []).includes(name)) throw new Error(name + " was drafted, so he's already on a team (use a trade to move him).");
+    if (!d.order.includes(cap)) throw new Error("That team isn't in this draft.");
+    late[name] = cap;
+  } else delete late[name];
+  tx.update(draftRef, {late, by: by(), at: serverTimestamp()});
 });
 TBC.liveUndo = async expect => runTransaction(db, async tx => {
   const s = await tx.get(draftRef); if (!s.exists()) return;
@@ -163,7 +177,7 @@ TBC.liveUndo = async expect => runTransaction(db, async tx => {
 // moved[name] or whoever made that pick.
 const snakeOwner = (d, i) => { const n = d.order.length, r = Math.floor(i / n), s = i % n; return d.order[r % 2 === 0 ? s : n - 1 - s]; };
 TBC.pickOwner = (d, i) => (d.owners || {})[String(i)] || snakeOwner(d, i);
-TBC.playerOwner = (d, name) => { const i = (d.picks || []).indexOf(name); return i < 0 ? null : ((d.moved || {})[name] || TBC.pickOwner(d, i)); };
+TBC.playerOwner = (d, name) => { const i = (d.picks || []).indexOf(name); return i < 0 ? ((d.late || {})[name] || null) : ((d.moved || {})[name] || TBC.pickOwner(d, i)); };
 // Why a pending trade can't go through any more ("" = still fine).
 TBC.tradeProblem = (t, d) => {
   if (!d) return "The draft isn't running.";
