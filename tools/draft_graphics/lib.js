@@ -101,7 +101,7 @@ async function load(fillTo = null) {
       roster, next: nextI == null ? null : { label: label(nextI), team: teamName(owner(nextI)), color: teamColor(owner(nextI)) },
     };
   };
-  return { SEASON, L, n, rounds, picks, sample, pickData, label, owner, snake, team, teamName, teamColor, img, byName, TI, grade };
+  return { SEASON, L, n, rounds, picks, sample, pickData, label, owner, snake, holder, team, teamName, teamColor, img, byName, TI, grade, prof, slug, honors, moveTxt, ht };
 }
 
 // Write the pages, then screenshot each slide (1080x1350) into pngDir. names[k] = file name of slide k (no .png).
